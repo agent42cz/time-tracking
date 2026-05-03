@@ -22,3 +22,6 @@ export const WsEventSchema = z.object({
 });
 
 export type WsEvent = z.infer<typeof WsEventSchema>;
+
+export { createWsClient } from './client.js';
+export type { WsClient, WsClientOpts, WsListener } from './client.js';

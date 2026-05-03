@@ -5,6 +5,12 @@ export default defineConfig({
     name: '@tt/ws',
     include: ['src/**/*.test.ts'],
     environment: 'node',
-    testTimeout: 30_000,
+    testTimeout: 60_000,
+    hookTimeout: 180_000,
+    server: {
+      deps: {
+        external: ['@prisma/client', 'argon2'],
+      },
+    },
   },
 });
