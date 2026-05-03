@@ -1,0 +1,119 @@
+{
+  "app": {
+    "title": "Sledování času",
+    "tagline": "Self-hostovaný tracker pro agenturu i osobní použití"
+  },
+  "nav": {
+    "timer": "Stopky",
+    "timesheet": "Výkaz",
+    "clients": "Klienti",
+    "projects": "Projekty",
+    "tags": "Štítky",
+    "members": "Členové",
+    "dashboard": "Dashboard",
+    "reports": "Reporty",
+    "audit": "Audit",
+    "trash": "Koš",
+    "settings": "Nastavení",
+    "companies": "Firmy",
+    "logout": "Odhlásit se"
+  },
+  "auth": {
+    "loginTitle": "Přihlášení",
+    "email": "E-mail",
+    "password": "Heslo",
+    "submit": "Přihlásit",
+    "magicLink": "Poslat odkaz na e-mail",
+    "totpRequired": "Zadejte šestimístný kód z autentikační aplikace",
+    "totpCode": "Kód",
+    "logoutSuccess": "Odhlášeno",
+    "invalidCredentials": "Neplatné přihlašovací údaje",
+    "locked": "Účet je dočasně uzamčen kvůli mnoha neúspěšným pokusům"
+  },
+  "invite": {
+    "title": "Pozvánka do firmy",
+    "createAccount": "Vytvořit účet",
+    "fullName": "Jméno a příjmení",
+    "expired": "Platnost pozvánky vypršela",
+    "alreadyAccepted": "Pozvánka již byla přijata",
+    "revoked": "Pozvánka byla zrušena"
+  },
+  "timer": {
+    "start": "Spustit",
+    "stop": "Zastavit",
+    "running": "Běží",
+    "description": "Popis činnosti",
+    "client": "Klient",
+    "project": "Projekt",
+    "tags": "Štítky",
+    "today": "Dnes",
+    "yesterday": "Včera",
+    "addManual": "Přidat ručně",
+    "playAgain": "Spustit znovu"
+  },
+  "manual": {
+    "title": "Ruční zápis",
+    "date": "Datum",
+    "from": "Od",
+    "to": "Do",
+    "save": "Uložit",
+    "endBeforeStart": "Konec musí být po začátku",
+    "futureNotAllowed": "Budoucí čas není povolen"
+  },
+  "dashboard": {
+    "headline": "Souhrn",
+    "totalHours": "Hodiny celkem",
+    "activeMembers": "Aktivní členové",
+    "clientsCount": "Klienti",
+    "projectsCount": "Projekty",
+    "people": "Lidé a čas",
+    "clientShare": "Podíl klientů",
+    "topProjects": "Top projekty",
+    "inactive": "Členové bez záznamu",
+    "daily": "Denní rozpis",
+    "period": {
+      "today": "Dnes",
+      "week": "Tento týden",
+      "month": "Tento měsíc",
+      "custom": "Vlastní rozsah"
+    }
+  },
+  "reports": {
+    "title": "Reporty",
+    "filters": "Filtry",
+    "export": {
+      "csv": "Export CSV",
+      "xlsx": "Export XLSX",
+      "pdf": "Export PDF"
+    }
+  },
+  "members": {
+    "title": "Členové",
+    "invite": "Pozvat",
+    "role": "Role",
+    "admin": "Správce",
+    "user": "Člen",
+    "remove": "Odebrat",
+    "lastAdminBlocked": "Nelze odebrat posledního správce"
+  },
+  "trash": {
+    "title": "Koš",
+    "restore": "Obnovit",
+    "purgeAfter": "Trvale smazáno po 30 dnech"
+  },
+  "settings": {
+    "title": "Nastavení",
+    "profile": "Profil",
+    "password": "Změna hesla",
+    "twoFa": "Dvoufaktorové ověření",
+    "twoFaEnable": "Zapnout 2FA",
+    "twoFaDisable": "Vypnout 2FA",
+    "recoveryCodes": "Záložní kódy",
+    "leaveCompany": "Opustit firmu"
+  },
+  "errors": {
+    "notFound": "Nenalezeno",
+    "forbidden": "Přístup zamítnut",
+    "tryAgain": "Zkusit znovu"
+  }
+}
