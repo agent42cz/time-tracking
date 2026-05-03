@@ -1,0 +1,123 @@
+# Production stack — Coolify-deployable.
+#
+# Per BUILD-PROMPT §6 Phase 10: services use `expose:` only (NOT `ports:`)
+# so Coolify's Traefik routes traffic internally. Binding host ports
+# would collide with Traefik on the same node.
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-timetracker}
+      POSTGRES_USER: ${POSTGRES_USER:-timetracker}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?required}
+    expose:
+      - '5432'
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB']
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    expose:
+      - '6379'
+    command: ['redis-server', '--appendonly', 'yes']
+    volumes:
+      - redisdata:/data
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  web:
+    build:
+      context: .
+      dockerfile: docker/web.Dockerfile
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: postgresql://${POSTGRES_USER:-timetracker}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-timetracker}?schema=public
+      REDIS_URL: redis://redis:6379
+      AUTH_SECRET: ${AUTH_SECRET:?required}
+      AUTH_URL: ${AUTH_URL:?required}
+      APP_URL: ${APP_URL:?required}
+      WS_PUBLIC_URL: ${WS_PUBLIC_URL:?required}
+      SMTP_HOST: ${SMTP_HOST:?required}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USER: ${SMTP_USER}
+      SMTP_PASS: ${SMTP_PASS}
+      SMTP_FROM: ${SMTP_FROM:?required}
+    expose:
+      - '3000'
+    healthcheck:
+      test: ['CMD-SHELL', 'wget -qO- http://localhost:3000/api/health || exit 1']
+      interval: 15s
+      timeout: 5s
+      retries: 6
+
+  ws:
+    build:
+      context: .
+      dockerfile: docker/ws.Dockerfile
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      WS_PORT: '3001'
+      DATABASE_URL: postgresql://${POSTGRES_USER:-timetracker}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-timetracker}?schema=public
+      REDIS_URL: redis://redis:6379
+    expose:
+      - '3001'
+    healthcheck:
+      test: ['CMD-SHELL', 'wget -qO- http://localhost:3001/ || exit 1']
+      interval: 15s
+      timeout: 5s
+      retries: 6
+
+  db-backup:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      PGUSER: ${POSTGRES_USER:-timetracker}
+      PGPASSWORD: ${POSTGRES_PASSWORD}
+      PGHOST: postgres
+      PGDATABASE: ${POSTGRES_DB:-timetracker}
+      BACKUP_RETENTION_DAYS: ${BACKUP_RETENTION_DAYS:-14}
+    volumes:
+      - ${BACKUP_DESTINATION:-./backups}:/backups
+    entrypoint: ['/bin/sh', '-c']
+    command:
+      - |
+        set -eu
+        echo "db-backup: starting daily loop"
+        while true; do
+          ts=$$(date -u +%Y%m%d-%H%M%S)
+          pg_dump -Fc -f /backups/$${PGDATABASE}-$${ts}.dump
+          # Retention: prune dumps older than $$BACKUP_RETENTION_DAYS days.
+          find /backups -type f -name "*.dump" -mtime +$${BACKUP_RETENTION_DAYS} -delete || true
+          # Sleep until next 03:00 UTC (or 24h, whichever is sooner).
+          sleep 86400
+        done
+
+volumes:
+  pgdata:
+  redisdata:
