@@ -118,7 +118,7 @@ describe('login', () => {
 
   it('US-5: session lasts 30 days; renews when within sliding threshold', async () => {
     await withTx(async (tx) => {
-      const u = await makeUser(tx, { email: 'us5@example.test', password: 'CorrectHorseBattery42!' });
+      await makeUser(tx, { email: 'us5@example.test', password: 'CorrectHorseBattery42!' });
       const t0 = new Date('2026-05-01T00:00:00Z');
       const result = await loginWithPassword(
         tx,

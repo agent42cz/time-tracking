@@ -2,7 +2,7 @@
  * Publisher used by the web app to emit events. Single Redis client per
  * process, lazily initialized.
  */
-import Redis from 'ioredis';
+import { Redis } from 'ioredis';
 import type { WsEvent } from '@tt/shared/ws';
 
 let _client: Redis | undefined;

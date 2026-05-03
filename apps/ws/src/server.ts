@@ -14,9 +14,9 @@
  * they must reconnect to lose access.
  */
 import { createHash } from 'node:crypto';
-import { IncomingMessage, type Server } from 'node:http';
+import type { IncomingMessage, Server } from 'node:http';
 import { WebSocketServer, type WebSocket } from 'ws';
-import Redis from 'ioredis';
+import { Redis } from 'ioredis';
 import type { PrismaClient } from '@prisma/client';
 
 export interface AuthInfo {
@@ -84,7 +84,7 @@ export function buildWsServer(opts: BuildOptions): BuiltWsServer {
   sub.psubscribe('user:*', 'company:*').catch((err: unknown) => {
     process.stderr.write(`ws: psubscribe failed: ${String(err)}\n`);
   });
-  sub.on('pmessage', (_pattern, channel, message) => {
+  sub.on('pmessage', (_pattern: string, channel: string, message: string) => {
     let payload: unknown;
     try {
       payload = JSON.parse(message);
