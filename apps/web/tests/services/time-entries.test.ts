@@ -1,0 +1,364 @@
+/**
+ * Phase 5 — Time entries tests.
+ * Covers US-19, US-20, US-21, US-22, US-23, US-24, US-25, US-26, US-27, US-28.
+ *
+ * Audit assertion: every mutation produces exactly one audit row in the
+ * AuditLog table.
+ */
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import type { Prisma } from '@prisma/client';
+import { getTestPrisma, stopTestPrisma, withTx } from '@tt/db/test';
+import { createCompany } from '../../src/lib/services/companies.js';
+import { createClient, createTag } from '../../src/lib/services/catalog.js';
+import {
+  createManualEntry,
+  getEntryHistory,
+  listMyWeek,
+  listTrash,
+  purgeOldDeleted,
+  restoreEntry,
+  softDeleteEntry,
+  startTimer,
+  stopTimer,
+  updateEntry,
+} from '../../src/lib/services/time-entries.js';
+
+beforeAll(async () => {
+  await getTestPrisma();
+}, 180_000);
+afterAll(async () => {
+  await stopTestPrisma();
+}, 30_000);
+
+interface World {
+  admin: string;
+  user: string;
+  outsider: string;
+  company: string;
+  tagId: string;
+}
+
+async function bootstrap(tx: Prisma.TransactionClient, suffix: string): Promise<World> {
+  const admin = await tx.user.create({ data: { email: `te-a-${suffix}@x.test`, fullName: 'A' } });
+  const user = await tx.user.create({ data: { email: `te-u-${suffix}@x.test`, fullName: 'U' } });
+  const outsider = await tx.user.create({
+    data: { email: `te-o-${suffix}@x.test`, fullName: 'O' },
+  });
+  const company = await createCompany(tx, { name: `TE ${suffix}`, createdByUserId: admin.id });
+  await tx.membership.create({ data: { userId: user.id, companyId: company.id, role: 'user' } });
+  await createCompany(tx, { name: `Other ${suffix}`, createdByUserId: outsider.id });
+  const tag = await createTag(tx, admin.id, { companyId: company.id, name: 'work' });
+  if (!tag.ok) throw new Error('setup');
+  return {
+    admin: admin.id,
+    user: user.id,
+    outsider: outsider.id,
+    company: company.id,
+    tagId: tag.value.id,
+  };
+}
+
+async function auditCount(tx: Prisma.TransactionClient, entryId: string): Promise<number> {
+  return tx.auditLog.count({ where: { entityType: 'TimeEntry', entityId: entryId } });
+}
+
+describe('time entries', () => {
+  it('US-19: starts a timer with one click + description', async () => {
+    await withTx(async (tx) => {
+      const w = await bootstrap(tx, 'us19');
+      const r = await startTimer(tx, w.user, {
+        companyId: w.company,
+        description: 'Writing tests',
+      });
+      expect(r.ok).toBe(true);
+      if (!r.ok) return;
+      const entry = await tx.timeEntry.findUniqueOrThrow({ where: { id: r.value.id } });
+      expect(entry.endedAt).toBeNull();
+      expect(entry.description).toBe('Writing tests');
+      expect(await auditCount(tx, r.value.id)).toBe(1);
+    });
+  });
+
+  it('US-20: attaches client/project/tags after the timer is running', async () => {
+    await withTx(async (tx) => {
+      const w = await bootstrap(tx, 'us20');
+      const c = await createClient(tx, w.admin, { companyId: w.company, name: 'Acme' });
+      if (!c.ok) throw new Error('setup');
+      const start = await startTimer(tx, w.user, { companyId: w.company, description: 'work' });
+      if (!start.ok) throw new Error('setup');
+
+      const upd = await updateEntry(tx, w.user, start.value.id, {
+        clientId: c.value.id,
+        tagIds: [w.tagId],
+      });
+      expect(upd.ok).toBe(true);
+      const reread = await tx.timeEntry.findUniqueOrThrow({
+        where: { id: start.value.id },
+        include: { tags: true },
+      });
+      expect(reread.clientId).toBe(c.value.id);
+      expect(reread.tags).toHaveLength(1);
+      // start + update = 2 audit rows
+      expect(await auditCount(tx, start.value.id)).toBe(2);
+    });
+  });
+
+  it('US-21: starts a second timer while one is already running', async () => {
+    await withTx(async (tx) => {
+      const w = await bootstrap(tx, 'us21');
+      const a = await startTimer(tx, w.user, { companyId: w.company, description: 'first' });
+      const b = await startTimer(tx, w.user, { companyId: w.company, description: 'second' });
+      expect(a.ok && b.ok).toBe(true);
+      if (a.ok && b.ok) {
+        const running = await tx.timeEntry.findMany({
+          where: { userId: w.user, endedAt: null, deletedAt: null },
+        });
+        expect(running.map((r) => r.id).sort()).toEqual([a.value.id, b.value.id].sort());
+      }
+    });
+  });
+
+  it('US-22: stopping a timer makes it appear in todays list', async () => {
+    await withTx(async (tx) => {
+      const w = await bootstrap(tx, 'us22');
+      const t0 = new Date('2026-05-03T10:00:00Z');
+      const a = await startTimer(tx, w.user, { companyId: w.company }, t0);
+      if (!a.ok) throw new Error('setup');
+      const t1 = new Date(t0.getTime() + 5 * 60_000);
+      const stop = await stopTimer(tx, w.user, a.value.id, t1);
+      expect(stop.ok).toBe(true);
+      const list = await listMyWeek(tx, w.user, w.company, {
+        start: new Date('2026-05-03T00:00:00Z'),
+        end: new Date('2026-05-04T00:00:00Z'),
+      });
+      expect(list.ok).toBe(true);
+      if (list.ok) {
+        expect(list.value.find((e) => e.id === a.value.id)).toBeTruthy();
+      }
+      expect(await auditCount(tx, a.value.id)).toBe(2); // create + stop=update
+    });
+  });
+
+  it('US-23: manual entry — past dates allowed, future rejected, end > start required', async () => {
+    await withTx(async (tx) => {
+      const w = await bootstrap(tx, 'us23');
+      const now = new Date('2026-05-03T10:00:00Z');
+      const past = await createManualEntry(
+        tx,
+        w.user,
+        {
+          companyId: w.company,
+          startedAt: new Date('2026-04-15T08:00:00Z'),
+          endedAt: new Date('2026-04-15T09:00:00Z'),
+          description: 'Backfill',
+        },
+        now,
+      );
+      expect(past.ok).toBe(true);
+
+      const future = await createManualEntry(
+        tx,
+        w.user,
+        {
+          companyId: w.company,
+          startedAt: new Date('2026-05-03T11:00:00Z'),
+          endedAt: new Date('2026-05-03T12:00:00Z'),
+        },
+        now,
+      );
+      expect(future.ok).toBe(false);
+      if (!future.ok) expect(future.reason).toBe('future_timestamp');
+
+      const reversed = await createManualEntry(
+        tx,
+        w.user,
+        {
+          companyId: w.company,
+          startedAt: new Date('2026-05-01T10:00:00Z'),
+          endedAt: new Date('2026-05-01T09:00:00Z'),
+        },
+        now,
+      );
+      expect(reversed.ok).toBe(false);
+      if (!reversed.ok) expect(reversed.reason).toBe('invalid_window');
+    });
+  });
+
+  it('US-24: a user can edit any field of their own past entry', async () => {
+    await withTx(async (tx) => {
+      const w = await bootstrap(tx, 'us24');
+      const now = new Date('2026-05-03T10:00:00Z');
+      const m = await createManualEntry(
+        tx,
+        w.user,
+        {
+          companyId: w.company,
+          startedAt: new Date('2026-04-15T08:00:00Z'),
+          endedAt: new Date('2026-04-15T09:00:00Z'),
+        },
+        now,
+      );
+      if (!m.ok) throw new Error('setup');
+      const upd = await updateEntry(tx, w.user, m.value.id, {
+        description: 'Edited',
+        tagIds: [w.tagId],
+      });
+      expect(upd.ok).toBe(true);
+      const reread = await tx.timeEntry.findUniqueOrThrow({
+        where: { id: m.value.id },
+        include: { tags: true },
+      });
+      expect(reread.description).toBe('Edited');
+      expect(reread.tags).toHaveLength(1);
+    });
+  });
+
+  it('US-25: soft-deleting hides the entry from normal queries (US-47 too)', async () => {
+    await withTx(async (tx) => {
+      const w = await bootstrap(tx, 'us25');
+      const a = await startTimer(tx, w.user, { companyId: w.company });
+      if (!a.ok) throw new Error('setup');
+      const del = await softDeleteEntry(tx, w.user, a.value.id);
+      expect(del.ok).toBe(true);
+      const list = await listMyWeek(tx, w.user, w.company, {
+        start: new Date(Date.now() - 7 * 86_400_000),
+        end: new Date(Date.now() + 7 * 86_400_000),
+      });
+      expect(list.ok).toBe(true);
+      if (list.ok) expect(list.value.find((e) => e.id === a.value.id)).toBeUndefined();
+    });
+  });
+
+  it('US-26: lists my week grouped by day with daily totals (data shape)', async () => {
+    await withTx(async (tx) => {
+      const w = await bootstrap(tx, 'us26');
+      const now = new Date('2026-05-03T10:00:00Z');
+      await createManualEntry(
+        tx,
+        w.user,
+        {
+          companyId: w.company,
+          startedAt: new Date('2026-04-29T09:00:00Z'),
+          endedAt: new Date('2026-04-29T10:00:00Z'),
+        },
+        now,
+      );
+      await createManualEntry(
+        tx,
+        w.user,
+        {
+          companyId: w.company,
+          startedAt: new Date('2026-04-30T11:00:00Z'),
+          endedAt: new Date('2026-04-30T12:00:00Z'),
+        },
+        now,
+      );
+      const list = await listMyWeek(tx, w.user, w.company, {
+        start: new Date('2026-04-27T00:00:00Z'),
+        end: new Date('2026-05-04T00:00:00Z'),
+      });
+      expect(list.ok).toBe(true);
+      if (list.ok) {
+        expect(list.value).toHaveLength(2);
+        const totalMs = list.value.reduce(
+          (acc, e) => acc + ((e.endedAt?.getTime() ?? 0) - e.startedAt.getTime()),
+          0,
+        );
+        expect(totalMs).toBe(2 * 60 * 60 * 1000);
+      }
+    });
+  });
+
+  it('US-27: shows the change history of a single entry', async () => {
+    await withTx(async (tx) => {
+      const w = await bootstrap(tx, 'us27');
+      const a = await startTimer(tx, w.user, {
+        companyId: w.company,
+        description: 'orig',
+      });
+      if (!a.ok) throw new Error('setup');
+      await updateEntry(tx, w.user, a.value.id, { description: 'edit1' });
+      await updateEntry(tx, w.user, a.value.id, { description: 'edit2' });
+      const hist = await getEntryHistory(tx, w.user, a.value.id);
+      expect(hist.ok).toBe(true);
+      if (hist.ok) {
+        expect(hist.value).toHaveLength(3); // create + 2 updates
+        expect(hist.value[0]!.action).toBe('create');
+        expect(hist.value[2]!.action).toBe('update');
+      }
+
+      // outsider gets 404
+      const cross = await getEntryHistory(tx, w.outsider, a.value.id);
+      expect(cross.ok).toBe(false);
+    });
+  });
+
+  it('US-28: admin can edit and soft-delete any users entry; user cannot edit anothers', async () => {
+    await withTx(async (tx) => {
+      const w = await bootstrap(tx, 'us28');
+      const a = await startTimer(tx, w.user, {
+        companyId: w.company,
+        description: 'mine',
+      });
+      if (!a.ok) throw new Error('setup');
+
+      // admin can edit
+      const adminEdit = await updateEntry(tx, w.admin, a.value.id, { description: 'admin-edit' });
+      expect(adminEdit.ok).toBe(true);
+
+      // outsider cannot
+      const outEdit = await updateEntry(tx, w.outsider, a.value.id, { description: 'evil' });
+      expect(outEdit.ok).toBe(false);
+
+      // admin soft-deletes
+      const adminDel = await softDeleteEntry(tx, w.admin, a.value.id);
+      expect(adminDel.ok).toBe(true);
+
+      // admin restores
+      const restore = await restoreEntry(tx, w.admin, a.value.id);
+      expect(restore.ok).toBe(true);
+    });
+  });
+
+  it('purge cron deletes only entries soft-deleted >30 days ago', async () => {
+    await withTx(async (tx) => {
+      const w = await bootstrap(tx, 'purge');
+      const old = await tx.timeEntry.create({
+        data: {
+          userId: w.user,
+          companyId: w.company,
+          startedAt: new Date('2026-01-01T08:00:00Z'),
+          endedAt: new Date('2026-01-01T09:00:00Z'),
+          deletedAt: new Date('2026-02-01T00:00:00Z'),
+        },
+      });
+      const recent = await tx.timeEntry.create({
+        data: {
+          userId: w.user,
+          companyId: w.company,
+          startedAt: new Date('2026-04-15T08:00:00Z'),
+          endedAt: new Date('2026-04-15T09:00:00Z'),
+          deletedAt: new Date('2026-04-25T00:00:00Z'),
+        },
+      });
+      const result = await purgeOldDeleted(tx, new Date('2026-05-03T00:00:00Z'));
+      expect(result.purged).toBe(1);
+      expect(await tx.timeEntry.findUnique({ where: { id: old.id } })).toBeNull();
+      expect(await tx.timeEntry.findUnique({ where: { id: recent.id } })).not.toBeNull();
+    });
+  });
+
+  it('admin sees deleted entries in trash; non-admin does not', async () => {
+    await withTx(async (tx) => {
+      const w = await bootstrap(tx, 'trash');
+      const a = await startTimer(tx, w.user, { companyId: w.company });
+      if (!a.ok) throw new Error('setup');
+      await softDeleteEntry(tx, w.user, a.value.id);
+      const trash = await listTrash(tx, w.admin, w.company);
+      expect(trash.ok).toBe(true);
+      if (trash.ok) expect(trash.value.find((e) => e.id === a.value.id)).toBeTruthy();
+      const userView = await listTrash(tx, w.user, w.company);
+      expect(userView.ok).toBe(false);
+    });
+  });
+});
