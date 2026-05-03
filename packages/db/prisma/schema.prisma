@@ -1,0 +1,303 @@
+// Prisma schema for the time tracker.
+// Matches PRD §3.1 entity model. Auth tables follow Auth.js (NextAuth) v5 conventions.
+
+generator client {
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "linux-musl-openssl-3.0.x"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  admin
+  user
+}
+
+enum InviteStatus {
+  pending
+  accepted
+  revoked
+  expired
+}
+
+enum AuditAction {
+  create
+  update
+  delete
+  restore
+  invite
+  invite_accepted
+  invite_revoked
+  remove_member
+  role_change
+  login
+  logout
+  totp_enable
+  totp_disable
+}
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String?  @map("password_hash")
+  fullName     String   @map("full_name")
+  totpSecret   String?  @map("totp_secret")
+  totpEnabled  Boolean  @default(false) @map("totp_enabled")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  memberships    Membership[]
+  invitesCreated Invite[]              @relation("InviteCreator")
+  timeEntries    TimeEntry[]
+  auditEvents    AuditLog[]            @relation("AuditActor")
+  sessions       Session[]
+  accounts       Account[]
+  recoveryCodes  TotpRecoveryCode[]
+  loginAttempts  PasswordLoginAttempt[]
+  magicLinks     MagicLink[]
+
+  @@map("users")
+}
+
+model Company {
+  id          String   @id @default(cuid())
+  name        String
+  slug        String   @unique
+  createdById String?  @map("created_by")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  memberships Membership[]
+  clients     Client[]
+  tags        Tag[]
+  invites     Invite[]
+  timeEntries TimeEntry[]
+  auditLogs   AuditLog[]
+
+  @@map("companies")
+}
+
+model Membership {
+  id        String   @id @default(cuid())
+  userId    String   @map("user_id")
+  companyId String   @map("company_id")
+  role      Role
+  joinedAt  DateTime @default(now()) @map("joined_at")
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, companyId])
+  @@index([companyId])
+  @@map("memberships")
+}
+
+model Invite {
+  id          String       @id @default(cuid())
+  companyId   String       @map("company_id")
+  email       String
+  role        Role
+  token       String       @unique
+  expiresAt   DateTime     @map("expires_at")
+  invitedById String?      @map("invited_by")
+  acceptedAt  DateTime?    @map("accepted_at")
+  status      InviteStatus @default(pending)
+  createdAt   DateTime     @default(now()) @map("created_at")
+
+  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  invitedBy User?   @relation("InviteCreator", fields: [invitedById], references: [id], onDelete: SetNull)
+
+  @@index([companyId, email])
+  @@index([status, expiresAt])
+  @@map("invites")
+}
+
+model Client {
+  id        String   @id @default(cuid())
+  companyId String   @map("company_id")
+  name      String
+  archived  Boolean  @default(false)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  company     Company     @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  projects    Project[]
+  timeEntries TimeEntry[]
+
+  @@unique([companyId, name])
+  @@map("clients")
+}
+
+model Project {
+  id        String   @id @default(cuid())
+  clientId  String   @map("client_id")
+  name      String
+  archived  Boolean  @default(false)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  client      Client      @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  timeEntries TimeEntry[]
+
+  @@unique([clientId, name])
+  @@map("projects")
+}
+
+model Tag {
+  id        String   @id @default(cuid())
+  companyId String   @map("company_id")
+  name      String
+  color     String   @default("#6b7280")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  company     Company           @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  timeEntries TimeEntryTag[]
+
+  @@unique([companyId, name])
+  @@map("tags")
+}
+
+model TimeEntry {
+  id          String    @id @default(cuid())
+  userId      String    @map("user_id")
+  companyId   String    @map("company_id")
+  clientId    String?   @map("client_id")
+  projectId   String?   @map("project_id")
+  description String    @default("")
+  startedAt   DateTime  @map("started_at")
+  endedAt    DateTime? @map("ended_at")
+  deletedAt   DateTime? @map("deleted_at")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  user    User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  company Company        @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  client  Client?        @relation(fields: [clientId], references: [id], onDelete: SetNull)
+  project Project?       @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  tags    TimeEntryTag[]
+
+  @@index([companyId, deletedAt, startedAt])
+  @@index([userId, deletedAt, startedAt])
+  @@index([userId, endedAt]) // running timers (endedAt IS NULL)
+  @@map("time_entries")
+}
+
+model TimeEntryTag {
+  timeEntryId String @map("time_entry_id")
+  tagId       String @map("tag_id")
+
+  timeEntry TimeEntry @relation(fields: [timeEntryId], references: [id], onDelete: Cascade)
+  tag       Tag       @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([timeEntryId, tagId])
+  @@index([tagId])
+  @@map("time_entry_tags")
+}
+
+model AuditLog {
+  id          String      @id @default(cuid())
+  companyId   String      @map("company_id")
+  actorUserId String?     @map("actor_user_id")
+  action      AuditAction
+  entityType  String      @map("entity_type")
+  entityId    String      @map("entity_id")
+  before      Json?
+  after       Json?
+  createdAt   DateTime    @default(now()) @map("created_at")
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  actor   User?   @relation("AuditActor", fields: [actorUserId], references: [id], onDelete: SetNull)
+
+  @@index([companyId, createdAt])
+  @@index([entityType, entityId])
+  @@index([actorUserId])
+  @@map("audit_logs")
+}
+
+// ---- Auth.js (NextAuth v5) tables ----
+model Account {
+  id                String  @id @default(cuid())
+  userId            String  @map("user_id")
+  type              String
+  provider          String
+  providerAccountId String  @map("provider_account_id")
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@map("accounts")
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique @map("session_token")
+  userId       String   @map("user_id")
+  expires      DateTime
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("sessions")
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+  @@map("verification_tokens")
+}
+
+// ---- App-specific auth helpers ----
+model TotpRecoveryCode {
+  id        String    @id @default(cuid())
+  userId    String    @map("user_id")
+  codeHash  String    @map("code_hash")
+  usedAt    DateTime? @map("used_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, codeHash])
+  @@map("totp_recovery_codes")
+}
+
+model PasswordLoginAttempt {
+  id        String   @id @default(cuid())
+  userId    String?  @map("user_id")
+  email     String
+  success   Boolean
+  ip        String?
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([email, createdAt])
+  @@map("password_login_attempts")
+}
+
+model MagicLink {
+  id        String    @id @default(cuid())
+  userId    String    @map("user_id")
+  tokenHash String    @unique @map("token_hash")
+  expiresAt DateTime  @map("expires_at")
+  usedAt    DateTime? @map("used_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, expiresAt])
+  @@map("magic_links")
+}

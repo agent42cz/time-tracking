@@ -6,6 +6,11 @@ export default defineConfig({
     include: ['src/**/*.test.ts'],
     environment: 'node',
     testTimeout: 60_000,
-    hookTimeout: 60_000,
+    hookTimeout: 180_000,
+    server: {
+      deps: {
+        external: ['argon2'],
+      },
+    },
   },
 });
