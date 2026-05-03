@@ -1,0 +1,17 @@
+{
+  "manifest_version": 3,
+  "name": "Time Tracker",
+  "description": "Self-hostovaný time tracker — synchronizuje se s webovou aplikací.",
+  "version": "0.1.0",
+  "default_locale": "cs",
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "Time Tracker"
+  },
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+  "permissions": ["storage", "alarms"],
+  "host_permissions": ["<all_urls>"]
+}

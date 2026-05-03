@@ -4,6 +4,6 @@ export default defineConfig({
   test: {
     name: '@tt/extension',
     include: ['src/**/*.test.ts', 'src/**/*.test.tsx'],
-    environment: 'jsdom',
+    environment: 'node',
   },
 });
