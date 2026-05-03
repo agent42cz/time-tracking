@@ -1,0 +1,64 @@
+/**
+ * Shared time helpers. All app code uses these instead of `Date.now()`
+ * directly so tests can override the clock through `setNowProvider`.
+ */
+import { fromZonedTime, toZonedTime } from 'date-fns-tz';
+import { startOfDay, endOfDay, startOfWeek, endOfWeek, startOfMonth, endOfMonth } from 'date-fns';
+
+export const APP_TIMEZONE = 'Europe/Prague';
+
+type NowProvider = () => Date;
+let nowProvider: NowProvider = () => new Date();
+
+export function setNowProvider(provider: NowProvider | null): void {
+  nowProvider = provider ?? (() => new Date());
+}
+
+export function now(): Date {
+  return nowProvider();
+}
+
+export function toAppZone(d: Date): Date {
+  return toZonedTime(d, APP_TIMEZONE);
+}
+
+export function fromAppZone(d: Date): Date {
+  return fromZonedTime(d, APP_TIMEZONE);
+}
+
+export type Period = 'today' | 'week' | 'month' | 'custom';
+
+export interface PeriodRange {
+  start: Date;
+  end: Date;
+}
+
+export function getPeriodRange(
+  period: Exclude<Period, 'custom'>,
+  reference: Date = now(),
+): PeriodRange {
+  const local = toAppZone(reference);
+  switch (period) {
+    case 'today':
+      return { start: fromAppZone(startOfDay(local)), end: fromAppZone(endOfDay(local)) };
+    case 'week':
+      return {
+        start: fromAppZone(startOfWeek(local, { weekStartsOn: 1 })),
+        end: fromAppZone(endOfWeek(local, { weekStartsOn: 1 })),
+      };
+    case 'month':
+      return { start: fromAppZone(startOfMonth(local)), end: fromAppZone(endOfMonth(local)) };
+  }
+}
+
+export function durationMs(start: Date, end: Date | null): number {
+  return (end ?? now()).getTime() - start.getTime();
+}
+
+export function formatDurationHMS(ms: number): string {
+  const total = Math.max(0, Math.floor(ms / 1000));
+  const h = Math.floor(total / 3600);
+  const m = Math.floor((total % 3600) / 60);
+  const s = total % 60;
+  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+}

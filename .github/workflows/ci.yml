@@ -1,0 +1,96 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  ci:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: timetracker_test
+          POSTGRES_USER: timetracker
+          POSTGRES_PASSWORD: timetracker
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U timetracker -d timetracker_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+      mailhog:
+        image: mailhog/mailhog:latest
+        ports:
+          - 1025:1025
+          - 8025:8025
+
+    env:
+      DATABASE_URL: postgresql://timetracker:timetracker@localhost:5432/timetracker_test?schema=public
+      REDIS_URL: redis://localhost:6379
+      SMTP_HOST: localhost
+      SMTP_PORT: 1025
+      SMTP_FROM: ci@time-tracker.local
+      AUTH_SECRET: ci-test-secret-do-not-use-in-production
+      AUTH_URL: http://localhost:3000
+      APP_URL: http://localhost:3000
+      WS_PORT: 3001
+      NODE_ENV: test
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11.0.4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'pnpm'
+
+      - run: pnpm install --frozen-lockfile
+
+      - run: pnpm lint
+      - run: pnpm typecheck
+      - run: pnpm prisma:generate
+      - run: pnpm test
+      - run: pnpm test:trace
+
+      - name: Install Playwright browsers
+        run: pnpm exec playwright install --with-deps chromium
+
+      - run: pnpm test:e2e
+      - run: pnpm test:e2e:ext
+
+      - run: pnpm build
+
+      - name: Upload Playwright traces on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-traces
+          path: |
+            apps/web/playwright-report
+            apps/web/test-results
+            apps/extension/playwright-report
+            apps/extension/test-results
+          retention-days: 14

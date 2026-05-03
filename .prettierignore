@@ -1,0 +1,13 @@
+node_modules
+dist
+build
+.next
+out
+coverage
+playwright-report
+test-results
+pnpm-lock.yaml
+packages/db/generated
+apps/extension/dist
+*.min.js
+*.min.css

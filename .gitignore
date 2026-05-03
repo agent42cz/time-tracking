@@ -1,0 +1,47 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Build outputs
+dist/
+build/
+.next/
+out/
+*.tsbuildinfo
+
+# Env / secrets
+.env
+.env.local
+.env.*.local
+!.env.example
+
+# Test artifacts
+coverage/
+playwright-report/
+playwright/.cache/
+test-results/
+.vitest-cache/
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+pnpm-debug.log*
+
+# Prisma generated client
+packages/db/generated/
+
+# Extension build
+apps/extension/dist/
+
+# Docker volumes
+.volumes/
+
+# Misc
+*.tgz
