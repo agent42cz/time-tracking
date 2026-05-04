@@ -6,11 +6,20 @@ const withNextIntl = createNextIntlPlugin('./src/i18n.ts');
 const nextConfig = {
   reactStrictMode: true,
   output: 'standalone',
+  serverExternalPackages: ['@prisma/client', 'argon2'],
+  poweredByHeader: false,
   experimental: {
     typedRoutes: false,
   },
-  serverExternalPackages: ['@prisma/client', 'argon2'],
-  poweredByHeader: false,
+  // Tell webpack to resolve `.js` imports against `.ts/.tsx` source files —
+  // matches Vitest/Vite behavior so the same code compiles in both.
+  webpack: (config) => {
+    config.resolve.extensionAlias = {
+      ...(config.resolve.extensionAlias ?? {}),
+      '.js': ['.ts', '.tsx', '.js', '.jsx'],
+    };
+    return config;
+  },
 };
 
 export default withNextIntl(nextConfig);
