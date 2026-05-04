@@ -154,7 +154,7 @@ export async function changeRole(
   db: Db,
   actorUserId: string,
   input: { companyId: string; targetUserId: string; newRole: Role },
-): Promise<InviteResult<true> | { ok: false; reason: 'last_admin' }> {
+): Promise<InviteResult<true> | { ok: false; reason: 'last_admin' | 'self_demotion' }> {
   const auth = await requireAdmin(db, actorUserId, input.companyId);
   if (!auth.ok) return auth;
   const target = await db.membership.findUnique({
@@ -163,12 +163,19 @@ export async function changeRole(
   if (!target) return { ok: false, reason: 'not_found' };
   if (target.role === input.newRole) return { ok: true, value: true };
 
-  // US-50: cannot demote the last admin.
+  // US-50: cannot demote the last admin. PRD wording wins over self_demotion
+  // when both apply, so the "only admin" case keeps the historical reason.
   if (target.role === 'admin' && input.newRole === 'user') {
     const adminCount = await db.membership.count({
       where: { companyId: input.companyId, role: 'admin' },
     });
     if (adminCount <= 1) return { ok: false, reason: 'last_admin' };
+  }
+  // Self-demotion guard: an admin cannot demote themselves even if other
+  // admins exist. Removes the foot-gun where someone clicks "Degradovat" on
+  // their own row and accidentally locks themselves out of admin functions.
+  if (input.targetUserId === actorUserId && input.newRole === 'user') {
+    return { ok: false, reason: 'self_demotion' };
   }
 
   await db.membership.update({

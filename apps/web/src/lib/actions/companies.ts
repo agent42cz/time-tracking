@@ -103,6 +103,8 @@ export async function changeRoleAction(
   if (!r.ok) {
     if (r.reason === 'last_admin')
       return { ok: false, error: 'Nelze degradovat posledního správce' };
+    if (r.reason === 'self_demotion')
+      return { ok: false, error: 'Nemůžete degradovat sami sebe' };
     return { ok: false, error: 'Nelze' };
   }
   revalidatePath('/members');

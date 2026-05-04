@@ -252,6 +252,38 @@ describe('companies / memberships / invites', () => {
     });
   });
 
+  it('US-50: an admin cannot demote themselves even when other admins exist', async () => {
+    await withTx(async (tx) => {
+      const me = await tx.user.create({
+        data: { email: 'me-self@example.test', fullName: 'Me' },
+      });
+      const co = await tx.user.create({
+        data: { email: 'co-admin@example.test', fullName: 'Co-Admin' },
+      });
+      const c = await createCompany(tx, { name: 'TwoAdmins', createdByUserId: me.id });
+      // Add a second admin so the "last admin" guard would NOT trigger.
+      await tx.membership.create({
+        data: { userId: co.id, companyId: c.id, role: 'admin' },
+      });
+
+      const result = await changeRole(tx, me.id, {
+        companyId: c.id,
+        targetUserId: me.id,
+        newRole: 'user',
+      });
+      expect(result.ok).toBe(false);
+      if (!result.ok) expect(result.reason).toBe('self_demotion');
+
+      // Sanity: I can still demote the OTHER admin (no rule against that).
+      const otherDemote = await changeRole(tx, me.id, {
+        companyId: c.id,
+        targetUserId: co.id,
+        newRole: 'user',
+      });
+      expect(otherDemote.ok).toBe(true);
+    });
+  });
+
   it('US-50: blocks removing the only Admin', async () => {
     await withTx(async (tx) => {
       const me = await tx.user.create({

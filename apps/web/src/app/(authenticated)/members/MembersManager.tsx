@@ -134,6 +134,12 @@ export function MembersManager({
                     size="sm"
                     variant="ghost"
                     loading={pending}
+                    disabled={m.userId === currentUserId && m.role === 'admin'}
+                    title={
+                      m.userId === currentUserId && m.role === 'admin'
+                        ? 'Nemůžete degradovat sami sebe'
+                        : undefined
+                    }
                     onClick={() =>
                       startTransition(async () => {
                         const r = await changeRoleAction(
