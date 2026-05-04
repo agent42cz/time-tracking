@@ -3,29 +3,27 @@
  * Returns 200 with `{ db, redis }` status. Used by Coolify and Beszel.
  */
 import { NextResponse } from 'next/server';
-import { PrismaClient } from '@prisma/client';
 import Redis from 'ioredis';
+import { prisma } from '@/lib/session';
 
-let _prisma: PrismaClient | undefined;
-let _redis: Redis | undefined;
-
-function db(): PrismaClient {
-  if (!_prisma) _prisma = new PrismaClient();
-  return _prisma;
+declare global {
+  var __ttHealthRedis: Redis | undefined;
 }
 
 function redis(): Redis {
-  if (!_redis) _redis = new Redis(process.env.REDIS_URL ?? 'redis://localhost:6379', {
-    lazyConnect: true,
-    maxRetriesPerRequest: 1,
-  });
-  return _redis;
+  if (!globalThis.__ttHealthRedis) {
+    globalThis.__ttHealthRedis = new Redis(process.env.REDIS_URL ?? 'redis://localhost:6379', {
+      lazyConnect: true,
+      maxRetriesPerRequest: 1,
+    });
+  }
+  return globalThis.__ttHealthRedis;
 }
 
 export async function GET(): Promise<Response> {
   const out: { db: 'ok' | 'down'; redis: 'ok' | 'down' } = { db: 'down', redis: 'down' };
   try {
-    await db().$queryRaw`SELECT 1`;
+    await prisma().$queryRaw`SELECT 1`;
     out.db = 'ok';
   } catch {
     /* leave as down */

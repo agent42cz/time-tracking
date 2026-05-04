@@ -18,10 +18,15 @@ import { resolveSession, SESSION_LIFETIME_MS } from './auth/sessions.js';
 export const SESSION_COOKIE = 'tt-session';
 export const COMPANY_COOKIE = 'tt-company';
 
-let _prisma: PrismaClient | undefined;
+// Cache the PrismaClient on globalThis so Next.js HMR reloads in dev don't
+// keep spawning new connection pools (Postgres max_connections will exhaust
+// in minutes otherwise). In production the module is loaded once anyway.
+declare global {
+  var __ttPrisma: PrismaClient | undefined;
+}
 export function prisma(): PrismaClient {
-  if (!_prisma) _prisma = new PrismaClient();
-  return _prisma;
+  if (!globalThis.__ttPrisma) globalThis.__ttPrisma = new PrismaClient();
+  return globalThis.__ttPrisma;
 }
 
 export interface ActiveSession {

@@ -52,26 +52,24 @@ export default async function DashboardPage({
   const periodLabel = { today: 'Dnes', week: 'Tento týden', month: 'Tento měsíc' }[period];
   const sharedTotal = share.ok ? share.value.reduce((a, c) => a + c.totalMs, 0) : 0;
 
-  // Daily group: bucket by day, total per day for the chart.
-  const dailyByDay = new Map<string, { day: string; segments: { label: string; ms: number; color: string }[]; total: number }>();
+  const dailyByDay = new Map<string, Bucket>();
   if (daily.ok) {
     const palette = ['#3b82f6', '#10b981', '#f59e0b', '#ec4899', '#8b5cf6', '#0ea5e9', '#ef4444'];
     const labelColor = new Map<string, string>();
-    let pi = 0;
+    let paletteIndex = 0;
     for (const row of daily.value) {
       const bucket = dailyByDay.get(row.day) ?? { day: row.day, segments: [], total: 0 };
       let color = labelColor.get(row.label);
       if (!color) {
-        color = palette[pi % palette.length]!;
+        color = palette[paletteIndex % palette.length]!;
         labelColor.set(row.label, color);
-        pi++;
+        paletteIndex++;
       }
       bucket.segments.push({ label: row.label, ms: row.totalMs, color });
       bucket.total += row.totalMs;
       dailyByDay.set(row.day, bucket);
     }
   }
-  const dailyMax = Math.max(1, ...Array.from(dailyByDay.values()).map((d) => d.total));
 
   return (
     <div>
@@ -80,7 +78,7 @@ export default async function DashboardPage({
         description={periodLabel}
         actions={
           <div className="flex gap-1 rounded-md bg-zinc-100 p-1 text-sm">
-            {(['today', 'week', 'month'] as const).map((p) => (
+            {(['today', 'week', 'month'] satisfies Period[]).map((p) => (
               <Link
                 key={p}
                 href={`/dashboard?period=${p}`}
@@ -211,43 +209,7 @@ export default async function DashboardPage({
       </div>
 
       <div className="mt-4">
-        <Card>
-          <CardHeader>
-            <CardTitle>Denní rozpis</CardTitle>
-          </CardHeader>
-          <CardBody>
-            {dailyByDay.size > 0 ? (
-              <div className="flex h-48 items-end gap-2">
-                {Array.from(dailyByDay.values())
-                  .sort((a, b) => a.day.localeCompare(b.day))
-                  .map((d) => (
-                    <div key={d.day} className="flex flex-1 flex-col items-center gap-1.5">
-                      <div className="flex h-40 w-full flex-col-reverse overflow-hidden rounded">
-                        {d.segments.map((s, i) => (
-                          <div
-                            key={i}
-                            style={{
-                              height: `${(s.ms / dailyMax) * 100}%`,
-                              backgroundColor: s.color,
-                            }}
-                            title={`${s.label}: ${fmtH(s.ms)}`}
-                          />
-                        ))}
-                      </div>
-                      <span className="text-[10px] text-zinc-500">
-                        {new Date(d.day + 'T00:00:00Z').toLocaleDateString('cs-CZ', {
-                          day: '2-digit',
-                          month: '2-digit',
-                        })}
-                      </span>
-                    </div>
-                  ))}
-              </div>
-            ) : (
-              <EmptyState title="Žádná data" />
-            )}
-          </CardBody>
-        </Card>
+        <DailyBreakdown range={range} buckets={Array.from(dailyByDay.values())} />
       </div>
     </div>
   );
@@ -259,5 +221,155 @@ function Kpi({ label, value }: { label: string; value: string }): ReactElement {
       <p className="text-xs font-medium uppercase tracking-wide text-zinc-500">{label}</p>
       <p className="mt-1 font-mono text-2xl font-semibold text-zinc-900">{value}</p>
     </div>
+  );
+}
+
+interface Bucket {
+  day: string;
+  segments: { label: string; ms: number; color: string }[];
+  total: number;
+}
+
+const WEEKDAY_CS = ['Ne', 'Po', 'Út', 'St', 'Čt', 'Pá', 'So'];
+
+interface DayCell {
+  bucket: Bucket;
+  weekday: number; // 0..6, Sun..Sat
+  dom: number;
+  month: number;
+  isToday: boolean;
+}
+
+function toDayKey(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+function DailyBreakdown({
+  range,
+  buckets,
+}: {
+  range: { start: Date; end: Date };
+  buckets: Bucket[];
+}): ReactElement {
+  const dayMap = new Map(buckets.map((b) => [b.day, b]));
+  const cells: DayCell[] = [];
+  const cursor = new Date(range.start);
+  cursor.setHours(0, 0, 0, 0);
+  const stop = new Date(range.end);
+  const todayKey = toDayKey(new Date());
+  while (cursor < stop) {
+    const key = toDayKey(cursor);
+    cells.push({
+      bucket: dayMap.get(key) ?? { day: key, segments: [], total: 0 },
+      weekday: cursor.getDay(),
+      dom: cursor.getDate(),
+      month: cursor.getMonth() + 1,
+      isToday: key === todayKey,
+    });
+    cursor.setDate(cursor.getDate() + 1);
+  }
+
+  const legend = new Map<string, string>();
+  for (const b of buckets) {
+    for (const s of b.segments) if (!legend.has(s.label)) legend.set(s.label, s.color);
+  }
+
+  const maxMs = Math.max(1, ...buckets.map((b) => b.total));
+  const hasData = buckets.length > 0;
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Denní rozpis</CardTitle>
+        <span className="text-xs text-zinc-500">
+          {cells.length === 1 ? 'Jeden den' : `${cells.length} dní`} · stack po klientech
+        </span>
+      </CardHeader>
+      <CardBody>
+        {!hasData ? (
+          <EmptyState title="Žádná data v období" description="Zkuste zvolit jiné období." />
+        ) : (
+          <>
+            <div
+              className="grid items-end gap-3"
+              style={{
+                gridTemplateColumns: `repeat(${cells.length}, minmax(28px, 56px))`,
+                minHeight: '12rem',
+              }}
+            >
+              {cells.map(({ bucket, weekday, dom, month, isToday }) => {
+                const ratio = bucket.total / maxMs;
+                return (
+                  <div key={bucket.day} className="flex flex-col items-center gap-1.5">
+                    <span
+                      className={`text-[10px] font-medium tabular-nums ${
+                        bucket.total > 0 ? 'text-zinc-700' : 'text-zinc-300'
+                      }`}
+                    >
+                      {bucket.total > 0 ? fmtH(bucket.total) : '—'}
+                    </span>
+                    <div className="relative flex h-40 w-full flex-col-reverse overflow-hidden rounded-md border border-zinc-100 bg-zinc-50">
+                      {bucket.segments.length === 0 ? (
+                        <div className="h-px w-full bg-zinc-200" aria-hidden />
+                      ) : (
+                        bucket.segments.map((s) => (
+                          <div
+                            key={s.label}
+                            style={{
+                              height: `${(s.ms / maxMs) * 100}%`,
+                              backgroundColor: s.color,
+                            }}
+                            title={`${s.label}: ${fmtH(s.ms)}`}
+                          />
+                        ))
+                      )}
+                      {ratio > 0 && ratio < 0.05 ? (
+                        // Minimum visible band so a tiny non-zero day still
+                        // renders something the eye can pick up.
+                        <div
+                          aria-hidden
+                          className="absolute inset-x-0 bottom-0 h-1.5"
+                          style={{ backgroundColor: bucket.segments[0]?.color ?? '#3f3f46' }}
+                        />
+                      ) : null}
+                    </div>
+                    <div className="flex flex-col items-center leading-tight">
+                      <span
+                        className={`text-[10px] font-medium ${
+                          isToday ? 'text-zinc-900' : 'text-zinc-500'
+                        }`}
+                      >
+                        {WEEKDAY_CS[weekday]}
+                      </span>
+                      <span
+                        className={`text-[10px] tabular-nums ${
+                          isToday ? 'rounded bg-zinc-900 px-1 text-white' : 'text-zinc-500'
+                        }`}
+                      >
+                        {String(dom).padStart(2, '0')}.{String(month).padStart(2, '0')}.
+                      </span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+            {legend.size > 0 ? (
+              <div className="mt-4 flex flex-wrap gap-x-3 gap-y-1.5 border-t border-zinc-100 pt-3 text-xs">
+                {Array.from(legend.entries()).map(([label, color]) => (
+                  <span key={label} className="inline-flex items-center gap-1.5 text-zinc-700">
+                    <span
+                      className="h-2.5 w-2.5 rounded-sm"
+                      style={{ backgroundColor: color }}
+                      aria-hidden
+                    />
+                    {label}
+                  </span>
+                ))}
+              </div>
+            ) : null}
+          </>
+        )}
+      </CardBody>
+    </Card>
   );
 }
