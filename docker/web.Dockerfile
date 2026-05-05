@@ -25,12 +25,15 @@ RUN pnpm --filter @tt/web build
 
 FROM node:22-alpine AS runtime
 RUN apk add --no-cache libc6-compat wget
+RUN corepack enable
 WORKDIR /app
 ENV NODE_ENV=production
 ENV PORT=3000
 COPY --from=build /app /app
 WORKDIR /app/apps/web
 EXPOSE 3000
-# Use the per-package .bin symlink — pnpm's hoisted layout still keeps the
-# `next` binary inside apps/web/node_modules/ rather than the workspace root.
-CMD ["node_modules/.bin/next", "start"]
+# pnpm knows where next is regardless of which layout pnpm install used.
+# Wrap in a shell so any startup failure surfaces a clear log line and
+# the container stays alive long enough for `coolify application_logs`
+# to capture stdout/stderr.
+CMD ["sh", "-c", "set -x; pnpm start; echo NEXT_EXITED_WITH_CODE=$?; sleep 600"]
