@@ -31,4 +31,6 @@ ENV PORT=3000
 COPY --from=build /app /app
 WORKDIR /app/apps/web
 EXPOSE 3000
-CMD ["node", "/app/node_modules/next/dist/bin/next", "start"]
+# Keep the container alive for 10 minutes after Node exits so we can inspect
+# crash logs via `docker logs`. Remove the trailing `sleep` once stable.
+CMD ["sh", "-c", "set -x; node --version; ls -la /app/apps/web; node /app/node_modules/next/dist/bin/next start; echo NEXT_EXITED_WITH_CODE=$?; sleep 600"]
