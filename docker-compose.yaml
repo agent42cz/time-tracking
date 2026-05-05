@@ -37,6 +37,9 @@ services:
       timeout: 5s
       retries: 6
       start_period: 30s
+    networks:
+      - default
+      - coolify
 
   ws:
     build:
@@ -56,3 +59,13 @@ services:
       timeout: 5s
       retries: 6
       start_period: 20s
+    networks:
+      - default
+      - coolify
+
+networks:
+  # Joining the shared coolify network lets web/ws resolve sibling
+  # Coolify-managed databases (time-tracker-db, time-tracker-redis) by
+  # their container name from DATABASE_URL / REDIS_URL.
+  coolify:
+    external: true
