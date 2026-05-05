@@ -1,60 +1,591 @@
-/**
- * Popup shell. Mirrors the Clockify-style layout from PRD §10.3:
- * company switcher, quick-start row, parallel running timers, This week
- * grouped by day, ⋯ menu per entry, Play again button. The full UI is
- * stubbed here — the data + queue layer it depends on is covered by
- * `queue.test.ts`.
- */
 import type { ReactElement } from 'react';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import {
+  ApiError,
+  type ApiSession,
+  type CatalogResponse,
+  type MeResponse,
+  type StartTimerInput,
+  type TimerResponse,
+  getApiBase,
+  getCatalog,
+  getStoredSession,
+  getTimer,
+  login,
+  logout,
+  me,
+  setApiBase,
+  setStoredSession,
+} from './api.js';
+import { useExtensionSync } from './sync.js';
+import { InMemoryStorageAdapter, createChromeStorageAdapter, type StorageAdapter } from './storage.js';
 
-interface RunningTimer {
-  id: string;
-  description: string;
-  startedAt: string;
+const storage: StorageAdapter =
+  typeof chrome !== 'undefined' && chrome?.storage?.local
+    ? createChromeStorageAdapter()
+    : new InMemoryStorageAdapter();
+
+type View = 'loading' | 'login' | 'app';
+
+interface AppState {
+  session: ApiSession;
+  me: MeResponse;
+  timer: TimerResponse;
+  catalog: CatalogResponse;
 }
 
 export function Popup(): ReactElement {
-  const [pending, setPending] = useState(0);
-  const [online, setOnline] = useState(true);
-  const [timers] = useState<RunningTimer[]>([]);
+  const [view, setView] = useState<View>('loading');
+  const [state, setState] = useState<AppState | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    const update = (): void => setOnline(typeof navigator !== 'undefined' ? navigator.onLine : true);
-    window.addEventListener('online', update);
-    window.addEventListener('offline', update);
-    return () => {
-      window.removeEventListener('online', update);
-      window.removeEventListener('offline', update);
-    };
+  const refresh = useCallback(async (session: ApiSession, companyId?: string) => {
+    const [user, timer, catalog] = await Promise.all([
+      me(session),
+      getTimer(session, companyId),
+      getCatalog(session, companyId),
+    ]);
+    setState({ session, me: user, timer, catalog });
   }, []);
 
+  useEffect(() => {
+    void (async () => {
+      const session = await getStoredSession(storage);
+      if (!session) {
+        setView('login');
+        return;
+      }
+      try {
+        await refresh(session);
+        setView('app');
+      } catch (err) {
+        if (err instanceof ApiError && err.status === 401) {
+          await setStoredSession(storage, null);
+          setView('login');
+        } else {
+          setError('Nelze se připojit k serveru');
+          setView('login');
+        }
+      }
+    })();
+  }, [refresh]);
+
+  if (view === 'loading') return <Spinner />;
+
+  if (view === 'login' || !state) {
+    return (
+      <LoginForm
+        initialError={error}
+        onLoggedIn={async (session) => {
+          setError(null);
+          await setStoredSession(storage, session);
+          await refresh(session);
+          setView('app');
+        }}
+      />
+    );
+  }
+
   return (
-    <div className="w-[360px] p-3 text-sm">
-      <header className="mb-2 flex items-center justify-between">
-        <span className="font-semibold">Time Tracker</span>
-        {(!online || pending > 0) && (
-          <span className="rounded bg-amber-100 px-2 py-0.5 text-xs text-amber-900">
-            {!online ? 'Offline' : `${pending} čeká na synchronizaci`}
-          </span>
-        )}
-      </header>
-      <section aria-label="Spustit nové měření">
+    <AppShell
+      state={state}
+      onChange={() => refresh(state.session, state.timer.companyId ?? undefined)}
+      onLogout={async () => {
+        await logout(state.session);
+        await setStoredSession(storage, null);
+        setState(null);
+        setView('login');
+      }}
+    />
+  );
+}
+
+function Spinner(): ReactElement {
+  return (
+    <div className="flex h-32 w-[360px] items-center justify-center text-sm text-zinc-500">
+      Načítám…
+    </div>
+  );
+}
+
+function LoginForm({
+  initialError,
+  onLoggedIn,
+}: {
+  initialError: string | null;
+  onLoggedIn: (s: ApiSession) => void | Promise<void>;
+}): ReactElement {
+  const [apiBase, setApiBaseLocal] = useState('');
+  const [showSettings, setShowSettings] = useState(false);
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [totpCode, setTotpCode] = useState('');
+  const [error, setError] = useState<string | null>(initialError);
+  const [pending, setPending] = useState(false);
+
+  useEffect(() => {
+    void getApiBase(storage).then(setApiBaseLocal);
+  }, []);
+
+  async function submit(e: React.FormEvent<HTMLFormElement>): Promise<void> {
+    e.preventDefault();
+    setError(null);
+    setPending(true);
+    try {
+      const session = await login({
+        apiBase: apiBase || 'http://localhost:3000',
+        email,
+        password,
+        totpCode: totpCode.trim() || undefined,
+      });
+      await onLoggedIn(session);
+    } catch (err) {
+      if (err instanceof ApiError) {
+        setError(
+          err.code === 'totp_required'
+            ? 'Zadejte kód 2FA'
+            : err.code === 'totp_invalid'
+              ? 'Neplatný 2FA kód'
+              : err.code === 'locked'
+                ? 'Účet je dočasně uzamčen'
+                : 'Neplatné přihlašovací údaje',
+        );
+      } else {
+        setError('Nelze se připojit k serveru');
+      }
+    } finally {
+      setPending(false);
+    }
+  }
+
+  async function saveApiBase(): Promise<void> {
+    await setApiBase(storage, apiBase);
+    setShowSettings(false);
+  }
+
+  return (
+    <form onSubmit={submit} className="w-[360px] space-y-3 p-4 text-sm">
+      <div className="flex items-center justify-between">
+        <h1 className="text-base font-semibold text-zinc-900">Time Tracker</h1>
         <button
           type="button"
-          className="w-full rounded bg-zinc-900 py-2 text-white"
-          onClick={() => setPending((n) => n + 1)}
+          onClick={() => setShowSettings((s) => !s)}
+          className="text-xs text-zinc-500 underline"
         >
-          Spustit
+          {showSettings ? 'Zavřít' : 'API'}
         </button>
-      </section>
-      <ul className="mt-3 divide-y divide-zinc-200" aria-label="Běží">
-        {timers.map((t) => (
-          <li key={t.id} className="py-1">
-            {t.description || '(bez popisu)'}
-          </li>
-        ))}
-      </ul>
+      </div>
+      {showSettings ? (
+        <div className="space-y-2 rounded-md bg-zinc-50 p-2">
+          <label className="block text-xs text-zinc-600">Adresa serveru</label>
+          <input
+            value={apiBase}
+            onChange={(e) => setApiBaseLocal(e.target.value)}
+            placeholder="http://localhost:3000"
+            className="w-full rounded border border-zinc-200 px-2 py-1 text-xs"
+          />
+          <button
+            type="button"
+            onClick={saveApiBase}
+            className="rounded bg-zinc-900 px-2 py-1 text-xs text-white"
+          >
+            Uložit
+          </button>
+        </div>
+      ) : null}
+      {error ? (
+        <div className="rounded border border-red-200 bg-red-50 px-2 py-1 text-xs text-red-800">
+          {error}
+        </div>
+      ) : null}
+      <label className="block">
+        <span className="text-xs font-medium text-zinc-600">E-mail</span>
+        <input
+          type="email"
+          required
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          className="mt-0.5 block w-full rounded border border-zinc-200 px-2 py-1.5 text-sm focus:border-zinc-900 focus:outline-none"
+        />
+      </label>
+      <label className="block">
+        <span className="text-xs font-medium text-zinc-600">Heslo</span>
+        <input
+          type="password"
+          required
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          className="mt-0.5 block w-full rounded border border-zinc-200 px-2 py-1.5 text-sm focus:border-zinc-900 focus:outline-none"
+        />
+      </label>
+      <label className="block">
+        <span className="text-xs font-medium text-zinc-600">Kód 2FA (volitelné)</span>
+        <input
+          inputMode="numeric"
+          pattern="\d{6}"
+          value={totpCode}
+          onChange={(e) => setTotpCode(e.target.value)}
+          className="mt-0.5 block w-full rounded border border-zinc-200 px-2 py-1.5 text-sm focus:border-zinc-900 focus:outline-none"
+        />
+      </label>
+      <button
+        type="submit"
+        disabled={pending}
+        className="w-full rounded-md bg-zinc-900 py-2 font-medium text-white hover:bg-zinc-800 disabled:bg-zinc-300"
+      >
+        {pending ? 'Přihlašuji…' : 'Přihlásit se'}
+      </button>
+    </form>
+  );
+}
+
+function fmtDuration(ms: number): string {
+  const total = Math.max(0, Math.floor(ms / 1000));
+  const h = Math.floor(total / 3600);
+  const m = Math.floor((total % 3600) / 60);
+  const s = total % 60;
+  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+}
+
+function AppShell({
+  state,
+  onChange,
+  onLogout,
+}: {
+  state: AppState;
+  onChange: () => void | Promise<void>;
+  onLogout: () => void | Promise<void>;
+}): ReactElement {
+  const [now, setNow] = useState(Date.now());
+  useEffect(() => {
+    const t = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(t);
+  }, []);
+
+  const sync = useExtensionSync({
+    session: state.session,
+    wsUrl: state.me.wsUrl,
+    companyId: state.timer.companyId,
+    onRefresh: onChange,
+  });
+
+  return (
+    <div className="w-[380px] divide-y divide-zinc-100 text-sm">
+      <Header
+        me={state.me}
+        online={sync.online}
+        pending={sync.pending}
+        conflicts={sync.conflicts}
+        onLogout={onLogout}
+      />
+      <StartRow
+        catalog={state.catalog}
+        onStart={sync.executeStart}
+      />
+      <RunningList entries={state.timer.running} now={now} onStop={sync.executeStop} />
+      <TodayList
+        entries={state.timer.today}
+        onPlayAgain={sync.executePlayAgain}
+        onDelete={sync.executeDelete}
+      />
+    </div>
+  );
+}
+
+function Header({
+  me: user,
+  online,
+  pending,
+  conflicts,
+  onLogout,
+}: {
+  me: MeResponse;
+  online: boolean;
+  pending: number;
+  conflicts: number;
+  onLogout: () => void | Promise<void>;
+}): ReactElement {
+  return (
+    <div className="flex items-center justify-between px-3 py-2">
+      <div className="min-w-0">
+        <div className="truncate text-xs font-medium text-zinc-900">{user.fullName}</div>
+        <div className="truncate text-[10px] text-zinc-500">
+          {user.memberships[0]?.companyName ?? '— bez firmy —'}
+        </div>
+      </div>
+      <div className="flex items-center gap-1.5">
+        {!online ? (
+          <span
+            className="rounded-full bg-amber-100 px-1.5 py-0.5 text-[10px] font-medium text-amber-900"
+            title="Offline — změny se uloží do fronty a synchronizují po obnovení připojení"
+          >
+            Offline
+          </span>
+        ) : null}
+        {pending > 0 ? (
+          <span
+            className="rounded-full bg-blue-100 px-1.5 py-0.5 text-[10px] font-medium text-blue-900"
+            title="Čekající synchronizace"
+          >
+            ⟳ {pending}
+          </span>
+        ) : null}
+        {conflicts > 0 ? (
+          <span
+            className="rounded-full bg-red-100 px-1.5 py-0.5 text-[10px] font-medium text-red-900"
+            title="Konflikty zahozeny serverem"
+          >
+            ! {conflicts}
+          </span>
+        ) : null}
+        <button
+          type="button"
+          onClick={onLogout}
+          className="rounded px-2 py-1 text-xs text-zinc-500 hover:bg-zinc-100"
+        >
+          Odhlásit
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function StartRow({
+  catalog,
+  onStart,
+}: {
+  catalog: CatalogResponse;
+  onStart: (input: StartTimerInput) => Promise<void>;
+}): ReactElement {
+  const [description, setDescription] = useState('');
+  const [clientId, setClientId] = useState('');
+  const [projectId, setProjectId] = useState('');
+  const [tagIds, setTagIds] = useState<string[]>([]);
+  const [pending, setPending] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const projects = useMemo(
+    () => catalog.clients.find((c) => c.id === clientId)?.projects ?? [],
+    [catalog.clients, clientId],
+  );
+
+  function toggleTag(id: string): void {
+    setTagIds((prev) => (prev.includes(id) ? prev.filter((t) => t !== id) : [...prev, id]));
+  }
+
+  async function start(): Promise<void> {
+    setPending(true);
+    setError(null);
+    try {
+      await onStart({
+        description,
+        clientId: clientId || null,
+        projectId: projectId || null,
+        tagIds,
+      });
+      setDescription('');
+      setClientId('');
+      setProjectId('');
+      setTagIds([]);
+    } catch {
+      setError('Nepodařilo se spustit');
+    } finally {
+      setPending(false);
+    }
+  }
+
+  return (
+    <div className="space-y-2 p-3">
+      {error ? (
+        <div className="rounded border border-red-200 bg-red-50 px-2 py-1 text-xs text-red-800">
+          {error}
+        </div>
+      ) : null}
+      <input
+        value={description}
+        onChange={(e) => setDescription(e.target.value)}
+        placeholder="Co děláte?"
+        className="block w-full rounded border border-zinc-200 px-2 py-1.5 text-sm focus:border-zinc-900 focus:outline-none"
+      />
+      <div className="grid grid-cols-2 gap-2">
+        <select
+          value={clientId}
+          onChange={(e) => {
+            setClientId(e.target.value);
+            setProjectId('');
+          }}
+          className="rounded border border-zinc-200 px-2 py-1.5 text-xs"
+        >
+          <option value="">— klient —</option>
+          {catalog.clients.map((c) => (
+            <option key={c.id} value={c.id}>
+              {c.name}
+            </option>
+          ))}
+        </select>
+        <select
+          value={projectId}
+          onChange={(e) => setProjectId(e.target.value)}
+          disabled={!clientId}
+          className="rounded border border-zinc-200 px-2 py-1.5 text-xs disabled:bg-zinc-50"
+        >
+          <option value="">— projekt —</option>
+          {projects.map((p) => (
+            <option key={p.id} value={p.id}>
+              {p.name}
+            </option>
+          ))}
+        </select>
+      </div>
+      {catalog.tags.length > 0 ? (
+        <div className="flex flex-wrap gap-1">
+          {catalog.tags.map((t) => {
+            const active = tagIds.includes(t.id);
+            return (
+              <button
+                key={t.id}
+                type="button"
+                onClick={() => toggleTag(t.id)}
+                className="rounded-full border px-2 py-0.5 text-[10px] font-medium"
+                style={
+                  active
+                    ? { backgroundColor: t.color, borderColor: t.color, color: '#fff' }
+                    : { borderColor: '#e4e4e7', color: '#3f3f46' }
+                }
+              >
+                {t.name}
+              </button>
+            );
+          })}
+        </div>
+      ) : null}
+      <button
+        type="button"
+        onClick={start}
+        disabled={pending}
+        className="w-full rounded-md bg-zinc-900 py-2 font-medium text-white hover:bg-zinc-800 disabled:bg-zinc-300"
+      >
+        {pending ? 'Spouštím…' : '▶ Spustit'}
+      </button>
+    </div>
+  );
+}
+
+function RunningList({
+  entries,
+  now,
+  onStop,
+}: {
+  entries: { id: string; description: string; startedAt: string; clientName: string | null; projectName: string | null }[];
+  now: number;
+  onStop: (entryId: string) => Promise<void>;
+}): ReactElement | null {
+  if (entries.length === 0) return null;
+  return (
+    <div className="space-y-1.5 p-3">
+      <div className="text-[10px] font-medium uppercase tracking-wide text-zinc-500">
+        Probíhá ({entries.length})
+      </div>
+      {entries.map((e) => (
+        <div key={e.id} className="flex items-center justify-between gap-2 rounded-md bg-zinc-50 px-2 py-1.5">
+          <div className="min-w-0">
+            <div className="truncate text-sm font-medium text-zinc-900">
+              {e.description || <span className="text-zinc-400">(bez popisu)</span>}
+            </div>
+            <div className="truncate text-[10px] text-zinc-500">
+              {[e.clientName, e.projectName].filter(Boolean).join(' · ') || '—'}
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="font-mono text-xs font-semibold text-zinc-900 tabular-nums">
+              {fmtDuration(now - new Date(e.startedAt).getTime())}
+            </span>
+            <button
+              type="button"
+              onClick={() => void onStop(e.id)}
+              className="rounded bg-red-600 px-2 py-1 text-[10px] font-semibold text-white hover:bg-red-700"
+            >
+              Stop
+            </button>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function TodayList({
+  entries,
+  onPlayAgain,
+  onDelete,
+}: {
+  entries: {
+    id: string;
+    description: string;
+    startedAt: string;
+    endedAt: string | null;
+    clientName: string | null;
+    projectName: string | null;
+  }[];
+  onPlayAgain: (entryId: string) => Promise<void>;
+  onDelete: (entryId: string) => Promise<void>;
+}): ReactElement {
+  return (
+    <div className="space-y-1 p-3">
+      <div className="flex items-center justify-between">
+        <span className="text-[10px] font-medium uppercase tracking-wide text-zinc-500">Dnes</span>
+        <span className="font-mono text-[10px] text-zinc-500 tabular-nums">
+          {fmtDuration(
+            entries.reduce(
+              (acc, e) =>
+                acc +
+                ((e.endedAt ? new Date(e.endedAt).getTime() : Date.now()) -
+                  new Date(e.startedAt).getTime()),
+              0,
+            ),
+          )}
+        </span>
+      </div>
+      {entries.length === 0 ? (
+        <div className="rounded-md bg-zinc-50 px-3 py-4 text-center text-xs text-zinc-400">
+          Žádné dokončené záznamy
+        </div>
+      ) : (
+        entries.map((e) => (
+          <div key={e.id} className="flex items-center justify-between gap-2 px-1 py-1">
+            <div className="min-w-0">
+              <div className="truncate text-xs font-medium text-zinc-900">
+                {e.description || <span className="text-zinc-400">(bez popisu)</span>}
+              </div>
+              <div className="truncate text-[10px] text-zinc-500">
+                {[e.clientName, e.projectName].filter(Boolean).join(' · ') || '—'}
+              </div>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <span className="font-mono text-[11px] tabular-nums text-zinc-700">
+                {e.endedAt
+                  ? fmtDuration(new Date(e.endedAt).getTime() - new Date(e.startedAt).getTime())
+                  : '…'}
+              </span>
+              <button
+                type="button"
+                title="Spustit znovu"
+                onClick={() => void onPlayAgain(e.id)}
+                className="rounded px-1.5 py-0.5 text-[11px] hover:bg-zinc-100"
+              >
+                ▶
+              </button>
+              <button
+                type="button"
+                title="Smazat"
+                onClick={() => void onDelete(e.id)}
+                className="rounded px-1.5 py-0.5 text-[11px] hover:bg-zinc-100"
+              >
+                ✕
+              </button>
+            </div>
+          </div>
+        ))
+      )}
     </div>
   );
 }

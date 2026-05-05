@@ -94,7 +94,7 @@ export default [
     languageOptions: {
       ecmaVersion: 2022,
       sourceType: 'module',
-      globals: { ...globals.node, ...globals.browser },
+      globals: { ...globals.node, ...globals.browser, chrome: 'readonly' },
     },
     rules: {
       'local/no-only-tests': 'error',

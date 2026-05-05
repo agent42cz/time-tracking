@@ -20,6 +20,7 @@
  */
 import type { Prisma, PrismaClient, Role } from '@prisma/client';
 import { writeAudit } from './audit.js';
+import { publishTimeEntry } from '../realtime.js';
 
 type Db = PrismaClient | Prisma.TransactionClient;
 
@@ -115,6 +116,11 @@ export async function startTimer(
     entityId: entry.id,
     after: (await snapshot(db, entry.id)) as never,
   });
+  await publishTimeEntry('timer.started', {
+    userId: actorUserId,
+    companyId: input.companyId,
+    entryId: entry.id,
+  });
   return { ok: true, value: { id: entry.id } };
 }
 
@@ -142,6 +148,11 @@ export async function stopTimer(
     entityId: entryId,
     before: before as never,
     after: (await snapshot(db, entryId)) as never,
+  });
+  await publishTimeEntry('timer.stopped', {
+    userId: actorUserId,
+    companyId: entry.companyId,
+    entryId,
   });
   return { ok: true, value: true };
 }
@@ -183,6 +194,11 @@ export async function createManualEntry(
     entityType: 'TimeEntry',
     entityId: entry.id,
     after: (await snapshot(db, entry.id)) as never,
+  });
+  await publishTimeEntry('time_entry.created', {
+    userId: actorUserId,
+    companyId: input.companyId,
+    entryId: entry.id,
   });
   return { ok: true, value: { id: entry.id } };
 }
@@ -250,6 +266,11 @@ export async function updateEntry(
     before: before as never,
     after: (await snapshot(db, entryId)) as never,
   });
+  await publishTimeEntry('time_entry.updated', {
+    userId: entry.userId,
+    companyId: entry.companyId,
+    entryId,
+  });
   return { ok: true, value: true };
 }
 
@@ -277,6 +298,11 @@ export async function softDeleteEntry(
     before: before as never,
     after: (await snapshot(db, entryId)) as never,
   });
+  await publishTimeEntry('time_entry.deleted', {
+    userId: entry.userId,
+    companyId: entry.companyId,
+    entryId,
+  });
   return { ok: true, value: true };
 }
 
@@ -300,6 +326,11 @@ export async function restoreEntry(
     entityId: entryId,
     before: before as never,
     after: (await snapshot(db, entryId)) as never,
+  });
+  await publishTimeEntry('time_entry.restored', {
+    userId: entry.userId,
+    companyId: entry.companyId,
+    entryId,
   });
   return { ok: true, value: true };
 }
