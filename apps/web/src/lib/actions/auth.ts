@@ -27,17 +27,28 @@ import { SESSION_COOKIE } from '../session.js';
 
 export type ActionResult = { ok: true } | { ok: false; error: string };
 
-export async function passwordLoginAction(formData: FormData): Promise<ActionResult> {
+export type PasswordLoginActionResult =
+  | { ok: false; error: string; reason: 'totp_required' | 'totp_invalid' | 'locked' | 'invalid_credentials' };
+
+export async function passwordLoginAction(
+  formData: FormData,
+): Promise<PasswordLoginActionResult> {
   const email = String(formData.get('email') ?? '');
   const password = String(formData.get('password') ?? '');
   const totpCode = String(formData.get('totp') ?? '').trim() || undefined;
   const result = await loginWithPassword(prisma(), { email, password, totpCode });
   if (!result.ok) {
-    if (result.reason === 'totp_required') return { ok: false, error: 'Zadejte kód z aplikace' };
-    if (result.reason === 'totp_invalid') return { ok: false, error: 'Neplatný kód' };
+    if (result.reason === 'totp_required')
+      return { ok: false, reason: 'totp_required', error: 'Zadejte kód z aplikace' };
+    if (result.reason === 'totp_invalid')
+      return { ok: false, reason: 'totp_invalid', error: 'Neplatný kód' };
     if (result.reason === 'locked')
-      return { ok: false, error: 'Účet je dočasně uzamčen kvůli mnoha neúspěšným pokusům' };
-    return { ok: false, error: 'Neplatné přihlašovací údaje' };
+      return {
+        ok: false,
+        reason: 'locked',
+        error: 'Účet je dočasně uzamčen kvůli mnoha neúspěšným pokusům',
+      };
+    return { ok: false, reason: 'invalid_credentials', error: 'Neplatné přihlašovací údaje' };
   }
   await setSessionCookie(result.sessionToken);
   redirect('/timer');
