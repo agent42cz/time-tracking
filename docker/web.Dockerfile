@@ -1,9 +1,15 @@
-# Web app build (Next.js standalone output).
+# Web app Docker build.
+#
+# Two stages: build (compile + prisma generate) → runtime (next start).
+# We deliberately don'"'"'t use Next.js standalone output: @vercel/nft tracing
+# is fragile in pnpm workspaces (Prisma engine binaries + argon2 native
+# bindings get missed). Instead we copy the full repo + node_modules and
+# run `next start` against it. ~150-200 MB heavier but reliably starts.
 FROM node:22-alpine AS deps
-RUN apk add --no-cache libc6-compat python3 make g++
+RUN apk add --no-cache libc6-compat python3 make g++ wget
 WORKDIR /app
 RUN corepack enable
-COPY pnpm-lock.yaml pnpm-workspace.yaml package.json ./
+COPY .npmrc pnpm-lock.yaml pnpm-workspace.yaml package.json ./
 COPY apps/web/package.json apps/web/
 COPY apps/ws/package.json apps/ws/
 COPY apps/extension/package.json apps/extension/
@@ -18,17 +24,11 @@ RUN pnpm --filter @tt/db prisma:generate
 RUN pnpm --filter @tt/web build
 
 FROM node:22-alpine AS runtime
-WORKDIR /app
 RUN apk add --no-cache libc6-compat wget
+WORKDIR /app
 ENV NODE_ENV=production
-COPY --from=build /app/apps/web/.next/standalone ./
-COPY --from=build /app/apps/web/.next/static ./apps/web/.next/static
-COPY --from=build /app/apps/web/public ./apps/web/public
-# Next standalone tracing misses Prisma's dynamically-loaded engine binaries
-# and argon2's native bindings. Copy the full build-time node_modules so
-# everything is reliably available at runtime (image grows ~200 MB; worth
-# it for a deploy that actually starts).
-COPY --from=build /app/node_modules ./node_modules
-COPY --from=build /app/packages/db/prisma ./packages/db/prisma
+ENV PORT=3000
+COPY --from=build /app /app
+WORKDIR /app/apps/web
 EXPOSE 3000
-CMD ["node", "apps/web/server.js"]
+CMD ["node", "/app/node_modules/next/dist/bin/next", "start"]

@@ -5,7 +5,6 @@ const withNextIntl = createNextIntlPlugin('./src/i18n.ts');
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
-  output: 'standalone',
   serverExternalPackages: ['@prisma/client', 'argon2'],
   poweredByHeader: false,
   experimental: {
