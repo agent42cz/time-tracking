@@ -1,0 +1,58 @@
+# Coolify deployment compose file (NOT used for local dev — see
+# docker-compose.dev.yml). Two services here: web and ws. Postgres + Redis
+# are provisioned as separate Coolify Databases in the same project, so
+# their connection strings come from Coolify env vars (DATABASE_URL,
+# REDIS_URL).
+#
+# Domain routing is handled by Coolify Traefik via SERVICE_FQDN_<svc>_<port>
+# env vars set in the Coolify UI:
+#   SERVICE_FQDN_WEB_3000=https://trackerqwertzuiop.agent42.cz
+#   SERVICE_FQDN_WS_3001=https://trackerqwertzuiop-ws.agent42.cz
+services:
+  web:
+    build:
+      context: .
+      dockerfile: docker/web.Dockerfile
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: ${DATABASE_URL}
+      REDIS_URL: ${REDIS_URL}
+      AUTH_SECRET: ${AUTH_SECRET}
+      AUTH_URL: ${AUTH_URL}
+      APP_URL: ${APP_URL}
+      WS_PUBLIC_URL: ${WS_PUBLIC_URL}
+      SMTP_HOST: ${SMTP_HOST}
+      SMTP_PORT: ${SMTP_PORT}
+      SMTP_SECURE: ${SMTP_SECURE:-false}
+      SMTP_USER: ${SMTP_USER}
+      SMTP_PASS: ${SMTP_PASS}
+      SMTP_FROM: ${SMTP_FROM}
+      CORS_EXTRA_ORIGINS: ${CORS_EXTRA_ORIGINS:-}
+    expose:
+      - '3000'
+    healthcheck:
+      test: ['CMD-SHELL', 'wget -qO- http://localhost:3000/api/health || exit 1']
+      interval: 15s
+      timeout: 5s
+      retries: 6
+      start_period: 30s
+
+  ws:
+    build:
+      context: .
+      dockerfile: docker/ws.Dockerfile
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      WS_PORT: '3001'
+      DATABASE_URL: ${DATABASE_URL}
+      REDIS_URL: ${REDIS_URL}
+    expose:
+      - '3001'
+    healthcheck:
+      test: ['CMD-SHELL', 'wget -qO- http://localhost:3001/ || exit 1']
+      interval: 15s
+      timeout: 5s
+      retries: 6
+      start_period: 20s
