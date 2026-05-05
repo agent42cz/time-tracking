@@ -1,19 +1,18 @@
 # Coolify deployment compose file (NOT used for local dev — see
-# docker-compose.dev.yml). Two services here: web and ws. Postgres + Redis
-# are provisioned as separate Coolify Databases in the same project, so
-# their connection strings come from Coolify env vars (DATABASE_URL,
-# REDIS_URL).
+# docker-compose.dev.yml). Two services: web (Next.js) on 3000 and ws
+# (WebSocket bridge) on 3001. Postgres + Redis come from separate Coolify
+# Databases in the same project; their connection strings are injected via
+# the DATABASE_URL / REDIS_URL env vars set in the Coolify UI.
 #
-# Domain routing is handled by Coolify Traefik via SERVICE_FQDN_<svc>_<port>
-# env vars set in the Coolify UI:
-#   SERVICE_FQDN_WEB_3000=https://trackerqwertzuiop.agent42.cz
-#   SERVICE_FQDN_WS_3001=https://trackerqwertzuiop-ws.agent42.cz
+# Traefik routing is declared explicitly per service via labels. Coolify's
+# auto-routing only handles a single port per Application, but we have two
+# services on different ports and different subdomains.
 services:
   web:
     build:
       context: .
       dockerfile: docker/web.Dockerfile
-    restart: 'no'
+    restart: unless-stopped
     environment:
       NODE_ENV: production
       DATABASE_URL: ${DATABASE_URL}
@@ -31,12 +30,30 @@ services:
       CORS_EXTRA_ORIGINS: ${CORS_EXTRA_ORIGINS:-}
     expose:
       - '3000'
-    # Healthcheck temporarily disabled while we capture crash logs from
-    # the debug-wrapper CMD. Coolify was killing the container as soon as
-    # Docker marked it unhealthy, before the logs API could read stdout.
+    healthcheck:
+      test:
+        ['CMD-SHELL', 'wget -qO- -T 5 http://localhost:3000/login >/dev/null 2>&1 || exit 1']
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
     networks:
       - default
       - coolify
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=coolify
+      - traefik.http.routers.tt-web-http.rule=Host(`trackerqwertzuiop.agent42.cz`)
+      - traefik.http.routers.tt-web-http.entrypoints=http
+      - traefik.http.routers.tt-web-http.middlewares=tt-redirect
+      - traefik.http.routers.tt-web.rule=Host(`trackerqwertzuiop.agent42.cz`)
+      - traefik.http.routers.tt-web.entrypoints=https
+      - traefik.http.routers.tt-web.tls=true
+      - traefik.http.routers.tt-web.tls.certresolver=letsencrypt
+      - traefik.http.routers.tt-web.service=tt-web-svc
+      - traefik.http.services.tt-web-svc.loadbalancer.server.port=3000
+      - traefik.http.middlewares.tt-redirect.redirectscheme.scheme=https
+      - traefik.http.middlewares.tt-redirect.redirectscheme.permanent=true
 
   ws:
     build:
@@ -59,6 +76,18 @@ services:
     networks:
       - default
       - coolify
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=coolify
+      - traefik.http.routers.tt-ws-http.rule=Host(`trackerqwertzuiop-ws.agent42.cz`)
+      - traefik.http.routers.tt-ws-http.entrypoints=http
+      - traefik.http.routers.tt-ws-http.middlewares=tt-redirect
+      - traefik.http.routers.tt-ws.rule=Host(`trackerqwertzuiop-ws.agent42.cz`)
+      - traefik.http.routers.tt-ws.entrypoints=https
+      - traefik.http.routers.tt-ws.tls=true
+      - traefik.http.routers.tt-ws.tls.certresolver=letsencrypt
+      - traefik.http.routers.tt-ws.service=tt-ws-svc
+      - traefik.http.services.tt-ws-svc.loadbalancer.server.port=3001
 
 networks:
   # Joining the shared coolify network lets web/ws resolve sibling

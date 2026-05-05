@@ -32,8 +32,4 @@ ENV PORT=3000
 COPY --from=build /app /app
 WORKDIR /app/apps/web
 EXPOSE 3000
-# pnpm knows where next is regardless of which layout pnpm install used.
-# Wrap in a shell so any startup failure surfaces a clear log line and
-# the container stays alive long enough for `coolify application_logs`
-# to capture stdout/stderr.
-CMD ["sh", "-c", "set -x; pnpm start; echo NEXT_EXITED_WITH_CODE=$?; sleep 600"]
+CMD ["pnpm", "start"]
