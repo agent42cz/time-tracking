@@ -31,12 +31,15 @@ services:
       CORS_EXTRA_ORIGINS: ${CORS_EXTRA_ORIGINS:-}
     expose:
       - '3000'
+    # Healthcheck only verifies the TCP port is listening — /api/health can
+    # legitimately return 503 (backend dependency hiccup) and we don't want
+    # a transient backend issue to cycle the web container.
     healthcheck:
-      test: ['CMD-SHELL', 'wget -qO- http://localhost:3000/api/health || exit 1']
-      interval: 15s
-      timeout: 5s
-      retries: 6
-      start_period: 30s
+      test: ['CMD-SHELL', 'wget -qO- -T 5 http://localhost:3000/ >/dev/null 2>&1 || exit 1']
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
     networks:
       - default
       - coolify
@@ -54,11 +57,11 @@ services:
     expose:
       - '3001'
     healthcheck:
-      test: ['CMD-SHELL', 'wget -qO- http://localhost:3001/ || exit 1']
-      interval: 15s
-      timeout: 5s
-      retries: 6
-      start_period: 20s
+      test: ['CMD-SHELL', 'wget -qO- -T 5 http://localhost:3001/ >/dev/null 2>&1 || exit 1']
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
     networks:
       - default
       - coolify
