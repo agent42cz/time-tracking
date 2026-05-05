@@ -24,5 +24,11 @@ ENV NODE_ENV=production
 COPY --from=build /app/apps/web/.next/standalone ./
 COPY --from=build /app/apps/web/.next/static ./apps/web/.next/static
 COPY --from=build /app/apps/web/public ./apps/web/public
+# Next standalone tracing misses Prisma's dynamically-loaded engine binaries
+# and argon2's native bindings. Copy the full build-time node_modules so
+# everything is reliably available at runtime (image grows ~200 MB; worth
+# it for a deploy that actually starts).
+COPY --from=build /app/node_modules ./node_modules
+COPY --from=build /app/packages/db/prisma ./packages/db/prisma
 EXPOSE 3000
 CMD ["node", "apps/web/server.js"]
