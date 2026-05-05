@@ -168,13 +168,22 @@ export async function changePasswordAction(formData: FormData): Promise<ActionRe
 }
 
 export async function totpBeginAction(): Promise<
-  ActionResult | { ok: true; secret: string; otpauthUrl: string }
+  ActionResult | { ok: true; secret: string; otpauthUrl: string; qrDataUrl: string }
 > {
   const { getSession } = await import('../session.js');
   const session = await getSession();
   if (!session) return { ok: false, error: 'Nepřihlášeno' };
   const e = await beginEnrollment(prisma(), session.userId);
-  return { ok: true, ...e };
+  // Render the QR server-side so the client doesn't need the qrcode lib
+  // bundled. dark+light tuned to read cleanly on zinc-50 cards.
+  const qrcode = await import('qrcode');
+  const qrDataUrl = await qrcode.toDataURL(e.otpauthUrl, {
+    margin: 1,
+    width: 224,
+    color: { dark: '#18181b', light: '#ffffff' },
+    errorCorrectionLevel: 'M',
+  });
+  return { ok: true, ...e, qrDataUrl };
 }
 
 export async function totpConfirmAction(
