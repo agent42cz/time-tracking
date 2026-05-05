@@ -107,3 +107,30 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
   }
   return false;
 });
+
+// External: web bridge at /extension/connect hands us a freshly-minted
+// token after the user authenticates on the website. Sender origins are
+// gated by the manifest's externally_connectable.matches.
+chrome.runtime.onMessageExternal.addListener((msg, _sender, sendResponse) => {
+  if (
+    msg?.type === 'tt:auth' &&
+    typeof msg.token === 'string' &&
+    typeof msg.apiBase === 'string' &&
+    typeof msg.expiresAt === 'string'
+  ) {
+    chrome.storage.local
+      .set({
+        'tt:session': {
+          token: msg.token,
+          expiresAt: msg.expiresAt,
+          apiBase: msg.apiBase,
+        },
+      })
+      .then(() => poll())
+      .then(() => sendResponse({ ok: true }))
+      .catch((err) => sendResponse({ ok: false, error: String(err) }));
+    return true; // async response
+  }
+  sendResponse({ ok: false, error: 'unsupported_message' });
+  return false;
+});

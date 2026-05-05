@@ -48,27 +48,44 @@ export function Popup(): ReactElement {
     setState({ session, me: user, timer, catalog });
   }, []);
 
-  useEffect(() => {
-    void (async () => {
-      const session = await getStoredSession(storage);
-      if (!session) {
+  const tryLoadFromStorage = useCallback(async (): Promise<void> => {
+    const session = await getStoredSession(storage);
+    if (!session) {
+      setView('login');
+      return;
+    }
+    try {
+      await refresh(session);
+      setView('app');
+    } catch (err) {
+      if (err instanceof ApiError && err.status === 401) {
+        await setStoredSession(storage, null);
         setView('login');
-        return;
+      } else {
+        setError('Nelze se připojit k serveru');
+        setView('login');
       }
-      try {
-        await refresh(session);
-        setView('app');
-      } catch (err) {
-        if (err instanceof ApiError && err.status === 401) {
-          await setStoredSession(storage, null);
-          setView('login');
-        } else {
-          setError('Nelze se připojit k serveru');
-          setView('login');
-        }
-      }
-    })();
+    }
   }, [refresh]);
+
+  useEffect(() => {
+    void tryLoadFromStorage();
+  }, [tryLoadFromStorage]);
+
+  // When the web-redirect bridge writes a token into chrome.storage.local
+  // (or the user logs in on another popup instance), pick it up immediately.
+  useEffect(() => {
+    if (typeof chrome === 'undefined' || !chrome?.storage?.onChanged) return;
+    const listener = (
+      changes: Record<string, { newValue?: unknown; oldValue?: unknown }>,
+      area: string,
+    ): void => {
+      if (area !== 'local') return;
+      if (changes['tt:session']) void tryLoadFromStorage();
+    };
+    chrome.storage.onChanged.addListener(listener);
+    return () => chrome.storage.onChanged.removeListener(listener);
+  }, [tryLoadFromStorage]);
 
   if (view === 'loading') return <Spinner />;
 
@@ -163,6 +180,23 @@ function LoginForm({
     setShowSettings(false);
   }
 
+  function openWebLogin(): void {
+    const base = (apiBase || 'http://localhost:3000').replace(/\/$/, '');
+    const ch =
+      typeof chrome !== 'undefined' ? (chrome as { runtime?: { id?: string } }) : undefined;
+    const extId = ch?.runtime?.id;
+    if (!extId) {
+      setError('Rozšíření není inicializováno — restartujte prohlížeč.');
+      return;
+    }
+    const url = `${base}/extension/connect?extId=${encodeURIComponent(extId)}&apiBase=${encodeURIComponent(base)}`;
+    if (typeof chrome !== 'undefined' && chrome?.tabs?.create) {
+      chrome.tabs.create({ url, active: true });
+    } else {
+      window.open(url, '_blank', 'noopener');
+    }
+  }
+
   return (
     <form onSubmit={submit} className="w-[360px] space-y-3 p-4 text-sm">
       <div className="flex items-center justify-between">
@@ -198,6 +232,21 @@ function LoginForm({
           {error}
         </div>
       ) : null}
+      <button
+        type="button"
+        onClick={openWebLogin}
+        className="w-full rounded-md bg-zinc-900 py-2 font-medium text-white hover:bg-zinc-800"
+      >
+        Přihlásit se přes web
+      </button>
+      <p className="text-center text-[10px] text-zinc-500">
+        Otevře přihlašovací stránku Time Trackeru — podporuje 2FA i magic-link
+      </p>
+      <div className="relative my-1 flex items-center">
+        <div className="flex-1 border-t border-zinc-200" />
+        <span className="mx-2 text-[10px] uppercase tracking-wide text-zinc-400">nebo přímo</span>
+        <div className="flex-1 border-t border-zinc-200" />
+      </div>
       <label className="block">
         <span className="text-xs font-medium text-zinc-600">E-mail</span>
         <input

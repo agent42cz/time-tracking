@@ -2,7 +2,14 @@ import type { ReactElement } from 'react';
 import { Card, CardBody, CardHeader, CardTitle } from '@tt/ui';
 import { LoginForms } from './LoginForms';
 
-export default function LoginPage(): ReactElement {
+export default async function LoginPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ next?: string }>;
+}): Promise<ReactElement> {
+  const { next } = await searchParams;
+  // Only allow same-origin redirects through (the action re-validates anyway).
+  const safeNext = next && next.startsWith('/') && !next.startsWith('//') ? next : null;
   return (
     <main className="flex min-h-screen items-center justify-center bg-zinc-50 px-4 py-12">
       <div className="w-full max-w-md">
@@ -15,7 +22,7 @@ export default function LoginPage(): ReactElement {
             <CardTitle>Přihlášení</CardTitle>
           </CardHeader>
           <CardBody>
-            <LoginForms />
+            <LoginForms next={safeNext} />
           </CardBody>
         </Card>
       </div>

@@ -8,7 +8,7 @@ import { magicLinkSendAction, passwordLoginAction } from '@/lib/actions/auth';
 type Mode = 'password' | 'magic';
 type PasswordStep = 'credentials' | 'totp';
 
-export function LoginForms(): ReactElement {
+export function LoginForms({ next }: { next: string | null }): ReactElement {
   const [mode, setMode] = useState<Mode>('password');
   const [step, setStep] = useState<PasswordStep>('credentials');
   const [credentials, setCredentials] = useState<{ email: string; password: string } | null>(null);
@@ -25,6 +25,7 @@ export function LoginForms(): ReactElement {
   function onPasswordSubmit(e: React.FormEvent<HTMLFormElement>): void {
     e.preventDefault();
     const fd = new FormData(e.currentTarget);
+    if (next) fd.set('next', next);
     const email = String(fd.get('email') ?? '');
     const password = String(fd.get('password') ?? '');
     setError(null);
@@ -46,6 +47,7 @@ export function LoginForms(): ReactElement {
     fd.set('email', credentials.email);
     fd.set('password', credentials.password);
     fd.set('totp', String(new FormData(e.currentTarget).get('totp') ?? ''));
+    if (next) fd.set('next', next);
     setError(null);
     startTransition(async () => {
       const r = await passwordLoginAction(fd);

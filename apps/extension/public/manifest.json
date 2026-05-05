@@ -24,5 +24,8 @@
     "type": "module"
   },
   "permissions": ["storage", "alarms"],
-  "host_permissions": ["http://localhost:3000/*", "https://*.agent42.cz/*"]
+  "host_permissions": ["http://localhost:3000/*", "https://*.agent42.cz/*"],
+  "externally_connectable": {
+    "matches": ["http://localhost:3000/*", "https://*.agent42.cz/*"]
+  }
 }

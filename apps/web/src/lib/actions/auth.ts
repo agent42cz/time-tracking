@@ -30,12 +30,25 @@ export type ActionResult = { ok: true } | { ok: false; error: string };
 export type PasswordLoginActionResult =
   | { ok: false; error: string; reason: 'totp_required' | 'totp_invalid' | 'locked' | 'invalid_credentials' };
 
+/**
+ * Allowlist for the post-login redirect target. Must be a same-origin path
+ * (starts with `/`, no `//` to dodge protocol-relative URLs). Anything else
+ * falls back to /timer to prevent open-redirect to phishing.
+ */
+function safeNextPath(input: string | null | undefined): string {
+  if (!input) return '/timer';
+  if (!input.startsWith('/')) return '/timer';
+  if (input.startsWith('//')) return '/timer';
+  return input;
+}
+
 export async function passwordLoginAction(
   formData: FormData,
 ): Promise<PasswordLoginActionResult> {
   const email = String(formData.get('email') ?? '');
   const password = String(formData.get('password') ?? '');
   const totpCode = String(formData.get('totp') ?? '').trim() || undefined;
+  const next = safeNextPath(String(formData.get('next') ?? ''));
   const result = await loginWithPassword(prisma(), { email, password, totpCode });
   if (!result.ok) {
     if (result.reason === 'totp_required')
@@ -51,7 +64,7 @@ export async function passwordLoginAction(
     return { ok: false, reason: 'invalid_credentials', error: 'Neplatné přihlašovací údaje' };
   }
   await setSessionCookie(result.sessionToken);
-  redirect('/timer');
+  redirect(next);
 }
 
 export async function magicLinkSendAction(formData: FormData): Promise<ActionResult> {
@@ -67,7 +80,10 @@ export async function magicLinkSendAction(formData: FormData): Promise<ActionRes
   return { ok: true };
 }
 
-export async function magicLinkConsumeAction(token: string): Promise<ActionResult> {
+export async function magicLinkConsumeAction(
+  token: string,
+  next?: string,
+): Promise<ActionResult> {
   const result = await loginWithMagicLink(prisma(), { token });
   if (!result.ok) {
     if (result.reason === 'totp_required')
@@ -75,7 +91,7 @@ export async function magicLinkConsumeAction(token: string): Promise<ActionResul
     return { ok: false, error: 'Odkaz je neplatný nebo již vypršel' };
   }
   await setSessionCookie(result.sessionToken);
-  redirect('/timer');
+  redirect(safeNextPath(next));
 }
 
 export async function logoutAction(): Promise<void> {
