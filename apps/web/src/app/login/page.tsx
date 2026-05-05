@@ -1,15 +1,21 @@
 import type { ReactElement } from 'react';
-import { Card, CardBody, CardHeader, CardTitle } from '@tt/ui';
+import { Alert, Card, CardBody, CardHeader, CardTitle } from '@tt/ui';
 import { LoginForms } from './LoginForms';
+
+const MAGIC_ERROR_MESSAGES: Record<string, string> = {
+  missing: 'V odkazu chybí token. Otevřete novější odkaz z e-mailu.',
+  invalid: 'Odkaz je neplatný nebo už vypršel. Pošlete si nový.',
+  totp: 'Tento účet má zapnuté 2FA — přihlaste se heslem a kódem z aplikace.',
+};
 
 export default async function LoginPage({
   searchParams,
 }: {
-  searchParams: Promise<{ next?: string }>;
+  searchParams: Promise<{ next?: string; magic_error?: string }>;
 }): Promise<ReactElement> {
-  const { next } = await searchParams;
-  // Only allow same-origin redirects through (the action re-validates anyway).
+  const { next, magic_error: magicError } = await searchParams;
   const safeNext = next && next.startsWith('/') && !next.startsWith('//') ? next : null;
+  const magicErrorMessage = magicError ? MAGIC_ERROR_MESSAGES[magicError] : null;
   return (
     <main className="flex min-h-screen items-center justify-center bg-zinc-50 px-4 py-12">
       <div className="w-full max-w-md">
@@ -22,6 +28,11 @@ export default async function LoginPage({
             <CardTitle>Přihlášení</CardTitle>
           </CardHeader>
           <CardBody>
+            {magicErrorMessage ? (
+              <div className="mb-4">
+                <Alert tone="danger">{magicErrorMessage}</Alert>
+              </div>
+            ) : null}
             <LoginForms next={safeNext} />
           </CardBody>
         </Card>
