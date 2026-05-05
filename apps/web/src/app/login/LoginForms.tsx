@@ -118,6 +118,16 @@ export function LoginForms({ next }: { next: string | null }): ReactElement {
             <Button type="submit" loading={pending} className="w-full">
               Přihlásit se
             </Button>
+            <button
+              type="button"
+              onClick={() => {
+                setMode('magic');
+                setError(null);
+              }}
+              className="mt-1 block w-full text-center text-xs text-zinc-500 underline hover:text-zinc-700"
+            >
+              Zapomněli jste heslo?
+            </button>
           </FieldGroup>
         </form>
       ) : null}
@@ -163,8 +173,8 @@ export function LoginForms({ next }: { next: string | null }): ReactElement {
       {mode === 'magic' && step === 'credentials' ? (
         magicSent ? (
           <Alert tone="success">
-            Pokud účet existuje, odeslali jsme přihlašovací odkaz na váš e-mail. Platnost odkazu
-            je 15 minut.
+            Pokud účet existuje, odeslali jsme přihlašovací odkaz na váš e-mail. Platnost odkazu je
+            15 minut.
           </Alert>
         ) : (
           <form onSubmit={onMagicSubmit}>
@@ -174,13 +184,7 @@ export function LoginForms({ next }: { next: string | null }): ReactElement {
                 htmlFor="email-magic"
                 hint="Pošleme vám odkaz pro přihlášení (platnost 15 min)."
               >
-                <Input
-                  id="email-magic"
-                  name="email"
-                  type="email"
-                  autoComplete="email"
-                  required
-                />
+                <Input id="email-magic" name="email" type="email" autoComplete="email" required />
               </Field>
               <Button type="submit" loading={pending} className="w-full">
                 Poslat odkaz
