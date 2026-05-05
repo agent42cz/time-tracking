@@ -33,10 +33,17 @@ async function boot(): Promise<PrismaClient> {
   const url = container.getConnectionUri();
   process.env.DATABASE_URL = url;
 
-  execSync(`pnpm prisma db push --schema "${SCHEMA_PATH}" --skip-generate --accept-data-loss`, {
-    env: { ...process.env, DATABASE_URL: url },
-    stdio: 'inherit',
-  });
+  // Filter via @tt/db so the prisma binary is resolved against the
+  // workspace that actually depends on it. Calling bare `pnpm prisma`
+  // from apps/web's vitest cwd fails because the CLI isn't hoisted into
+  // every package's local node_modules/.bin.
+  execSync(
+    `pnpm --filter @tt/db exec prisma db push --schema "${SCHEMA_PATH}" --skip-generate --accept-data-loss`,
+    {
+      env: { ...process.env, DATABASE_URL: url },
+      stdio: 'inherit',
+    },
+  );
 
   _container = container;
   const client = new PrismaClient({ datasources: { db: { url } } });
