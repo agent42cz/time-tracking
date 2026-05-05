@@ -3,9 +3,13 @@
 import { useState, useTransition } from 'react';
 import type { ReactElement } from 'react';
 import { Alert, Button, Field, FieldGroup, Input } from '@tt/ui';
-import { magicLinkSendAction, passwordLoginAction } from '@/lib/actions/auth';
+import {
+  magicLinkSendAction,
+  passwordLoginAction,
+  passwordResetSendAction,
+} from '@/lib/actions/auth';
 
-type Mode = 'password' | 'magic';
+type Mode = 'password' | 'magic' | 'reset';
 type PasswordStep = 'credentials' | 'totp';
 
 export function LoginForms({ next }: { next: string | null }): ReactElement {
@@ -14,6 +18,7 @@ export function LoginForms({ next }: { next: string | null }): ReactElement {
   const [credentials, setCredentials] = useState<{ email: string; password: string } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [magicSent, setMagicSent] = useState(false);
+  const [resetSent, setResetSent] = useState(false);
   const [pending, startTransition] = useTransition();
 
   function reset(): void {
@@ -63,6 +68,17 @@ export function LoginForms({ next }: { next: string | null }): ReactElement {
     startTransition(async () => {
       const r = await magicLinkSendAction(fd);
       if (r.ok) setMagicSent(true);
+      else setError(r.error);
+    });
+  }
+
+  function onResetSubmit(e: React.FormEvent<HTMLFormElement>): void {
+    e.preventDefault();
+    const fd = new FormData(e.currentTarget);
+    setError(null);
+    startTransition(async () => {
+      const r = await passwordResetSendAction(fd);
+      if (r.ok) setResetSent(true);
       else setError(r.error);
     });
   }
@@ -121,7 +137,7 @@ export function LoginForms({ next }: { next: string | null }): ReactElement {
             <button
               type="button"
               onClick={() => {
-                setMode('magic');
+                setMode('reset');
                 setError(null);
               }}
               className="mt-1 block w-full text-center text-xs text-zinc-500 underline hover:text-zinc-700"
@@ -189,6 +205,53 @@ export function LoginForms({ next }: { next: string | null }): ReactElement {
               <Button type="submit" loading={pending} className="w-full">
                 Poslat odkaz
               </Button>
+            </FieldGroup>
+          </form>
+        )
+      ) : null}
+
+      {mode === 'reset' && step === 'credentials' ? (
+        resetSent ? (
+          <div className="space-y-3">
+            <Alert tone="success">
+              Pokud účet existuje, poslali jsme na e-mail odkaz pro nastavení nového hesla. Platnost
+              odkazu je 60 minut.
+            </Alert>
+            <button
+              type="button"
+              onClick={() => {
+                setMode('password');
+                setResetSent(false);
+                setError(null);
+              }}
+              className="block w-full text-center text-xs text-zinc-500 underline hover:text-zinc-700"
+            >
+              ← Zpět na přihlášení
+            </button>
+          </div>
+        ) : (
+          <form onSubmit={onResetSubmit}>
+            <FieldGroup>
+              <Field
+                label="E-mail"
+                htmlFor="email-reset"
+                hint="Pošleme vám odkaz pro nastavení nového hesla (platnost 60 min)."
+              >
+                <Input id="email-reset" name="email" type="email" autoComplete="email" required />
+              </Field>
+              <Button type="submit" loading={pending} className="w-full">
+                Poslat odkaz pro reset
+              </Button>
+              <button
+                type="button"
+                onClick={() => {
+                  setMode('password');
+                  setError(null);
+                }}
+                className="mt-1 block w-full text-center text-xs text-zinc-500 underline hover:text-zinc-700"
+              >
+                ← Zpět na přihlášení
+              </button>
             </FieldGroup>
           </form>
         )

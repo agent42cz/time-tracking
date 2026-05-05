@@ -4,31 +4,23 @@ import { redirect } from 'next/navigation';
 import { revalidatePath } from 'next/cache';
 import { loginWithMagicLink, loginWithPassword } from '../auth/login.js';
 import { issueMagicLink } from '../auth/magic-link.js';
-import {
-  acceptInviteAsExistingUser,
-  acceptInviteAsNewUser,
-} from '../auth/signup.js';
-import {
-  beginEnrollment,
-  confirmEnrollment,
-  disableTotp,
-} from '../auth/totp-enrollment.js';
+import { issuePasswordReset, redeemPasswordReset } from '../auth/password-reset.js';
+import { acceptInviteAsExistingUser, acceptInviteAsNewUser } from '../auth/signup.js';
+import { beginEnrollment, confirmEnrollment, disableTotp } from '../auth/totp-enrollment.js';
 import { hashPassword, verifyPassword } from '../auth/passwords.js';
-import { magicLinkEmail, sendMail } from '../email.js';
-import {
-  clearSessionCookie,
-  prisma,
-  setActiveCompany,
-  setSessionCookie,
-} from '../session.js';
+import { magicLinkEmail, passwordResetEmail, sendMail } from '../email.js';
+import { clearSessionCookie, prisma, setActiveCompany, setSessionCookie } from '../session.js';
 import { createSession, invalidateSession } from '../auth/sessions.js';
 import { cookies } from 'next/headers';
 import { SESSION_COOKIE } from '../session.js';
 
 export type ActionResult = { ok: true } | { ok: false; error: string };
 
-export type PasswordLoginActionResult =
-  | { ok: false; error: string; reason: 'totp_required' | 'totp_invalid' | 'locked' | 'invalid_credentials' };
+export type PasswordLoginActionResult = {
+  ok: false;
+  error: string;
+  reason: 'totp_required' | 'totp_invalid' | 'locked' | 'invalid_credentials';
+};
 
 /**
  * Allowlist for the post-login redirect target. Must be a same-origin path
@@ -42,9 +34,7 @@ function safeNextPath(input: string | null | undefined): string {
   return input;
 }
 
-export async function passwordLoginAction(
-  formData: FormData,
-): Promise<PasswordLoginActionResult> {
+export async function passwordLoginAction(formData: FormData): Promise<PasswordLoginActionResult> {
   const email = String(formData.get('email') ?? '');
   const password = String(formData.get('password') ?? '');
   const totpCode = String(formData.get('totp') ?? '').trim() || undefined;
@@ -80,10 +70,37 @@ export async function magicLinkSendAction(formData: FormData): Promise<ActionRes
   return { ok: true };
 }
 
-export async function magicLinkConsumeAction(
-  token: string,
-  next?: string,
-): Promise<ActionResult> {
+export async function passwordResetSendAction(formData: FormData): Promise<ActionResult> {
+  const email = String(formData.get('email') ?? '').toLowerCase();
+  const user = await prisma().user.findUnique({ where: { email } });
+  // Always claim success to avoid email enumeration.
+  if (!user) return { ok: true };
+  const reset = await issuePasswordReset(prisma(), user.id);
+  const url = `${process.env.APP_URL ?? 'http://localhost:3000'}/reset?token=${encodeURIComponent(
+    reset.token,
+  )}`;
+  await sendMail(passwordResetEmail({ to: email, url, expiresInMinutes: 60 }));
+  return { ok: true };
+}
+
+export async function passwordResetCompleteAction(formData: FormData): Promise<ActionResult> {
+  const token = String(formData.get('token') ?? '');
+  const newPassword = String(formData.get('password') ?? '');
+  if (newPassword.length < 12) {
+    return { ok: false, error: 'Heslo musí mít aspoň 12 znaků' };
+  }
+  const result = await redeemPasswordReset(prisma(), token);
+  if (!result.ok) {
+    return { ok: false, error: 'Odkaz je neplatný nebo již vypršel' };
+  }
+  await prisma().user.update({
+    where: { id: result.userId },
+    data: { passwordHash: await hashPassword(newPassword) },
+  });
+  return { ok: true };
+}
+
+export async function magicLinkConsumeAction(token: string, next?: string): Promise<ActionResult> {
   const result = await loginWithMagicLink(prisma(), { token });
   if (!result.ok) {
     if (result.reason === 'totp_required')

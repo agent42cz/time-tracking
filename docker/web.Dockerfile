@@ -34,4 +34,7 @@ ENV PORT=3000
 COPY --from=build /app /app
 WORKDIR /app/apps/web
 EXPOSE 3000
-CMD ["pnpm", "start"]
+# `prisma db push` is idempotent — diffs the live DB against schema.prisma
+# and applies any missing tables/columns. Keeps the live DB in sync without
+# a separate migration step. Then start Next.
+CMD ["sh", "-c", "cd /app && pnpm --filter @tt/db exec prisma db push --skip-generate --accept-data-loss && cd /app/apps/web && pnpm start"]

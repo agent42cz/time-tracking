@@ -64,6 +64,34 @@ export function magicLinkEmail(opts: {
   return { to: opts.to, subject: 'Přihlášení do Time Trackeru', text, html };
 }
 
+export function passwordResetEmail(opts: {
+  to: string;
+  url: string;
+  expiresInMinutes: number;
+}): MailMessage {
+  const text = [
+    'Dobrý den,',
+    '',
+    `obdrželi jsme žádost o reset hesla. Klikněte na odkaz níže (platnost ${opts.expiresInMinutes} minut) a nastavte si nové heslo:`,
+    opts.url,
+    '',
+    'Pokud jste o reset nežádali, ignorujte tuto zprávu — heslo zůstane beze změny.',
+    '',
+    '— Agent42 Time Tracker',
+  ].join('\n');
+  const html = `
+    <div style="font-family:system-ui,-apple-system,sans-serif;max-width:560px;margin:0 auto;padding:24px;color:#18181b">
+      <h2 style="margin:0 0 16px;font-size:20px">Reset hesla — Time Tracker</h2>
+      <p>Klikněte na tlačítko níže a nastavte si nové heslo (platnost <strong>${opts.expiresInMinutes} min</strong>):</p>
+      <p style="margin:24px 0">
+        <a href="${opts.url}" style="background:#18181b;color:#fff;padding:12px 20px;border-radius:6px;text-decoration:none;font-weight:600">Nastavit nové heslo</a>
+      </p>
+      <p style="color:#71717a;font-size:13px">Pokud jste o reset nežádali, ignorujte zprávu — heslo zůstane beze změny.</p>
+    </div>
+  `.trim();
+  return { to: opts.to, subject: 'Reset hesla — Time Tracker', text, html };
+}
+
 export function inviteEmail(opts: {
   to: string;
   companyName: string;
