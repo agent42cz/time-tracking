@@ -6,7 +6,7 @@
 # bindings get missed). Instead we copy the full repo + node_modules and
 # run `next start` against it. ~150-200 MB heavier but reliably starts.
 FROM node:22-alpine AS deps
-RUN apk add --no-cache libc6-compat python3 make g++ wget
+RUN apk add --no-cache libc6-compat python3 make g++ wget zip
 WORKDIR /app
 RUN corepack enable
 COPY .npmrc pnpm-lock.yaml pnpm-workspace.yaml package.json ./
@@ -21,6 +21,8 @@ RUN pnpm install --frozen-lockfile --prod=false
 FROM deps AS build
 COPY . .
 RUN pnpm --filter @tt/db prisma:generate
+RUN pnpm --filter @tt/extension build \
+    && (cd apps/extension/dist && zip -qr /app/apps/web/public/tt-extension.zip .)
 RUN pnpm --filter @tt/web build
 
 FROM node:22-alpine AS runtime

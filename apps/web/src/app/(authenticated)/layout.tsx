@@ -22,6 +22,7 @@ export default async function AuthLayout({
     { href: '/members', label: 'Členové', admin: true },
     { href: '/audit', label: 'Audit', admin: true },
     { href: '/trash', label: 'Koš', admin: true },
+    { href: '/extension', label: 'Rozšíření' },
     { href: '/settings', label: 'Nastavení' },
     { href: '/companies', label: 'Firmy' },
   ];
