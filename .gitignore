@@ -47,3 +47,4 @@ apps/extension/store/
 
 # Misc
 *.tgz
+.claude/scheduled_tasks.lock
