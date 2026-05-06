@@ -32,8 +32,11 @@ export default async function AuthLayout({
         </div>
         <nav className="px-3">
           {visibleGroups.map((group, index) => (
-            <div key={group.label} className={index > 0 ? 'mt-5' : undefined}>
-              <p className="mb-1 px-3 text-[11px] font-semibold uppercase tracking-wider text-zinc-500">
+            <div
+              key={group.label}
+              className={index > 0 ? 'mt-4 border-t border-zinc-200 pt-4' : undefined}
+            >
+              <p className="mb-1 px-3 text-[11px] font-semibold uppercase tracking-wider text-indigo-600">
                 {group.label}
               </p>
               <div className="space-y-0.5">
