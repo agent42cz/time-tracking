@@ -3,7 +3,23 @@ name: CI / CD
 on:
   push:
     branches: [main]
+    paths-ignore:
+      - '**/*.md'
+      - 'docs/**'
+      - '.editorconfig'
+      - '.gitignore'
+      - '.prettierignore'
+      - '.prettierrc.json'
+      - 'LICENSE'
   pull_request:
+    paths-ignore:
+      - '**/*.md'
+      - 'docs/**'
+      - '.editorconfig'
+      - '.gitignore'
+      - '.prettierignore'
+      - '.prettierrc.json'
+      - 'LICENSE'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
