@@ -40,6 +40,7 @@ packages/db/generated/
 # Extension build
 apps/extension/dist/
 apps/extension/time-tracker-extension-v*.zip
+apps/extension/store/
 
 # Docker volumes
 .volumes/
