@@ -4,6 +4,7 @@ import { requireUser } from '@/lib/session';
 import { CompanySwitcher } from '@/components/CompanySwitcher';
 import { FaviconSwitcher } from '@/components/FaviconSwitcher';
 import { LogoutButton } from '@/components/LogoutButton';
+import { filterVisibleGroups, navGroups } from './nav';
 
 export default async function AuthLayout({
   children,
@@ -12,21 +13,7 @@ export default async function AuthLayout({
 }): Promise<ReactElement> {
   const session = await requireUser();
   const isAdmin = session.activeRole === 'admin';
-
-  const navItems: { href: string; label: string; admin?: boolean }[] = [
-    { href: '/timer', label: 'Stopky' },
-    { href: '/timesheet', label: 'Výkaz' },
-    { href: '/dashboard', label: 'Dashboard', admin: true },
-    { href: '/reports', label: 'Reporty', admin: true },
-    { href: '/clients', label: 'Klienti', admin: true },
-    { href: '/tags', label: 'Štítky' },
-    { href: '/members', label: 'Členové', admin: true },
-    { href: '/audit', label: 'Audit', admin: true },
-    { href: '/trash', label: 'Koš', admin: true },
-    { href: '/extension', label: 'Rozšíření' },
-    { href: '/settings', label: 'Nastavení' },
-    { href: '/companies', label: 'Firmy' },
-  ];
+  const visibleGroups = filterVisibleGroups(navGroups, isAdmin);
 
   return (
     <div className="flex min-h-screen bg-zinc-50">
@@ -43,18 +30,25 @@ export default async function AuthLayout({
             memberships={session.memberships}
           />
         </div>
-        <nav className="space-y-0.5 px-3">
-          {navItems
-            .filter((i) => !i.admin || isAdmin)
-            .map((i) => (
-              <Link
-                key={i.href}
-                href={i.href}
-                className="block rounded-md px-3 py-2 text-sm text-zinc-700 transition-colors hover:bg-zinc-100 hover:text-zinc-900"
-              >
-                {i.label}
-              </Link>
-            ))}
+        <nav className="px-3">
+          {visibleGroups.map((group, index) => (
+            <div key={group.label} className={index === 0 ? '' : 'mt-5'}>
+              <p className="mb-1 px-3 text-[11px] font-semibold uppercase tracking-wider text-zinc-500">
+                {group.label}
+              </p>
+              <div className="space-y-0.5">
+                {group.items.map((item) => (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    className="block rounded-md px-3 py-2 text-sm text-zinc-700 transition-colors hover:bg-zinc-100 hover:text-zinc-900"
+                  >
+                    {item.label}
+                  </Link>
+                ))}
+              </div>
+            </div>
+          ))}
         </nav>
         <div className="absolute bottom-0 w-64 border-t border-zinc-200 bg-white px-3 py-3">
           <div className="flex items-center justify-between gap-2 px-2 py-1">
