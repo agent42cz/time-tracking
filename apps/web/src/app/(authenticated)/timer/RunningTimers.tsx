@@ -1,9 +1,11 @@
 'use client';
 
 import type { ReactElement } from 'react';
-import { useEffect, useState, useTransition } from 'react';
+import { useState } from 'react';
 import { Badge, Button, Card, CardBody, CardHeader, CardTitle } from '@tt/ui';
+import { formatDurationHMS } from '@tt/shared';
 import { stopTimerAction } from '@/lib/actions/time';
+import { notifyTimerChanged } from '@/lib/timer-events';
 
 interface Entry {
   id: string;
@@ -14,20 +16,15 @@ interface Entry {
   tags: { name: string; color: string }[];
 }
 
-function fmtDuration(ms: number): string {
-  const total = Math.max(0, Math.floor(ms / 1000));
-  const h = Math.floor(total / 3600);
-  const m = Math.floor((total % 3600) / 60);
-  const s = total % 60;
-  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
-}
-
-export function RunningTimers({ entries }: { entries: Entry[] }): ReactElement {
-  const [now, setNow] = useState<number>(Date.now());
-  useEffect(() => {
-    const t = setInterval(() => setNow(Date.now()), 1000);
-    return () => clearInterval(t);
-  }, []);
+export function RunningTimers({
+  entries,
+  now,
+  onStopped,
+}: {
+  entries: Entry[];
+  now: number | null;
+  onStopped: (id: string) => void;
+}): ReactElement {
   return (
     <Card>
       <CardHeader>
@@ -35,16 +32,34 @@ export function RunningTimers({ entries }: { entries: Entry[] }): ReactElement {
       </CardHeader>
       <CardBody className="space-y-3">
         {entries.map((e) => (
-          <RunningRow key={e.id} entry={e} now={now} />
+          <RunningRow key={e.id} entry={e} now={now} onStopped={onStopped} />
         ))}
       </CardBody>
     </Card>
   );
 }
 
-function RunningRow({ entry, now }: { entry: Entry; now: number }): ReactElement {
-  const [pending, startTransition] = useTransition();
-  const elapsed = now - new Date(entry.startedAt).getTime();
+function RunningRow({
+  entry,
+  now,
+  onStopped,
+}: {
+  entry: Entry;
+  now: number | null;
+  onStopped: (id: string) => void;
+}): ReactElement {
+  const [pending, setPending] = useState(false);
+  const elapsed = now == null ? 0 : now - new Date(entry.startedAt).getTime();
+  async function handleStop(): Promise<void> {
+    setPending(true);
+    try {
+      const r = await stopTimerAction(entry.id);
+      if (r.ok) onStopped(entry.id);
+    } finally {
+      setPending(false);
+    }
+    notifyTimerChanged();
+  }
   return (
     <div className="flex items-center justify-between gap-4 rounded-md border border-zinc-100 px-3 py-2">
       <div className="min-w-0">
@@ -66,15 +81,13 @@ function RunningRow({ entry, now }: { entry: Entry; now: number }): ReactElement
         </div>
       </div>
       <div className="flex shrink-0 items-center gap-3">
-        <span className="font-mono text-base font-semibold text-zinc-900 tabular-nums">
-          {fmtDuration(elapsed)}
-        </span>
-        <Button
-          variant="danger"
-          size="sm"
-          loading={pending}
-          onClick={() => startTransition(() => stopTimerAction(entry.id).then(() => undefined))}
+        <span
+          suppressHydrationWarning
+          className="font-mono text-base font-semibold text-zinc-900 tabular-nums"
         >
+          {formatDurationHMS(elapsed)}
+        </span>
+        <Button variant="danger" size="sm" loading={pending} onClick={() => void handleStop()}>
           ■ Stop
         </Button>
       </div>

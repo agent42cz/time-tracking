@@ -2,8 +2,7 @@ import type { ReactElement } from 'react';
 import { prisma, requireActiveCompany } from '@/lib/session';
 import { PageHeader } from '@/components/PageHeader';
 import { TimerStartCard } from './TimerStartCard';
-import { RunningTimers } from './RunningTimers';
-import { TodayList } from './TodayList';
+import { TimerLists } from './TimerLists';
 
 export default async function TimerPage(): Promise<ReactElement> {
   const s = await requireActiveCompany();
@@ -61,20 +60,16 @@ export default async function TimerPage(): Promise<ReactElement> {
           }))}
           tags={tags.map((t) => ({ id: t.id, name: t.name, color: t.color }))}
         />
-        {running.length > 0 ? (
-          <RunningTimers
-            entries={running.map((r) => ({
-              id: r.id,
-              description: r.description,
-              clientName: r.client?.name ?? null,
-              projectName: r.project?.name ?? null,
-              startedAt: r.startedAt.toISOString(),
-              tags: r.tags.map((tt) => ({ name: tt.tag.name, color: tt.tag.color })),
-            }))}
-          />
-        ) : null}
-        <TodayList
-          entries={today.map((r) => ({
+        <TimerLists
+          initialRunning={running.map((r) => ({
+            id: r.id,
+            description: r.description,
+            clientName: r.client?.name ?? null,
+            projectName: r.project?.name ?? null,
+            startedAt: r.startedAt.toISOString(),
+            tags: r.tags.map((tt) => ({ name: tt.tag.name, color: tt.tag.color })),
+          }))}
+          initialToday={today.map((r) => ({
             id: r.id,
             description: r.description,
             clientName: r.client?.name ?? null,

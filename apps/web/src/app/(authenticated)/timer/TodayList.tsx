@@ -1,9 +1,10 @@
 'use client';
 
 import type { ReactElement } from 'react';
-import { useTransition } from 'react';
+import { useState } from 'react';
 import { Button, Card, CardBody, CardHeader, CardTitle, EmptyState } from '@tt/ui';
 import { deleteEntryAction, playAgainAction } from '@/lib/actions/time';
+import { notifyTimerChanged } from '@/lib/timer-events';
 
 interface Entry {
   id: string;
@@ -27,7 +28,13 @@ function fmtDur(startIso: string, endIso: string): string {
   return `${h}h ${m}m`;
 }
 
-export function TodayList({ entries }: { entries: Entry[] }): ReactElement {
+export function TodayList({
+  entries,
+  onDeleted,
+}: {
+  entries: Entry[];
+  onDeleted: (id: string) => void;
+}): ReactElement {
   const total = entries.reduce(
     (acc, e) => acc + (new Date(e.endedAt).getTime() - new Date(e.startedAt).getTime()),
     0,
@@ -52,7 +59,7 @@ export function TodayList({ entries }: { entries: Entry[] }): ReactElement {
         ) : (
           <ul className="divide-y divide-zinc-100">
             {entries.map((e) => (
-              <Row key={e.id} entry={e} />
+              <Row key={e.id} entry={e} onDeleted={onDeleted} />
             ))}
           </ul>
         )}
@@ -61,8 +68,34 @@ export function TodayList({ entries }: { entries: Entry[] }): ReactElement {
   );
 }
 
-function Row({ entry }: { entry: Entry }): ReactElement {
-  const [pending, startTransition] = useTransition();
+function Row({
+  entry,
+  onDeleted,
+}: {
+  entry: Entry;
+  onDeleted: (id: string) => void;
+}): ReactElement {
+  const [deletePending, setDeletePending] = useState(false);
+  const [playPending, setPlayPending] = useState(false);
+  async function runDelete(): Promise<void> {
+    setDeletePending(true);
+    try {
+      const r = await deleteEntryAction(entry.id);
+      if (r.ok) onDeleted(entry.id);
+    } finally {
+      setDeletePending(false);
+    }
+    notifyTimerChanged();
+  }
+  async function runPlayAgain(): Promise<void> {
+    setPlayPending(true);
+    try {
+      await playAgainAction(entry.id);
+    } finally {
+      setPlayPending(false);
+    }
+    notifyTimerChanged();
+  }
   return (
     <li className="flex items-center justify-between gap-4 py-2.5">
       <div className="min-w-0">
@@ -93,8 +126,9 @@ function Row({ entry }: { entry: Entry }): ReactElement {
         <Button
           size="sm"
           variant="ghost"
-          loading={pending}
-          onClick={() => startTransition(() => playAgainAction(entry.id).then(() => undefined))}
+          loading={playPending}
+          disabled={deletePending}
+          onClick={() => void runPlayAgain()}
           title="Spustit znovu"
         >
           ▶
@@ -102,10 +136,9 @@ function Row({ entry }: { entry: Entry }): ReactElement {
         <Button
           size="sm"
           variant="ghost"
-          loading={pending}
-          onClick={() =>
-            startTransition(() => deleteEntryAction(entry.id).then(() => undefined))
-          }
+          loading={deletePending}
+          disabled={playPending}
+          onClick={() => void runDelete()}
           title="Smazat"
         >
           ✕

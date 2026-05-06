@@ -1,7 +1,8 @@
 'use client';
 
 import type { ReactElement } from 'react';
-import { useMemo, useState, useTransition } from 'react';
+import { startTransition, useMemo, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import {
   Alert,
   Badge,
@@ -15,6 +16,7 @@ import {
   Select,
 } from '@tt/ui';
 import { startTimerAction, createManualAction } from '@/lib/actions/time';
+import { notifyTimerChanged } from '@/lib/timer-events';
 
 interface ClientWithProjects {
   id: string;
@@ -35,10 +37,11 @@ export function TimerStartCard({
   tags: Tag[];
 }): ReactElement {
   const [error, setError] = useState<string | null>(null);
-  const [pending, startTransition] = useTransition();
+  const [pending, setPending] = useState(false);
   const [showManual, setShowManual] = useState(false);
   const [clientId, setClientId] = useState('');
   const [tagIds, setTagIds] = useState<string[]>([]);
+  const router = useRouter();
 
   const projects = useMemo(
     () => clients.find((c) => c.id === clientId)?.projects ?? [],
@@ -62,23 +65,36 @@ export function TimerStartCard({
         </button>
       </CardHeader>
       <CardBody>
-        {error ? <Alert tone="danger" className="mb-4">{error}</Alert> : null}
+        {error ? (
+          <Alert tone="danger" className="mb-4">
+            {error}
+          </Alert>
+        ) : null}
         {showManual ? (
           <form
-            onSubmit={(e) => {
+            onSubmit={async (e) => {
               e.preventDefault();
-              const fd = new FormData(e.currentTarget);
+              const form = e.currentTarget;
+              const fd = new FormData(form);
               for (const id of tagIds) fd.append('tagIds', id);
               setError(null);
-              startTransition(async () => {
+              setPending(true);
+              try {
                 const r = await createManualAction(fd);
-                if (!r.ok) setError(r.error);
-                else {
-                  (e.target as HTMLFormElement).reset();
-                  setTagIds([]);
-                  setShowManual(false);
+                if (!r.ok) {
+                  setError(r.error);
+                  return;
                 }
-              });
+                form.reset();
+                setTagIds([]);
+                setShowManual(false);
+                notifyTimerChanged();
+                startTransition(() => {
+                  router.refresh();
+                });
+              } finally {
+                setPending(false);
+              }
             }}
           >
             <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
@@ -118,20 +134,29 @@ export function TimerStartCard({
           </form>
         ) : (
           <form
-            onSubmit={(e) => {
+            onSubmit={async (e) => {
               e.preventDefault();
-              const fd = new FormData(e.currentTarget);
+              const form = e.currentTarget;
+              const fd = new FormData(form);
               for (const id of tagIds) fd.append('tagIds', id);
               setError(null);
-              startTransition(async () => {
+              setPending(true);
+              try {
                 const r = await startTimerAction(fd);
-                if (!r.ok) setError(r.error);
-                else {
-                  (e.target as HTMLFormElement).reset();
-                  setTagIds([]);
-                  setClientId('');
+                if (!r.ok) {
+                  setError(r.error);
+                  return;
                 }
-              });
+                form.reset();
+                setTagIds([]);
+                setClientId('');
+                notifyTimerChanged();
+                startTransition(() => {
+                  router.refresh();
+                });
+              } finally {
+                setPending(false);
+              }
             }}
           >
             <Field label="Co děláte?" htmlFor="description">

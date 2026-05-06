@@ -6,6 +6,16 @@ import './globals.css';
 export const metadata = {
   title: 'Sledování času',
   description: 'Self-hostovaný time tracker',
+  icons: {
+    icon: [
+      { url: '/icons/icon-16-idle.png', sizes: '16x16', type: 'image/png' },
+      { url: '/icons/icon-32-idle.png', sizes: '32x32', type: 'image/png' },
+      { url: '/icons/icon-48-idle.png', sizes: '48x48', type: 'image/png' },
+      { url: '/icons/icon-128-idle.png', sizes: '128x128', type: 'image/png' },
+    ],
+    shortcut: '/icons/icon-32-idle.png',
+    apple: '/icons/icon-128-idle.png',
+  },
 };
 
 export default async function RootLayout({

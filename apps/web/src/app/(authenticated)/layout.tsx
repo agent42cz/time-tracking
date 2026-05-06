@@ -2,6 +2,7 @@ import type { ReactElement, ReactNode } from 'react';
 import Link from 'next/link';
 import { requireUser } from '@/lib/session';
 import { CompanySwitcher } from '@/components/CompanySwitcher';
+import { FaviconSwitcher } from '@/components/FaviconSwitcher';
 import { LogoutButton } from '@/components/LogoutButton';
 
 export default async function AuthLayout({
@@ -29,6 +30,7 @@ export default async function AuthLayout({
 
   return (
     <div className="flex min-h-screen bg-zinc-50">
+      <FaviconSwitcher />
       <aside className="hidden w-64 shrink-0 border-r border-zinc-200 bg-white md:block">
         <div className="flex h-16 items-center border-b border-zinc-200 px-5">
           <Link href="/timer" className="text-base font-semibold tracking-tight text-zinc-900">
