@@ -18,7 +18,7 @@ export default async function AuthLayout({
   return (
     <div className="flex min-h-screen bg-zinc-50">
       <FaviconSwitcher />
-      <aside className="hidden w-64 shrink-0 border-r border-zinc-200 bg-white md:block">
+      <aside className="relative hidden w-64 shrink-0 border-r border-zinc-200 bg-white md:block">
         <div className="flex h-16 items-center border-b border-zinc-200 px-5">
           <Link href="/timer" className="text-base font-semibold tracking-tight text-zinc-900">
             Time Tracker
@@ -32,7 +32,7 @@ export default async function AuthLayout({
         </div>
         <nav className="px-3">
           {visibleGroups.map((group, index) => (
-            <div key={group.label} className={index === 0 ? '' : 'mt-5'}>
+            <div key={group.label} className={index > 0 ? 'mt-5' : undefined}>
               <p className="mb-1 px-3 text-[11px] font-semibold uppercase tracking-wider text-zinc-500">
                 {group.label}
               </p>
