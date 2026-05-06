@@ -261,7 +261,7 @@ const PAGE = `<!doctype html>
         </div>
       </div>
       <div class="pop-foot">
-        <span>app.agent42.cz</span>
+        <span>trackerqwertzuiop.agent42.cz</span>
         <span>v0.1.0</span>
       </div>
     </div>
