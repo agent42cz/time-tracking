@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "Time Tracker",
   "description": "Self-hostovaný time tracker — synchronizuje se s webovou aplikací Agent42.",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "icons": {
     "16": "icons/icon-16-idle.png",
     "32": "icons/icon-32-idle.png",

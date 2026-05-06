@@ -7,6 +7,7 @@ import {
   type MeResponse,
   type StartTimerInput,
   type TimerResponse,
+  DEFAULT_API_BASE,
   getApiBase,
   getCatalog,
   getStoredSession,
@@ -18,7 +19,11 @@ import {
   setStoredSession,
 } from './api.js';
 import { useExtensionSync } from './sync.js';
-import { InMemoryStorageAdapter, createChromeStorageAdapter, type StorageAdapter } from './storage.js';
+import {
+  InMemoryStorageAdapter,
+  createChromeStorageAdapter,
+  type StorageAdapter,
+} from './storage.js';
 
 const storage: StorageAdapter =
   typeof chrome !== 'undefined' && chrome?.storage?.local
@@ -150,7 +155,7 @@ function LoginForm({
     setPending(true);
     try {
       const session = await login({
-        apiBase: apiBase || 'http://localhost:3000',
+        apiBase: apiBase || DEFAULT_API_BASE,
         email,
         password,
         totpCode: totpCode.trim() || undefined,
@@ -181,7 +186,7 @@ function LoginForm({
   }
 
   function openWebLogin(): void {
-    const base = (apiBase || 'http://localhost:3000').replace(/\/$/, '');
+    const base = (apiBase || DEFAULT_API_BASE).replace(/\/$/, '');
     const ch =
       typeof chrome !== 'undefined' ? (chrome as { runtime?: { id?: string } }) : undefined;
     const extId = ch?.runtime?.id;
@@ -215,7 +220,7 @@ function LoginForm({
           <input
             value={apiBase}
             onChange={(e) => setApiBaseLocal(e.target.value)}
-            placeholder="http://localhost:3000"
+            placeholder={DEFAULT_API_BASE}
             className="w-full rounded border border-zinc-200 px-2 py-1 text-xs"
           />
           <button
@@ -327,10 +332,7 @@ function AppShell({
         conflicts={sync.conflicts}
         onLogout={onLogout}
       />
-      <StartRow
-        catalog={state.catalog}
-        onStart={sync.executeStart}
-      />
+      <StartRow catalog={state.catalog} onStart={sync.executeStart} />
       <RunningList entries={state.timer.running} now={now} onStop={sync.executeStop} />
       <TodayList
         entries={state.timer.today}
@@ -524,7 +526,13 @@ function RunningList({
   now,
   onStop,
 }: {
-  entries: { id: string; description: string; startedAt: string; clientName: string | null; projectName: string | null }[];
+  entries: {
+    id: string;
+    description: string;
+    startedAt: string;
+    clientName: string | null;
+    projectName: string | null;
+  }[];
   now: number;
   onStop: (entryId: string) => Promise<void>;
 }): ReactElement | null {
@@ -535,7 +543,10 @@ function RunningList({
         Probíhá ({entries.length})
       </div>
       {entries.map((e) => (
-        <div key={e.id} className="flex items-center justify-between gap-2 rounded-md bg-zinc-50 px-2 py-1.5">
+        <div
+          key={e.id}
+          className="flex items-center justify-between gap-2 rounded-md bg-zinc-50 px-2 py-1.5"
+        >
           <div className="min-w-0">
             <div className="truncate text-sm font-medium text-zinc-900">
               {e.description || <span className="text-zinc-400">(bez popisu)</span>}

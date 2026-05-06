@@ -1,7 +1,8 @@
 /**
  * Thin API client for the time tracker REST surface.
  * Reads the bearer token from `chrome.storage.local` and the configured
- * `apiBase` (default: localhost:3000 — overridable in popup settings).
+ * `apiBase` (default: `VITE_DEFAULT_API_BASE` at build time, else
+ * localhost:3000 — overridable in popup settings).
  */
 import type { StorageAdapter } from './storage.js';
 
@@ -65,7 +66,8 @@ export interface ApiSession {
 
 const SESSION_KEY = 'tt:session';
 const API_BASE_KEY = 'tt:api-base';
-const DEFAULT_API_BASE = 'http://localhost:3000';
+export const DEFAULT_API_BASE: string =
+  import.meta.env.VITE_DEFAULT_API_BASE?.trim() || 'http://localhost:3000';
 
 export async function getStoredSession(storage: StorageAdapter): Promise<ApiSession | null> {
   return storage.get<ApiSession>(SESSION_KEY);
@@ -169,7 +171,10 @@ export async function getTimer(session: ApiSession, companyId?: string): Promise
   );
 }
 
-export async function getCatalog(session: ApiSession, companyId?: string): Promise<CatalogResponse> {
+export async function getCatalog(
+  session: ApiSession,
+  companyId?: string,
+): Promise<CatalogResponse> {
   const qs = companyId ? `?company=${encodeURIComponent(companyId)}` : '';
   return call<CatalogResponse>(
     session.apiBase,
