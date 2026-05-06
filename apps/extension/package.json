@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
+    "build:publish": "vite build && node scripts/strip-dev-manifest.mjs && cd dist && zip -r ../time-tracker-extension-v$npm_package_version.zip .",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
