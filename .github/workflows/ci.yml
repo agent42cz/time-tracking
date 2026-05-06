@@ -86,7 +86,7 @@ jobs:
       url: https://trackerqwertzuiop.agent42.cz
 
     env:
-      COOLIFY_URL: ${{ vars.COOLIFY_URL || 'https://coolify.agent42.cz' }}
+      COOLIFY_URL: ${{ vars.COOLIFY_URL || 'https://panelqwertzuiop.agent42.cz' }}
       COOLIFY_APP_UUID: ${{ vars.COOLIFY_APP_UUID || 'cg8145vxiumj2l9lzugtn76y' }}
       COOLIFY_API_TOKEN: ${{ secrets.COOLIFY_API_TOKEN }}
 
@@ -130,11 +130,22 @@ jobs:
           attempts=0
           max_attempts=90  # 90 * 10s = 15 min
           while : ; do
-            status_json=$(curl --silent --show-error --fail-with-body \
+            http_status=$(curl --silent --output /tmp/dep.json --write-out '%{http_code}' \
               --header "Authorization: Bearer ${COOLIFY_API_TOKEN}" \
               --header "Accept: application/json" \
               "${COOLIFY_URL}/api/v1/deployments/${DEPLOYMENT_UUID}")
-            status=$(printf '%s' "${status_json}" | jq -r '.status // .data.status // "unknown"')
+            if [ "${http_status}" = "403" ]; then
+              echo "::warning::COOLIFY_API_TOKEN lacks 'read' permission — cannot poll deployment status."
+              echo "Deploy ${DEPLOYMENT_UUID} was queued; check progress in the Coolify UI: ${COOLIFY_URL}"
+              echo "To enable status polling, recreate the token with read+write scopes."
+              exit 0
+            fi
+            if [ "${http_status}" != "200" ]; then
+              echo "::error::Coolify status endpoint returned HTTP ${http_status}"
+              cat /tmp/dep.json || true
+              exit 1
+            fi
+            status=$(jq -r '.status // .data.status // "unknown"' < /tmp/dep.json)
             echo "Deployment ${DEPLOYMENT_UUID} status: ${status}"
             case "${status}" in
               finished|success|successful)
@@ -143,7 +154,7 @@ jobs:
                 ;;
               failed|cancelled|cancelled-by-user|error)
                 echo "::error::Coolify deployment ended with status '${status}'."
-                printf '%s\n' "${status_json}" | jq . || true
+                jq . < /tmp/dep.json || true
                 exit 1
                 ;;
             esac
