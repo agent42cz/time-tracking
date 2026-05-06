@@ -1,3 +1,5 @@
+'use client';
+
 import type { ReactElement, ReactNode } from 'react';
 import { useEffect } from 'react';
 import { Button } from './button.js';
