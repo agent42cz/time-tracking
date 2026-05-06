@@ -41,7 +41,7 @@ export function Button({
       {...rest}
       disabled={disabled || loading}
       className={cn(
-        'inline-flex items-center justify-center gap-2 font-medium transition-colors',
+        'inline-flex shrink-0 items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors',
         'focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2',
         'disabled:cursor-not-allowed',
         variantStyles[variant],
