@@ -124,6 +124,11 @@
       "clearAriaLabel": "Vymazat hledání",
       "empty": "Žádné výsledky",
       "disabledDrag": "Vyhledávání je aktivní – zrušte ho pro řazení."
+    },
+    "dnd": {
+      "dragHandle": "Přetáhnout pro změnu pořadí",
+      "instructions": "Klávesnicí: tabulátor na úchyt, mezerník zvedne, šipky přesunou, mezerník upustí.",
+      "saveFailed": "Nepodařilo se uložit pořadí"
     }
   },
   "audit": {
