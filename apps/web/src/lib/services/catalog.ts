@@ -135,7 +135,11 @@ export async function reorderClients(
   });
   const activeIds = new Set(active.map((c) => c.id));
   const requested = new Set(input.orderedIds);
-  if (activeIds.size !== requested.size || [...requested].some((id) => !activeIds.has(id))) {
+  if (
+    input.orderedIds.length !== activeIds.size ||
+    requested.size !== input.orderedIds.length ||
+    [...requested].some((id) => !activeIds.has(id))
+  ) {
     return { ok: false, reason: 'not_found' };
   }
 
@@ -214,6 +218,57 @@ export async function deleteProject(
   }
   await db.project.delete({ where: { id: projectId } });
   return { ok: true, value: { entriesAffected: linked } };
+}
+
+export async function reorderProjects(
+  db: Db,
+  actorUserId: string,
+  input: { companyId: string; clientId: string; orderedIds: string[] },
+): Promise<Result<true>> {
+  const client = await db.client.findUnique({
+    where: { id: input.clientId },
+    select: { companyId: true },
+  });
+  if (!client || client.companyId !== input.companyId) {
+    return { ok: false, reason: 'not_found' };
+  }
+  const auth = await requireAdmin(db, actorUserId, input.companyId);
+  if (!auth.ok) return auth;
+
+  const active = await db.project.findMany({
+    where: { clientId: input.clientId, archived: false },
+    orderBy: { sortOrder: 'asc' },
+    select: { id: true },
+  });
+  const activeIds = new Set(active.map((p) => p.id));
+  const requested = new Set(input.orderedIds);
+  if (
+    input.orderedIds.length !== activeIds.size ||
+    requested.size !== input.orderedIds.length ||
+    [...requested].some((id) => !activeIds.has(id))
+  ) {
+    return { ok: false, reason: 'not_found' };
+  }
+
+  const before = active.map((p) => p.id);
+
+  await Promise.all(
+    input.orderedIds.map((id, i) =>
+      db.project.update({ where: { id }, data: { sortOrder: i + 1 } }),
+    ),
+  );
+
+  await writeAudit(db, {
+    companyId: input.companyId,
+    actorUserId,
+    action: 'reorder',
+    entityType: 'project_order',
+    entityId: input.clientId,
+    before: { ids: before },
+    after: { ids: input.orderedIds },
+  });
+
+  return { ok: true, value: true };
 }
 
 // --- Tags ---

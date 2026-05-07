@@ -18,6 +18,7 @@ import {
   listClients,
   listTags,
   reorderClients,
+  reorderProjects,
   updateTag,
 } from '../../src/lib/services/catalog.js';
 
@@ -331,6 +332,112 @@ describe('catalog (clients / projects / tags)', () => {
       const r = await reorderClients(tx, w.user, {
         companyId: w.company,
         orderedIds: [b.value.id, a.value.id],
+      });
+      expect(r.ok).toBe(false);
+    });
+  });
+
+  it('US-53: reorderProjects writes 1..N sortOrder within the client and one audit row', async () => {
+    await withTx(async (tx) => {
+      const w = await bootstrap(tx, 'us53a');
+      const c = await createClient(tx, w.admin, { companyId: w.company, name: 'C' });
+      if (!c.ok) throw new Error('setup');
+      const p1 = await createProject(tx, w.admin, { clientId: c.value.id, name: 'Alpha' });
+      const p2 = await createProject(tx, w.admin, { clientId: c.value.id, name: 'Beta' });
+      const p3 = await createProject(tx, w.admin, { clientId: c.value.id, name: 'Gamma' });
+      if (!p1.ok || !p2.ok || !p3.ok) throw new Error('setup');
+
+      const before = await auditCount(tx, w.company);
+      const r = await reorderProjects(tx, w.admin, {
+        companyId: w.company,
+        clientId: c.value.id,
+        orderedIds: [p3.value.id, p1.value.id, p2.value.id],
+      });
+      expect(r.ok).toBe(true);
+
+      const rows = await tx.project.findMany({
+        where: { clientId: c.value.id },
+        orderBy: { sortOrder: 'asc' },
+      });
+      expect(rows.map((r) => r.id)).toEqual([p3.value.id, p1.value.id, p2.value.id]);
+      expect(rows.map((r) => r.sortOrder)).toEqual([1, 2, 3]);
+
+      expect(await auditCount(tx, w.company)).toBe(before + 1);
+      const audit = await tx.auditLog.findFirst({
+        where: { companyId: w.company, action: 'reorder', entityType: 'project_order' },
+        orderBy: { createdAt: 'desc' },
+      });
+      expect(audit?.entityId).toBe(c.value.id);
+    });
+  });
+
+  it('US-53: reorderProjects returns not_found when clientId belongs to another company', async () => {
+    await withTx(async (tx) => {
+      const w = await bootstrap(tx, 'us53b');
+      const otherCompany = await createCompany(tx, {
+        name: 'Other ts',
+        createdByUserId: w.outsider,
+      });
+      const foreignClient = await createClient(tx, w.outsider, {
+        companyId: otherCompany.id,
+        name: 'Foreign',
+      });
+      if (!foreignClient.ok) throw new Error('setup');
+      const r = await reorderProjects(tx, w.admin, {
+        companyId: w.company,
+        clientId: foreignClient.value.id,
+        orderedIds: [],
+      });
+      expect(r.ok).toBe(false);
+      if (!r.ok) expect(r.reason).toBe('not_found');
+    });
+  });
+
+  it('US-53: reorderProjects returns not_found when orderedIds includes a project from a different client', async () => {
+    await withTx(async (tx) => {
+      const w = await bootstrap(tx, 'us53c');
+      const c1 = await createClient(tx, w.admin, { companyId: w.company, name: 'C1' });
+      const c2 = await createClient(tx, w.admin, { companyId: w.company, name: 'C2' });
+      if (!c1.ok || !c2.ok) throw new Error('setup');
+      const p1 = await createProject(tx, w.admin, { clientId: c1.value.id, name: 'P1' });
+      const p2 = await createProject(tx, w.admin, { clientId: c2.value.id, name: 'P2' });
+      if (!p1.ok || !p2.ok) throw new Error('setup');
+
+      const r = await reorderProjects(tx, w.admin, {
+        companyId: w.company,
+        clientId: c1.value.id,
+        orderedIds: [p1.value.id, p2.value.id],
+      });
+      expect(r.ok).toBe(false);
+    });
+  });
+
+  it('US-52: reorderClients returns not_found when orderedIds contains duplicates', async () => {
+    await withTx(async (tx) => {
+      const w = await bootstrap(tx, 'us52dup');
+      const a = await createClient(tx, w.admin, { companyId: w.company, name: 'A' });
+      const b = await createClient(tx, w.admin, { companyId: w.company, name: 'B' });
+      if (!a.ok || !b.ok) throw new Error('setup');
+      const r = await reorderClients(tx, w.admin, {
+        companyId: w.company,
+        orderedIds: [a.value.id, a.value.id], // duplicate, missing b
+      });
+      expect(r.ok).toBe(false);
+    });
+  });
+
+  it('US-53: reorderProjects returns not_found when orderedIds contains duplicates', async () => {
+    await withTx(async (tx) => {
+      const w = await bootstrap(tx, 'us53dup');
+      const c = await createClient(tx, w.admin, { companyId: w.company, name: 'C' });
+      if (!c.ok) throw new Error('setup');
+      const p1 = await createProject(tx, w.admin, { clientId: c.value.id, name: 'P1' });
+      const p2 = await createProject(tx, w.admin, { clientId: c.value.id, name: 'P2' });
+      if (!p1.ok || !p2.ok) throw new Error('setup');
+      const r = await reorderProjects(tx, w.admin, {
+        companyId: w.company,
+        clientId: c.value.id,
+        orderedIds: [p1.value.id, p1.value.id],
       });
       expect(r.ok).toBe(false);
     });
