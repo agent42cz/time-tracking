@@ -28,6 +28,7 @@ enum AuditAction {
   update
   delete
   restore
+  reorder
   invite
   invite_accepted
   invite_revoked
@@ -121,6 +122,7 @@ model Client {
   companyId String   @map("company_id")
   name      String
   archived  Boolean  @default(false)
+  sortOrder Int      @default(0) @map("sort_order")
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
@@ -129,6 +131,7 @@ model Client {
   timeEntries TimeEntry[]
 
   @@unique([companyId, name])
+  @@index([companyId, archived, sortOrder])
   @@map("clients")
 }
 
@@ -137,6 +140,7 @@ model Project {
   clientId  String   @map("client_id")
   name      String
   archived  Boolean  @default(false)
+  sortOrder Int      @default(0) @map("sort_order")
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
@@ -144,6 +148,7 @@ model Project {
   timeEntries TimeEntry[]
 
   @@unique([clientId, name])
+  @@index([clientId, archived, sortOrder])
   @@map("projects")
 }
 
