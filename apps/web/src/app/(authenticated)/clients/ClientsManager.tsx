@@ -1,7 +1,22 @@
 'use client';
 
 import type { ReactElement } from 'react';
-import { useMemo, useState, useTransition } from 'react';
+import { useEffect, useMemo, useState, useTransition } from 'react';
+import {
+  DndContext,
+  KeyboardSensor,
+  PointerSensor,
+  closestCenter,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from '@dnd-kit/core';
+import {
+  SortableContext,
+  arrayMove,
+  sortableKeyboardCoordinates,
+  verticalListSortingStrategy,
+} from '@dnd-kit/sortable';
 import { useTranslations } from 'next-intl';
 import { Alert, Button, ConfirmModal, Field, FieldGroup, Input, SearchInput } from '@tt/ui';
 import {
@@ -11,6 +26,7 @@ import {
   createProjectAction,
   deleteClientAction,
   deleteProjectAction,
+  reorderClientsAction,
 } from '@/lib/actions/catalog';
 import { ClientRow, type ClientRowItem } from './ClientRow';
 import type { ProjectRowItem } from './ProjectRow';
@@ -25,14 +41,51 @@ type PendingAction =
 export function ClientsManager({ clients }: { clients: ClientRowItem[] }): ReactElement {
   const tSearch = useTranslations('clients.search');
   const tList = useTranslations('clients');
+  const tDnd = useTranslations('clients.dnd');
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
   const [openClient, setOpenClient] = useState<string | null>(null);
   const [action, setAction] = useState<PendingAction | null>(null);
   const [cascade, setCascade] = useState(false);
   const [query, setQuery] = useState('');
+  const [orderedClients, setOrderedClients] = useState<ClientRowItem[]>(clients);
 
-  const { visible, autoExpanded } = useMemo(() => filterClients(clients, query), [clients, query]);
+  useEffect(() => {
+    setOrderedClients(clients);
+  }, [clients]);
+
+  const { visible, autoExpanded } = useMemo(
+    () => filterClients(orderedClients, query),
+    [orderedClients, query],
+  );
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  );
+
+  const dragDisabled = query.length > 0;
+
+  async function handleClientDragEnd(event: DragEndEvent): Promise<void> {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+    const activeClients = orderedClients.filter((c) => !c.archived);
+    const archivedClients = orderedClients.filter((c) => c.archived);
+    const oldIndex = activeClients.findIndex((c) => c.id === active.id);
+    const newIndex = activeClients.findIndex((c) => c.id === over.id);
+    if (oldIndex < 0 || newIndex < 0) return;
+
+    const snapshot = orderedClients;
+    const reordered = arrayMove(activeClients, oldIndex, newIndex);
+    setOrderedClients([...reordered, ...archivedClients]);
+    setError(null);
+
+    const r = await reorderClientsAction(reordered.map((c) => c.id));
+    if (!r.ok) {
+      setOrderedClients(snapshot);
+      setError(r.error);
+    }
+  }
 
   function close(): void {
     setAction(null);
@@ -95,16 +148,23 @@ export function ClientsManager({ clients }: { clients: ClientRowItem[] }): React
         </FieldGroup>
       </form>
 
+      {dragDisabled ? (
+        <p className="text-xs text-zinc-500 dark:text-zinc-400">{tSearch('disabledDrag')}</p>
+      ) : null}
+
       {visible.length === 0 ? (
         <p className="text-sm text-zinc-500 dark:text-zinc-400">{tSearch('empty')}</p>
       ) : (
-        <ul className="divide-y divide-zinc-100 dark:divide-zinc-800/60">
-          {visible.map((c) => (
+        (() => {
+          const activeVisible = visible.filter((c) => !c.archived);
+          const archivedVisible = visible.filter((c) => c.archived);
+          const renderRow = (c: ClientRowItem, draggable: boolean): ReactElement => (
             <ClientRow
               key={c.id}
               client={c}
               isOpen={autoExpanded.has(c.id) || openClient === c.id}
               pending={pending}
+              draggable={draggable}
               onToggle={() => setOpenClient(openClient === c.id ? null : c.id)}
               onArchiveClient={() => setAction({ kind: 'archive-client', client: c })}
               onDeleteClient={() => setAction({ kind: 'delete-client', client: c })}
@@ -122,8 +182,37 @@ export function ClientsManager({ clients }: { clients: ClientRowItem[] }): React
                 });
               }}
             />
-          ))}
-        </ul>
+          );
+          return (
+            <>
+              <DndContext
+                sensors={sensors}
+                collisionDetection={closestCenter}
+                onDragEnd={dragDisabled ? undefined : handleClientDragEnd}
+                accessibility={{
+                  screenReaderInstructions: { draggable: tDnd('instructions') },
+                }}
+              >
+                <SortableContext
+                  items={activeVisible.map((c) => c.id)}
+                  strategy={verticalListSortingStrategy}
+                >
+                  <ul className="divide-y divide-zinc-100 dark:divide-zinc-800/60">
+                    {activeVisible.map((c) => renderRow(c, !dragDisabled))}
+                  </ul>
+                </SortableContext>
+              </DndContext>
+              {archivedVisible.length > 0 ? (
+                <>
+                  <hr className="border-zinc-100 dark:border-zinc-800/60" />
+                  <ul className="divide-y divide-zinc-100 dark:divide-zinc-800/60">
+                    {archivedVisible.map((c) => renderRow(c, false))}
+                  </ul>
+                </>
+              ) : null}
+            </>
+          );
+        })()
       )}
 
       <ConfirmModal
