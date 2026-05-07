@@ -1,5 +1,16 @@
 import type { ReactElement } from 'react';
-import { Card, CardBody, CardHeader, CardTitle, EmptyState, Table, THead, Th, Tr, Td } from '@tt/ui';
+import {
+  Card,
+  CardBody,
+  CardHeader,
+  CardTitle,
+  EmptyState,
+  Table,
+  THead,
+  Th,
+  Tr,
+  Td,
+} from '@tt/ui';
 import { prisma, requireAdmin } from '@/lib/session';
 import { PageHeader } from '@/components/PageHeader';
 import { listAuditLog } from '@/lib/services/audit-query';
@@ -45,7 +56,9 @@ export default async function AuditPage({
     );
   }
 
-  const userIds = Array.from(new Set(result.value.rows.map((r) => r.actorUserId).filter(Boolean) as string[]));
+  const userIds = Array.from(
+    new Set(result.value.rows.map((r) => r.actorUserId).filter(Boolean) as string[]),
+  );
   const users = await prisma().user.findMany({
     where: { id: { in: userIds } },
     select: { id: true, fullName: true, email: true },
@@ -62,11 +75,13 @@ export default async function AuditPage({
         <CardBody>
           <form method="get" className="mb-4 flex flex-wrap items-end gap-3">
             <label className="space-y-1">
-              <span className="block text-xs font-medium text-zinc-500">Akce</span>
+              <span className="block text-xs font-medium text-zinc-500 dark:text-zinc-400">
+                Akce
+              </span>
               <select
                 name="action"
                 defaultValue={sp.action ?? ''}
-                className="rounded-md border border-zinc-200 px-3 py-1.5 text-sm"
+                className="rounded-md border border-zinc-200 dark:border-zinc-800 px-3 py-1.5 text-sm"
               >
                 <option value="">— vše —</option>
                 {ALL_ACTIONS.map((a) => (
@@ -77,35 +92,37 @@ export default async function AuditPage({
               </select>
             </label>
             <label className="space-y-1">
-              <span className="block text-xs font-medium text-zinc-500">Entita</span>
+              <span className="block text-xs font-medium text-zinc-500 dark:text-zinc-400">
+                Entita
+              </span>
               <input
                 name="entity"
                 defaultValue={sp.entity ?? ''}
                 placeholder="TimeEntry, Tag, …"
-                className="rounded-md border border-zinc-200 px-3 py-1.5 text-sm"
+                className="rounded-md border border-zinc-200 dark:border-zinc-800 px-3 py-1.5 text-sm"
               />
             </label>
             <label className="space-y-1">
-              <span className="block text-xs font-medium text-zinc-500">Od</span>
+              <span className="block text-xs font-medium text-zinc-500 dark:text-zinc-400">Od</span>
               <input
                 type="date"
                 name="from"
                 defaultValue={sp.from ?? ''}
-                className="rounded-md border border-zinc-200 px-3 py-1.5 text-sm"
+                className="rounded-md border border-zinc-200 dark:border-zinc-800 px-3 py-1.5 text-sm"
               />
             </label>
             <label className="space-y-1">
-              <span className="block text-xs font-medium text-zinc-500">Do</span>
+              <span className="block text-xs font-medium text-zinc-500 dark:text-zinc-400">Do</span>
               <input
                 type="date"
                 name="to"
                 defaultValue={sp.to ?? ''}
-                className="rounded-md border border-zinc-200 px-3 py-1.5 text-sm"
+                className="rounded-md border border-zinc-200 dark:border-zinc-800 px-3 py-1.5 text-sm"
               />
             </label>
             <button
               type="submit"
-              className="rounded-md bg-zinc-900 px-3 py-1.5 text-sm font-medium text-white"
+              className="rounded-md bg-zinc-900 dark:bg-zinc-100 px-3 py-1.5 text-sm font-medium text-white dark:text-zinc-900"
             >
               Filtrovat
             </button>
@@ -131,15 +148,19 @@ export default async function AuditPage({
                       {r.createdAt.toLocaleString('cs-CZ')}
                     </Td>
                     <Td>
-                      {r.actorUserId ? userMap.get(r.actorUserId)?.fullName ?? r.actorUserId : '—'}
+                      {r.actorUserId
+                        ? (userMap.get(r.actorUserId)?.fullName ?? r.actorUserId)
+                        : '—'}
                     </Td>
                     <Td>
-                      <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-xs">
+                      <span className="rounded-full bg-zinc-100 dark:bg-zinc-800 px-2 py-0.5 text-xs">
                         {r.action}
                       </span>
                     </Td>
                     <Td>{r.entityType}</Td>
-                    <Td className="font-mono text-xs text-zinc-500">{r.entityId}</Td>
+                    <Td className="font-mono text-xs text-zinc-500 dark:text-zinc-400">
+                      {r.entityId}
+                    </Td>
                   </Tr>
                 ))}
               </tbody>

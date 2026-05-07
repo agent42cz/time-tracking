@@ -1,3 +1,32 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/*
+ * Dark-mode mapping convention (class strategy, toggled on <html>).
+ * When you add a light token, pair it with the dark sibling below.
+ *
+ *   bg-white         → dark:bg-zinc-900
+ *   bg-zinc-50       → dark:bg-zinc-950
+ *   bg-zinc-100      → dark:bg-zinc-800
+ *   bg-zinc-200      → dark:bg-zinc-700
+ *   border-zinc-100  → dark:border-zinc-800/60
+ *   border-zinc-200  → dark:border-zinc-800
+ *   border-zinc-300  → dark:border-zinc-700
+ *   text-zinc-900    → dark:text-zinc-100
+ *   text-zinc-800    → dark:text-zinc-200
+ *   text-zinc-700    → dark:text-zinc-300
+ *   text-zinc-600    → dark:text-zinc-400
+ *   text-zinc-500    → dark:text-zinc-400
+ *   text-zinc-400    → dark:text-zinc-500
+ *   text-indigo-600  → dark:text-indigo-400
+ *   bg-{tone}-50     → dark:bg-{tone}-950/40
+ *   bg-{tone}-100    → dark:bg-{tone}-900/40
+ *   text-{tone}-800  → dark:text-{tone}-200
+ *   text-{tone}-900  → dark:text-{tone}-100
+ *   border-{tone}-200 → dark:border-{tone}-900
+ */
+
+:root {
+  color-scheme: light dark;
+}

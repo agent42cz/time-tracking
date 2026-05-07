@@ -19,7 +19,11 @@ export function TrashList({ entries }: { entries: Entry[] }): ReactElement {
   const [pending, startTransition] = useTransition();
   return (
     <div>
-      {error ? <Alert tone="danger" className="mb-3">{error}</Alert> : null}
+      {error ? (
+        <Alert tone="danger" className="mb-3">
+          {error}
+        </Alert>
+      ) : null}
       <Table>
         <THead>
           <tr>
@@ -34,15 +38,15 @@ export function TrashList({ entries }: { entries: Entry[] }): ReactElement {
           {entries.map((e) => (
             <Tr key={e.id}>
               <Td className="max-w-xs truncate">
-                {e.description || <span className="text-zinc-400">(bez popisu)</span>}
+                {e.description || (
+                  <span className="text-zinc-400 dark:text-zinc-500">(bez popisu)</span>
+                )}
               </Td>
               <Td>{e.userName}</Td>
-              <Td className="text-zinc-700">
+              <Td className="text-zinc-700 dark:text-zinc-300">
                 {e.clientName ?? '—'} {e.projectName ? `· ${e.projectName}` : ''}
               </Td>
-              <Td className="font-mono text-xs">
-                {new Date(e.deletedAt).toLocaleString('cs-CZ')}
-              </Td>
+              <Td className="font-mono text-xs">{new Date(e.deletedAt).toLocaleString('cs-CZ')}</Td>
               <Td className="text-right">
                 <Button
                   size="sm"

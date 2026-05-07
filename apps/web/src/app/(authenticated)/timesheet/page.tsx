@@ -76,24 +76,24 @@ export default async function TimesheetPage({
         actions={
           <div className="flex items-center gap-2 text-sm">
             <Link
-              className="rounded border border-zinc-200 bg-white px-3 py-1.5 hover:bg-zinc-50"
+              className="rounded border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 px-3 py-1.5 hover:bg-zinc-50 dark:hover:bg-zinc-800"
               href={`/timesheet?week=${prev.toISOString()}`}
             >
               ← Předchozí
             </Link>
             <Link
-              className="rounded border border-zinc-200 bg-white px-3 py-1.5 hover:bg-zinc-50"
+              className="rounded border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 px-3 py-1.5 hover:bg-zinc-50 dark:hover:bg-zinc-800"
               href="/timesheet"
             >
               Tento týden
             </Link>
             <Link
-              className="rounded border border-zinc-200 bg-white px-3 py-1.5 hover:bg-zinc-50"
+              className="rounded border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 px-3 py-1.5 hover:bg-zinc-50 dark:hover:bg-zinc-800"
               href={`/timesheet?week=${next.toISOString()}`}
             >
               Následující →
             </Link>
-            <span className="ml-3 font-mono text-base font-semibold text-zinc-900">
+            <span className="ml-3 font-mono text-base font-semibold text-zinc-900 dark:text-zinc-100">
               {fmtDur(total)}
             </span>
           </div>
@@ -110,30 +110,31 @@ export default async function TimesheetPage({
             <Card key={dayKey(date)}>
               <CardHeader>
                 <CardTitle>
-                  <span className={isWeekend ? 'text-zinc-500' : ''}>
-                    {date.toLocaleDateString('cs-CZ', { weekday: 'long' })}{' '}
-                    {ymd(date)}
+                  <span className={isWeekend ? 'text-zinc-500 dark:text-zinc-400' : ''}>
+                    {date.toLocaleDateString('cs-CZ', { weekday: 'long' })} {ymd(date)}
                   </span>
                 </CardTitle>
-                <span className="font-mono text-sm text-zinc-700">{fmtDur(dayTotal)}</span>
+                <span className="font-mono text-sm text-zinc-700 dark:text-zinc-300">
+                  {fmtDur(dayTotal)}
+                </span>
               </CardHeader>
               <CardBody>
                 {entries.length === 0 ? (
-                  <p className="text-sm text-zinc-400">Žádné záznamy</p>
+                  <p className="text-sm text-zinc-400 dark:text-zinc-500">Žádné záznamy</p>
                 ) : (
-                  <ul className="divide-y divide-zinc-100">
+                  <ul className="divide-y divide-zinc-100 dark:divide-zinc-800/60">
                     {entries.map((e) => (
                       <li
                         key={e.id}
                         className="flex items-center justify-between gap-4 py-2 text-sm"
                       >
                         <div className="min-w-0">
-                          <p className="truncate font-medium text-zinc-900">
+                          <p className="truncate font-medium text-zinc-900 dark:text-zinc-100">
                             {e.description || (
-                              <span className="text-zinc-400">(bez popisu)</span>
+                              <span className="text-zinc-400 dark:text-zinc-500">(bez popisu)</span>
                             )}
                           </p>
-                          <div className="mt-0.5 flex flex-wrap items-center gap-1.5 text-xs text-zinc-500">
+                          <div className="mt-0.5 flex flex-wrap items-center gap-1.5 text-xs text-zinc-500 dark:text-zinc-400">
                             {e.client?.name ? <span>{e.client.name}</span> : null}
                             {e.project?.name ? <span>· {e.project.name}</span> : null}
                             {e.tags.map((tt) => (
@@ -147,11 +148,11 @@ export default async function TimesheetPage({
                             ))}
                           </div>
                         </div>
-                        <div className="flex shrink-0 items-center gap-3 text-zinc-600">
+                        <div className="flex shrink-0 items-center gap-3 text-zinc-600 dark:text-zinc-400">
                           <span className="font-mono tabular-nums">
                             {fmtTime(e.startedAt)}–{e.endedAt ? fmtTime(e.endedAt) : '...'}
                           </span>
-                          <span className="font-mono font-semibold text-zinc-900 tabular-nums">
+                          <span className="font-mono font-semibold text-zinc-900 dark:text-zinc-100 tabular-nums">
                             {fmtDur((e.endedAt?.getTime() ?? Date.now()) - e.startedAt.getTime())}
                           </span>
                         </div>

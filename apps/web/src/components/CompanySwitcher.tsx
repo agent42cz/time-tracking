@@ -16,7 +16,7 @@ export function CompanySwitcher({
   if (memberships.length === 0) return null;
   return (
     <div className="space-y-1.5">
-      <label className="block text-xs font-medium uppercase tracking-wide text-zinc-500">
+      <label className="block text-xs font-medium uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
         Aktivní firma
       </label>
       <Select

@@ -2,19 +2,7 @@
 
 import type { ReactElement } from 'react';
 import { useState, useTransition } from 'react';
-import {
-  Alert,
-  Badge,
-  Button,
-  Field,
-  FieldGroup,
-  Input,
-  Table,
-  THead,
-  Th,
-  Tr,
-  Td,
-} from '@tt/ui';
+import { Alert, Badge, Button, Field, FieldGroup, Input, Table, THead, Th, Tr, Td } from '@tt/ui';
 import {
   createCompanyAction,
   deleteCompanyAction,
@@ -62,15 +50,16 @@ interface ManagerProps {
   memberships: Membership[];
 }
 
-export function CompaniesManager({
-  activeCompanyId,
-  memberships,
-}: ManagerProps): ReactElement {
+export function CompaniesManager({ activeCompanyId, memberships }: ManagerProps): ReactElement {
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
   return (
     <div>
-      {error ? <Alert tone="danger" className="mb-3">{error}</Alert> : null}
+      {error ? (
+        <Alert tone="danger" className="mb-3">
+          {error}
+        </Alert>
+      ) : null}
       <Table>
         <THead>
           <tr>
@@ -93,7 +82,7 @@ export function CompaniesManager({
                 {m.companyId === activeCompanyId ? (
                   <Badge tone="success">aktivní</Badge>
                 ) : (
-                  <span className="text-sm text-zinc-500">—</span>
+                  <span className="text-sm text-zinc-500 dark:text-zinc-400">—</span>
                 )}
               </Td>
               <Td className="text-right">
@@ -103,9 +92,7 @@ export function CompaniesManager({
                       size="sm"
                       variant="ghost"
                       loading={pending}
-                      onClick={() =>
-                        startTransition(() => switchCompanyAction(m.companyId))
-                      }
+                      onClick={() => startTransition(() => switchCompanyAction(m.companyId))}
                     >
                       Přepnout
                     </Button>
@@ -154,4 +141,3 @@ export function CompaniesManager({
     </div>
   );
 }
-

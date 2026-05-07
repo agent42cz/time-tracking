@@ -22,13 +22,7 @@ const PALETTE = [
   '#0ea5e9',
 ];
 
-export function TagsManager({
-  tags,
-  isAdmin,
-}: {
-  tags: Tag[];
-  isAdmin: boolean;
-}): ReactElement {
+export function TagsManager({ tags, isAdmin }: { tags: Tag[]; isAdmin: boolean }): ReactElement {
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
   const [color, setColor] = useState(PALETTE[0]!);
@@ -61,7 +55,7 @@ export function TagsManager({
                     type="button"
                     aria-label={c}
                     onClick={() => setColor(c)}
-                    className={`h-6 w-6 rounded-full ring-offset-2 ${color === c ? 'ring-2 ring-zinc-900' : ''}`}
+                    className={`h-6 w-6 rounded-full ring-offset-2 ${color === c ? 'ring-2 ring-zinc-900 dark:ring-zinc-100' : ''}`}
                     style={{ backgroundColor: c }}
                   />
                 ))}
@@ -76,7 +70,7 @@ export function TagsManager({
 
       <ul className="flex flex-wrap gap-2">
         {tags.length === 0 ? (
-          <li className="text-sm text-zinc-500">Žádné štítky</li>
+          <li className="text-sm text-zinc-500 dark:text-zinc-400">Žádné štítky</li>
         ) : null}
         {tags.map((t) => (
           <TagChip
@@ -148,7 +142,7 @@ function TagChip({
     );
   }
   return (
-    <li className="flex items-center gap-2 rounded-full bg-zinc-100 px-2 py-1">
+    <li className="flex items-center gap-2 rounded-full bg-zinc-100 dark:bg-zinc-800 px-2 py-1">
       <input
         value={name}
         onChange={(e) => setName(e.target.value)}

@@ -4,6 +4,7 @@ import { requireUser } from '@/lib/session';
 import { CompanySwitcher } from '@/components/CompanySwitcher';
 import { FaviconSwitcher } from '@/components/FaviconSwitcher';
 import { LogoutButton } from '@/components/LogoutButton';
+import { ThemeToggle } from '@/components/ThemeToggle';
 import { filterVisibleGroups, navGroups } from './nav';
 
 export default async function AuthLayout({
@@ -16,27 +17,33 @@ export default async function AuthLayout({
   const visibleGroups = filterVisibleGroups(navGroups, isAdmin);
 
   return (
-    <div className="flex min-h-screen bg-zinc-50">
+    <div className="flex min-h-screen bg-zinc-50 dark:bg-zinc-950">
       <FaviconSwitcher />
-      <aside className="relative hidden w-64 shrink-0 border-r border-zinc-200 bg-white md:block">
-        <div className="flex h-16 items-center border-b border-zinc-200 px-5">
-          <Link href="/timer" className="text-base font-semibold tracking-tight text-zinc-900">
+      <aside className="hidden h-screen w-64 shrink-0 flex-col border-r border-zinc-200 bg-white md:sticky md:top-0 md:flex dark:border-zinc-800 dark:bg-zinc-900">
+        <div className="flex h-16 shrink-0 items-center justify-between gap-2 border-b border-zinc-200 px-5 dark:border-zinc-800">
+          <Link
+            href="/timer"
+            className="text-base font-semibold tracking-tight text-zinc-900 dark:text-zinc-100"
+          >
             Time Tracker
           </Link>
+          <ThemeToggle compact />
         </div>
-        <div className="px-3 py-4">
+        <div className="shrink-0 px-3 py-4">
           <CompanySwitcher
             activeCompanyId={session.activeCompanyId}
             memberships={session.memberships}
           />
         </div>
-        <nav className="px-3">
+        <nav className="flex-1 overflow-y-auto px-3 pb-4">
           {visibleGroups.map((group, index) => (
             <div
               key={group.label}
-              className={index > 0 ? 'mt-4 border-t border-zinc-200 pt-4' : undefined}
+              className={
+                index > 0 ? 'mt-4 border-t border-zinc-200 pt-4 dark:border-zinc-800' : undefined
+              }
             >
-              <p className="mb-1 px-3 text-[11px] font-semibold uppercase tracking-wider text-indigo-600">
+              <p className="mb-1 px-3 text-[11px] font-semibold uppercase tracking-wider text-indigo-600 dark:text-indigo-400">
                 {group.label}
               </p>
               <div className="space-y-0.5">
@@ -44,7 +51,7 @@ export default async function AuthLayout({
                   <Link
                     key={item.href}
                     href={item.href}
-                    className="block rounded-md px-3 py-2 text-sm text-zinc-700 transition-colors hover:bg-zinc-100 hover:text-zinc-900"
+                    className="block rounded-md px-3 py-2 text-sm text-zinc-700 transition-colors hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-300 dark:hover:bg-zinc-800 dark:hover:text-zinc-100"
                   >
                     {item.label}
                   </Link>
@@ -53,19 +60,21 @@ export default async function AuthLayout({
             </div>
           ))}
         </nav>
-        <div className="absolute bottom-0 w-64 border-t border-zinc-200 bg-white px-3 py-3">
+        <div className="shrink-0 border-t border-zinc-200 bg-white px-3 py-3 dark:border-zinc-800 dark:bg-zinc-900">
           <div className="flex items-center justify-between gap-2 px-2 py-1">
             <div className="min-w-0">
-              <p className="truncate text-sm font-medium text-zinc-900">{session.fullName}</p>
-              <p className="truncate text-xs text-zinc-500">{session.email}</p>
+              <p className="truncate text-sm font-medium text-zinc-900 dark:text-zinc-100">
+                {session.fullName}
+              </p>
+              <p className="truncate text-xs text-zinc-500 dark:text-zinc-400">{session.email}</p>
             </div>
             <LogoutButton />
           </div>
         </div>
       </aside>
       <div className="flex min-h-screen flex-1 flex-col">
-        <header className="flex h-16 items-center justify-between border-b border-zinc-200 bg-white px-6 md:hidden">
-          <Link href="/timer" className="text-base font-semibold">
+        <header className="flex h-16 items-center justify-between border-b border-zinc-200 bg-white px-6 md:hidden dark:border-zinc-800 dark:bg-zinc-900">
+          <Link href="/timer" className="text-base font-semibold text-zinc-900 dark:text-zinc-100">
             Time Tracker
           </Link>
           <LogoutButton />

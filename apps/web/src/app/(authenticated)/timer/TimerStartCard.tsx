@@ -58,7 +58,7 @@ export function TimerStartCard({
         <CardTitle>Nové měření</CardTitle>
         <button
           type="button"
-          className="text-sm text-zinc-600 underline"
+          className="text-sm text-zinc-600 dark:text-zinc-400 underline"
           onClick={() => setShowManual((s) => !s)}
         >
           {showManual ? 'Zavřít ruční zápis' : 'Přidat ručně'}
@@ -240,7 +240,7 @@ function TagPicker({
   if (tags.length === 0) return null;
   return (
     <div className="mt-3">
-      <p className="mb-1.5 text-sm font-medium text-zinc-700">Štítky</p>
+      <p className="mb-1.5 text-sm font-medium text-zinc-700 dark:text-zinc-300">Štítky</p>
       <div className="flex flex-wrap gap-1.5">
         {tags.map((t) => {
           const active = selected.includes(t.id);
@@ -251,8 +251,8 @@ function TagPicker({
               onClick={() => onToggle(t.id)}
               className={`rounded-full border px-2.5 py-0.5 text-xs font-medium transition-colors ${
                 active
-                  ? 'border-zinc-900 bg-zinc-900 text-white'
-                  : 'border-zinc-200 text-zinc-700 hover:bg-zinc-50'
+                  ? 'border-zinc-900 dark:border-zinc-100 bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900'
+                  : 'border-zinc-200 dark:border-zinc-800 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800'
               }`}
               style={active ? { backgroundColor: t.color, borderColor: t.color } : undefined}
             >

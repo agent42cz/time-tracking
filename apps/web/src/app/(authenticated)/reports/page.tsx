@@ -1,5 +1,16 @@
 import type { ReactElement } from 'react';
-import { Card, CardBody, CardHeader, CardTitle, EmptyState, Table, THead, Th, Tr, Td } from '@tt/ui';
+import {
+  Card,
+  CardBody,
+  CardHeader,
+  CardTitle,
+  EmptyState,
+  Table,
+  THead,
+  Th,
+  Tr,
+  Td,
+} from '@tt/ui';
 import { prisma, requireActiveCompany } from '@/lib/session';
 import { PageHeader } from '@/components/PageHeader';
 import { runReport } from '@/lib/services/reports';
@@ -78,9 +89,7 @@ export default async function ReportsPage({
     else if (typeof v === 'string') exportQS.append(k, v);
   }
 
-  const total = result.ok
-    ? result.value.reduce((a, r) => a + r.durationMs, 0)
-    : 0;
+  const total = result.ok ? result.value.reduce((a, r) => a + r.durationMs, 0) : 0;
 
   return (
     <div>
@@ -90,7 +99,7 @@ export default async function ReportsPage({
         actions={
           <a
             href={`/api/reports/export.csv?${exportQS.toString()}`}
-            className="rounded-md bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-800"
+            className="rounded-md bg-zinc-900 dark:bg-zinc-100 px-4 py-2 text-sm font-medium text-white dark:text-zinc-900 hover:bg-zinc-800 dark:hover:bg-zinc-200"
           >
             Stáhnout CSV
           </a>
@@ -128,7 +137,9 @@ export default async function ReportsPage({
         <Card>
           <CardHeader>
             <CardTitle>Záznamy ({result.ok ? result.value.length : 0})</CardTitle>
-            <span className="font-mono text-sm text-zinc-700">{fmtDur(total)}</span>
+            <span className="font-mono text-sm text-zinc-700 dark:text-zinc-300">
+              {fmtDur(total)}
+            </span>
           </CardHeader>
           <CardBody>
             {!result.ok || result.value.length === 0 ? (
@@ -156,8 +167,8 @@ export default async function ReportsPage({
                         })}
                       </Td>
                       <Td>{r.userName}</Td>
-                      <Td className="text-zinc-700">{r.clientName ?? '—'}</Td>
-                      <Td className="text-zinc-700">{r.projectName ?? '—'}</Td>
+                      <Td className="text-zinc-700 dark:text-zinc-300">{r.clientName ?? '—'}</Td>
+                      <Td className="text-zinc-700 dark:text-zinc-300">{r.projectName ?? '—'}</Td>
                       <Td className="max-w-xs truncate" title={r.description}>
                         {r.description}
                       </Td>
@@ -166,7 +177,7 @@ export default async function ReportsPage({
                           {r.tags.map((t) => (
                             <span
                               key={t.id}
-                              className="rounded-full bg-zinc-100 px-1.5 py-0.5 text-[10px] text-zinc-700"
+                              className="rounded-full bg-zinc-100 dark:bg-zinc-800 px-1.5 py-0.5 text-[10px] text-zinc-700 dark:text-zinc-300"
                             >
                               {t.name}
                             </span>

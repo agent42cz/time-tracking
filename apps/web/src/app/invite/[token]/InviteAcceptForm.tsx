@@ -24,7 +24,7 @@ export function InviteAcceptForm({
 
   return (
     <div className="space-y-4">
-      <p className="text-sm text-zinc-700">
+      <p className="text-sm text-zinc-700 dark:text-zinc-300">
         E-mail: <strong>{email}</strong> &middot; Role:{' '}
         <Badge tone={role === 'admin' ? 'info' : 'neutral'}>
           {role === 'admin' ? 'Správce' : 'Člen'}
@@ -35,9 +35,9 @@ export function InviteAcceptForm({
 
       {isLoggedIn ? (
         <div className="space-y-3">
-          <p className="text-sm text-zinc-700">
-            Jste přihlášeni jako <strong>{loggedEmail}</strong>. Chcete-li přijmout pozvánku
-            pod tímto účtem, klikněte níže.
+          <p className="text-sm text-zinc-700 dark:text-zinc-300">
+            Jste přihlášeni jako <strong>{loggedEmail}</strong>. Chcete-li přijmout pozvánku pod
+            tímto účtem, klikněte níže.
           </p>
           <Button
             type="button"
@@ -53,7 +53,7 @@ export function InviteAcceptForm({
           >
             Přijmout pozvánku
           </Button>
-          <p className="text-center text-xs text-zinc-500">
+          <p className="text-center text-xs text-zinc-500 dark:text-zinc-400">
             <Link href="/login" className="underline">
               Přihlásit jako někdo jiný
             </Link>

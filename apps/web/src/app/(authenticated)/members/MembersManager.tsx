@@ -32,7 +32,11 @@ export function PendingInvites({ invites }: { invites: Invite[] }): ReactElement
   }
   return (
     <div>
-      {error ? <Alert tone="danger" className="mb-3">{error}</Alert> : null}
+      {error ? (
+        <Alert tone="danger" className="mb-3">
+          {error}
+        </Alert>
+      ) : null}
       <Table>
         <THead>
           <tr>
@@ -95,16 +99,17 @@ interface MembersManagerProps {
   memberships: Membership[];
 }
 
-export function MembersManager({
-  currentUserId,
-  memberships,
-}: MembersManagerProps): ReactElement {
+export function MembersManager({ currentUserId, memberships }: MembersManagerProps): ReactElement {
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
   return (
     <div>
-      {error ? <Alert tone="danger" className="mb-3">{error}</Alert> : null}
+      {error ? (
+        <Alert tone="danger" className="mb-3">
+          {error}
+        </Alert>
+      ) : null}
       <Table>
         <THead>
           <tr>
@@ -119,13 +124,13 @@ export function MembersManager({
           {memberships.map((m) => (
             <Tr key={m.userId}>
               <Td className="font-medium">{m.fullName}</Td>
-              <Td className="text-zinc-600">{m.email}</Td>
+              <Td className="text-zinc-600 dark:text-zinc-400">{m.email}</Td>
               <Td>
                 <Badge tone={m.role === 'admin' ? 'info' : 'neutral'}>
                   {m.role === 'admin' ? 'Správce' : 'Člen'}
                 </Badge>
               </Td>
-              <Td className="text-zinc-600">
+              <Td className="text-zinc-600 dark:text-zinc-400">
                 {new Date(m.joinedAt).toLocaleDateString('cs-CZ')}
               </Td>
               <Td className="text-right">
@@ -177,4 +182,3 @@ export function MembersManager({
     </div>
   );
 }
-

@@ -43,9 +43,9 @@ export function TodayList({
     <Card>
       <CardHeader>
         <CardTitle>Dnes</CardTitle>
-        <span className="text-sm text-zinc-500">
+        <span className="text-sm text-zinc-500 dark:text-zinc-400">
           Celkem:{' '}
-          <span className="font-mono font-semibold text-zinc-900">
+          <span className="font-mono font-semibold text-zinc-900 dark:text-zinc-100">
             {Math.floor(total / 3600000)}h {Math.floor((total % 3600000) / 60000)}m
           </span>
         </span>
@@ -57,7 +57,7 @@ export function TodayList({
             description="Spusťte nahoře nové měření nebo přidejte ruční zápis."
           />
         ) : (
-          <ul className="divide-y divide-zinc-100">
+          <ul className="divide-y divide-zinc-100 dark:divide-zinc-800/60">
             {entries.map((e) => (
               <Row key={e.id} entry={e} onDeleted={onDeleted} />
             ))}
@@ -99,10 +99,12 @@ function Row({
   return (
     <li className="flex items-center justify-between gap-4 py-2.5">
       <div className="min-w-0">
-        <p className="truncate text-sm font-medium text-zinc-900">
-          {entry.description || <span className="text-zinc-400">(bez popisu)</span>}
+        <p className="truncate text-sm font-medium text-zinc-900 dark:text-zinc-100">
+          {entry.description || (
+            <span className="text-zinc-400 dark:text-zinc-500">(bez popisu)</span>
+          )}
         </p>
-        <div className="mt-0.5 flex flex-wrap items-center gap-1.5 text-xs text-zinc-500">
+        <div className="mt-0.5 flex flex-wrap items-center gap-1.5 text-xs text-zinc-500 dark:text-zinc-400">
           {entry.clientName ? <span>{entry.clientName}</span> : null}
           {entry.projectName ? <span>· {entry.projectName}</span> : null}
           {entry.tags.map((t, i) => (
@@ -116,11 +118,11 @@ function Row({
           ))}
         </div>
       </div>
-      <div className="flex shrink-0 items-center gap-3 text-sm text-zinc-600">
+      <div className="flex shrink-0 items-center gap-3 text-sm text-zinc-600 dark:text-zinc-400">
         <span className="font-mono tabular-nums">
           {fmtTime(entry.startedAt)}–{fmtTime(entry.endedAt)}
         </span>
-        <span className="font-mono font-semibold text-zinc-900 tabular-nums">
+        <span className="font-mono font-semibold text-zinc-900 dark:text-zinc-100 tabular-nums">
           {fmtDur(entry.startedAt, entry.endedAt)}
         </span>
         <Button

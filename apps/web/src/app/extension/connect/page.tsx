@@ -36,7 +36,7 @@ export default async function ExtensionConnectPage({
   }
   if (!validExtId) {
     return (
-      <main className="flex min-h-screen items-center justify-center bg-zinc-50 px-4 py-12">
+      <main className="flex min-h-screen items-center justify-center bg-zinc-50 dark:bg-zinc-950 px-4 py-12">
         <div className="w-full max-w-md">
           <Card>
             <CardHeader>
@@ -60,11 +60,13 @@ export default async function ExtensionConnectPage({
     'http://localhost:3000';
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-zinc-50 px-4 py-12">
+    <main className="flex min-h-screen items-center justify-center bg-zinc-50 dark:bg-zinc-950 px-4 py-12">
       <div className="w-full max-w-md">
         <div className="mb-6 text-center">
-          <h1 className="text-2xl font-semibold tracking-tight text-zinc-900">Time Tracker</h1>
-          <p className="mt-1 text-sm text-zinc-600">Připojení rozšíření</p>
+          <h1 className="text-2xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-100">
+            Time Tracker
+          </h1>
+          <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">Připojení rozšíření</p>
         </div>
         <Card>
           <CardHeader>

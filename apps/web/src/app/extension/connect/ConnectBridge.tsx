@@ -48,28 +48,22 @@ export function ConnectBridge({
       return;
     }
     try {
-      runtime.sendMessage(
-        extId,
-        { type: 'tt:auth', token, expiresAt, apiBase },
-        (response) => {
-          const lastErr = runtime.lastError;
-          if (lastErr || !response?.ok) {
-            setPhase('failed');
-            setErrorMessage(
-              lastErr?.message ?? response?.error ?? 'Rozšíření odpověď nepřijalo.',
-            );
-            return;
+      runtime.sendMessage(extId, { type: 'tt:auth', token, expiresAt, apiBase }, (response) => {
+        const lastErr = runtime.lastError;
+        if (lastErr || !response?.ok) {
+          setPhase('failed');
+          setErrorMessage(lastErr?.message ?? response?.error ?? 'Rozšíření odpověď nepřijalo.');
+          return;
+        }
+        setPhase('sent');
+        setTimeout(() => {
+          try {
+            window.close();
+          } catch {
+            // some browsers refuse to close tabs they didn't open
           }
-          setPhase('sent');
-          setTimeout(() => {
-            try {
-              window.close();
-            } catch {
-              // some browsers refuse to close tabs they didn't open
-            }
-          }, 800);
-        },
-      );
+        }, 800);
+      });
     } catch (err) {
       setPhase('failed');
       setErrorMessage(err instanceof Error ? err.message : 'Neznámá chyba.');
@@ -78,16 +72,14 @@ export function ConnectBridge({
 
   return (
     <div className="space-y-3 text-sm">
-      <p className="text-zinc-700">
+      <p className="text-zinc-700 dark:text-zinc-300">
         Přihlášení jako <strong>{email}</strong>
       </p>
       {phase === 'sending' ? (
         <Alert tone="info">Přenášíme přihlašovací údaje do rozšíření…</Alert>
       ) : null}
       {phase === 'sent' ? (
-        <Alert tone="success">
-          Hotovo. Rozšíření je přihlášené — tato karta se sama zavře.
-        </Alert>
+        <Alert tone="success">Hotovo. Rozšíření je přihlášené — tato karta se sama zavře.</Alert>
       ) : null}
       {phase === 'failed' ? (
         <>
@@ -95,7 +87,7 @@ export function ConnectBridge({
           <Button onClick={sendToExtension}>Zkusit znovu</Button>
         </>
       ) : null}
-      <p className="text-xs text-zinc-500">
+      <p className="text-xs text-zinc-500 dark:text-zinc-400">
         Token zůstává pouze ve vašem prohlížeči (uložen do <code>chrome.storage.local</code> —
         sandboxován per rozšíření).
       </p>

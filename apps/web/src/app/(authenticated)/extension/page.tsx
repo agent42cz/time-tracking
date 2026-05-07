@@ -19,11 +19,11 @@ export default function ExtensionPage(): ReactElement {
             <a
               href="/tt-extension.zip"
               download
-              className="inline-flex h-10 items-center justify-center gap-2 rounded-md bg-zinc-900 px-4 text-sm font-medium text-white transition-colors hover:bg-zinc-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-900 focus-visible:ring-offset-2"
+              className="inline-flex h-10 items-center justify-center gap-2 rounded-md bg-zinc-900 dark:bg-zinc-100 px-4 text-sm font-medium text-white dark:text-zinc-900 transition-colors hover:bg-zinc-800 dark:hover:bg-zinc-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-900 dark:focus-visible:ring-zinc-100 focus-visible:ring-offset-2"
             >
               Stáhnout ZIP
             </a>
-            <p className="text-sm text-zinc-600">
+            <p className="text-sm text-zinc-600 dark:text-zinc-400">
               Funguje v Chromu, Edgi, Braveu a dalších prohlížečích založených na Chromiu.
             </p>
           </div>
@@ -35,17 +35,21 @@ export default function ExtensionPage(): ReactElement {
           <CardTitle>Jak nainstalovat</CardTitle>
         </CardHeader>
         <CardBody>
-          <ol className="list-decimal space-y-3 pl-5 text-sm text-zinc-700">
+          <ol className="list-decimal space-y-3 pl-5 text-sm text-zinc-700 dark:text-zinc-300">
             <li>
               Stáhněte ZIP tlačítkem výše a rozbalte ho do složky, kterou nebudete mazat (např.{' '}
-              <code className="rounded bg-zinc-100 px-1 py-0.5">~/tt-extension</code>
+              <code className="rounded bg-zinc-100 dark:bg-zinc-800 px-1 py-0.5">
+                ~/tt-extension
+              </code>
               ). Chrome načítá rozšíření z cesty na disku — pokud složku smažete, rozšíření přestane
               fungovat.
             </li>
             <li>
               V prohlížeči otevřete{' '}
-              <code className="rounded bg-zinc-100 px-1 py-0.5">chrome://extensions</code> (nebo
-              odpovídající stránku ve vašem prohlížeči).
+              <code className="rounded bg-zinc-100 dark:bg-zinc-800 px-1 py-0.5">
+                chrome://extensions
+              </code>{' '}
+              (nebo odpovídající stránku ve vašem prohlížeči).
             </li>
             <li>
               Vpravo nahoře zapněte přepínač <strong>Vývojářský režim</strong> (Developer mode).
@@ -72,11 +76,13 @@ export default function ExtensionPage(): ReactElement {
           <CardTitle>Aktualizace</CardTitle>
         </CardHeader>
         <CardBody>
-          <p className="text-sm text-zinc-700">
+          <p className="text-sm text-zinc-700 dark:text-zinc-300">
             Při novější verzi stáhněte aktuální ZIP, rozbalte ho přes stávající složku (přepište
             soubory) a na stránce{' '}
-            <code className="rounded bg-zinc-100 px-1 py-0.5">chrome://extensions</code> klikněte u
-            rozšíření na ikonu šipky pro znovunačtení. Připojení účtu zůstává zachováno.
+            <code className="rounded bg-zinc-100 dark:bg-zinc-800 px-1 py-0.5">
+              chrome://extensions
+            </code>{' '}
+            klikněte u rozšíření na ikonu šipky pro znovunačtení. Připojení účtu zůstává zachováno.
           </p>
         </CardBody>
       </Card>

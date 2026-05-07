@@ -8,18 +8,20 @@ export const metadata = {
 
 export default function PrivacyPage(): ReactElement {
   return (
-    <main className="flex min-h-screen items-start justify-center bg-zinc-50 px-4 py-12">
+    <main className="flex min-h-screen items-start justify-center bg-zinc-50 dark:bg-zinc-950 px-4 py-12">
       <div className="w-full max-w-2xl">
         <div className="mb-6 text-center">
-          <h1 className="text-2xl font-semibold tracking-tight text-zinc-900">Time Tracker</h1>
-          <p className="mt-1 text-sm text-zinc-600">Ochrana soukromí</p>
+          <h1 className="text-2xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-100">
+            Time Tracker
+          </h1>
+          <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">Ochrana soukromí</p>
         </div>
         <Card>
           <CardHeader>
             <CardTitle>Zásady ochrany osobních údajů</CardTitle>
           </CardHeader>
           <CardBody>
-            <div className="space-y-4 text-sm leading-relaxed text-zinc-700">
+            <div className="space-y-4 text-sm leading-relaxed text-zinc-700 dark:text-zinc-300">
               <p>
                 Time Tracker je self-hostovaná aplikace. Veškerá data — záznamy o měření času,
                 klienti, projekty, štítky, uživatelské účty a relace — jsou uložena výhradně na
@@ -27,7 +29,9 @@ export default function PrivacyPage(): ReactElement {
                 vývojáři rozšíření do prohlížeče nemají přístup k vašim datům.
               </p>
 
-              <h2 className="pt-2 text-base font-semibold text-zinc-900">Webová aplikace</h2>
+              <h2 className="pt-2 text-base font-semibold text-zinc-900 dark:text-zinc-100">
+                Webová aplikace
+              </h2>
               <p>
                 Webová aplikace neukládá data o vašem chování ani je nepředává třetím stranám.
                 Nepoužívá analytické skripty, marketingové cookies, ani službu typu Google
@@ -35,7 +39,7 @@ export default function PrivacyPage(): ReactElement {
                 preference (např. aktivní firma).
               </p>
 
-              <h2 className="pt-2 text-base font-semibold text-zinc-900">
+              <h2 className="pt-2 text-base font-semibold text-zinc-900 dark:text-zinc-100">
                 Rozšíření do prohlížeče
               </h2>
               <p>Rozšíření „Time Tracker“ pro Chrome / Edge:</p>
@@ -47,7 +51,7 @@ export default function PrivacyPage(): ReactElement {
                 <li>
                   <strong>Token relace</strong> vystavený vaší instancí Time Tracker je uložen pouze
                   lokálně v prohlížeči přes{' '}
-                  <code className="rounded bg-zinc-100 px-1 py-0.5 font-mono text-xs">
+                  <code className="rounded bg-zinc-100 dark:bg-zinc-800 px-1 py-0.5 font-mono text-xs">
                     chrome.storage.local
                   </code>{' '}
                   a odesílán výhradně na URL vaší self-hostované instance.
@@ -55,7 +59,7 @@ export default function PrivacyPage(): ReactElement {
                 <li>
                   <strong>
                     Oprávnění{' '}
-                    <code className="rounded bg-zinc-100 px-1 py-0.5 font-mono text-xs">
+                    <code className="rounded bg-zinc-100 dark:bg-zinc-800 px-1 py-0.5 font-mono text-xs">
                       storage
                     </code>
                   </strong>{' '}
@@ -65,7 +69,7 @@ export default function PrivacyPage(): ReactElement {
                 <li>
                   <strong>
                     Oprávnění{' '}
-                    <code className="rounded bg-zinc-100 px-1 py-0.5 font-mono text-xs">
+                    <code className="rounded bg-zinc-100 dark:bg-zinc-800 px-1 py-0.5 font-mono text-xs">
                       alarms
                     </code>
                   </strong>{' '}
@@ -73,7 +77,7 @@ export default function PrivacyPage(): ReactElement {
                 </li>
                 <li>
                   <strong>Oprávnění k hostiteli</strong> (
-                  <code className="rounded bg-zinc-100 px-1 py-0.5 font-mono text-xs">
+                  <code className="rounded bg-zinc-100 dark:bg-zinc-800 px-1 py-0.5 font-mono text-xs">
                     https://*.agent42.cz/*
                   </code>
                   ) je potřeba pro volání API vaší instance Time Tracker.
@@ -84,7 +88,9 @@ export default function PrivacyPage(): ReactElement {
                 </li>
               </ul>
 
-              <h2 className="pt-2 text-base font-semibold text-zinc-900">Kontakt</h2>
+              <h2 className="pt-2 text-base font-semibold text-zinc-900 dark:text-zinc-100">
+                Kontakt
+              </h2>
               <p>
                 Pokud máte otázky týkající se zpracování osobních údajů ve vaší instanci Time
                 Tracker, kontaktujte správce této instance.

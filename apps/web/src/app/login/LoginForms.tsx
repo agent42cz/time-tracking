@@ -86,7 +86,7 @@ export function LoginForms({ next }: { next: string | null }): ReactElement {
   return (
     <div className="space-y-4">
       {step === 'credentials' ? (
-        <div className="flex gap-1 rounded-md bg-zinc-100 p-1">
+        <div className="flex gap-1 rounded-md bg-zinc-100 dark:bg-zinc-800 p-1">
           <button
             type="button"
             onClick={() => {
@@ -94,7 +94,9 @@ export function LoginForms({ next }: { next: string | null }): ReactElement {
               setError(null);
             }}
             className={`flex-1 rounded px-3 py-1.5 text-sm font-medium transition-colors ${
-              mode === 'password' ? 'bg-white text-zinc-900 shadow-sm' : 'text-zinc-600'
+              mode === 'password'
+                ? 'bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 shadow-sm'
+                : 'text-zinc-600 dark:text-zinc-400'
             }`}
           >
             Heslo
@@ -106,7 +108,9 @@ export function LoginForms({ next }: { next: string | null }): ReactElement {
               setError(null);
             }}
             className={`flex-1 rounded px-3 py-1.5 text-sm font-medium transition-colors ${
-              mode === 'magic' ? 'bg-white text-zinc-900 shadow-sm' : 'text-zinc-600'
+              mode === 'magic'
+                ? 'bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 shadow-sm'
+                : 'text-zinc-600 dark:text-zinc-400'
             }`}
           >
             Odkaz na e-mail
@@ -140,7 +144,7 @@ export function LoginForms({ next }: { next: string | null }): ReactElement {
                 setMode('reset');
                 setError(null);
               }}
-              className="mt-1 block w-full text-center text-xs text-zinc-500 underline hover:text-zinc-700"
+              className="mt-1 block w-full text-center text-xs text-zinc-500 dark:text-zinc-400 underline hover:text-zinc-700 dark:hover:text-zinc-300"
             >
               Zapomněli jste heslo?
             </button>
@@ -151,7 +155,7 @@ export function LoginForms({ next }: { next: string | null }): ReactElement {
       {mode === 'password' && step === 'totp' && credentials ? (
         <form onSubmit={onTotpSubmit}>
           <FieldGroup>
-            <p className="text-sm text-zinc-700">
+            <p className="text-sm text-zinc-700 dark:text-zinc-300">
               Přihlášení jako <strong>{credentials.email}</strong>
             </p>
             <Field
@@ -178,7 +182,7 @@ export function LoginForms({ next }: { next: string | null }): ReactElement {
             <button
               type="button"
               onClick={reset}
-              className="mt-1 block w-full text-center text-xs text-zinc-500 underline hover:text-zinc-700"
+              className="mt-1 block w-full text-center text-xs text-zinc-500 dark:text-zinc-400 underline hover:text-zinc-700 dark:hover:text-zinc-300"
             >
               ← Zpět na přihlášení
             </button>
@@ -224,7 +228,7 @@ export function LoginForms({ next }: { next: string | null }): ReactElement {
                 setResetSent(false);
                 setError(null);
               }}
-              className="block w-full text-center text-xs text-zinc-500 underline hover:text-zinc-700"
+              className="block w-full text-center text-xs text-zinc-500 dark:text-zinc-400 underline hover:text-zinc-700 dark:hover:text-zinc-300"
             >
               ← Zpět na přihlášení
             </button>
@@ -248,7 +252,7 @@ export function LoginForms({ next }: { next: string | null }): ReactElement {
                   setMode('password');
                   setError(null);
                 }}
-                className="mt-1 block w-full text-center text-xs text-zinc-500 underline hover:text-zinc-700"
+                className="mt-1 block w-full text-center text-xs text-zinc-500 dark:text-zinc-400 underline hover:text-zinc-700 dark:hover:text-zinc-300"
               >
                 ← Zpět na přihlášení
               </button>

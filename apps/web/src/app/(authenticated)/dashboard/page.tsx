@@ -77,12 +77,16 @@ export default async function DashboardPage({
         title="Dashboard"
         description={periodLabel}
         actions={
-          <div className="flex gap-1 rounded-md bg-zinc-100 p-1 text-sm">
+          <div className="flex gap-1 rounded-md bg-zinc-100 p-1 text-sm dark:bg-zinc-800">
             {(['today', 'week', 'month'] satisfies Period[]).map((p) => (
               <Link
                 key={p}
                 href={`/dashboard?period=${p}`}
-                className={`rounded px-3 py-1 ${period === p ? 'bg-white shadow-sm font-medium' : 'text-zinc-600'}`}
+                className={`rounded px-3 py-1 ${
+                  period === p
+                    ? 'bg-white font-medium shadow-sm dark:bg-zinc-700 dark:text-zinc-100'
+                    : 'text-zinc-600 dark:text-zinc-400'
+                }`}
               >
                 {{ today: 'Dnes', week: 'Týden', month: 'Měsíc' }[p]}
               </Link>
@@ -114,12 +118,16 @@ export default async function DashboardPage({
                     return (
                       <li key={p.userId} className="space-y-1">
                         <div className="flex justify-between text-sm">
-                          <span className="font-medium text-zinc-900">{p.fullName}</span>
-                          <span className="font-mono text-zinc-700">{fmtH(p.totalMs)}</span>
+                          <span className="font-medium text-zinc-900 dark:text-zinc-100">
+                            {p.fullName}
+                          </span>
+                          <span className="font-mono text-zinc-700 dark:text-zinc-300">
+                            {fmtH(p.totalMs)}
+                          </span>
                         </div>
-                        <div className="h-2 overflow-hidden rounded-full bg-zinc-100">
+                        <div className="h-2 overflow-hidden rounded-full bg-zinc-100 dark:bg-zinc-800">
                           <div
-                            className="h-full bg-zinc-900"
+                            className="h-full bg-zinc-900 dark:bg-zinc-100"
                             style={{ width: `${Math.round(ratio * 100)}%` }}
                           />
                         </div>
@@ -145,14 +153,16 @@ export default async function DashboardPage({
                     const pct = sharedTotal ? Math.round((c.totalMs / sharedTotal) * 100) : 0;
                     return (
                       <li key={c.clientId ?? 'none'} className="flex items-center gap-3 text-sm">
-                        <span className="w-32 shrink-0 truncate text-zinc-700">{c.clientName}</span>
-                        <div className="h-2 flex-1 overflow-hidden rounded-full bg-zinc-100">
+                        <span className="w-32 shrink-0 truncate text-zinc-700 dark:text-zinc-300">
+                          {c.clientName}
+                        </span>
+                        <div className="h-2 flex-1 overflow-hidden rounded-full bg-zinc-100 dark:bg-zinc-800">
                           <div
-                            className="h-full bg-blue-500"
+                            className="h-full bg-blue-500 dark:bg-blue-400"
                             style={{ width: `${pct}%` }}
                           />
                         </div>
-                        <span className="w-20 shrink-0 text-right font-mono text-zinc-700">
+                        <span className="w-20 shrink-0 text-right font-mono text-zinc-700 dark:text-zinc-300">
                           {pct}%
                         </span>
                       </li>
@@ -173,12 +183,13 @@ export default async function DashboardPage({
             {top.ok && top.value.length > 0 ? (
               <ul className="space-y-2">
                 {top.value.map((p) => (
-                  <li
-                    key={p.projectId ?? 'none'}
-                    className="flex justify-between text-sm"
-                  >
-                    <span className="truncate text-zinc-700">{p.projectName}</span>
-                    <span className="font-mono text-zinc-900">{fmtH(p.totalMs)}</span>
+                  <li key={p.projectId ?? 'none'} className="flex justify-between text-sm">
+                    <span className="truncate text-zinc-700 dark:text-zinc-300">
+                      {p.projectName}
+                    </span>
+                    <span className="font-mono text-zinc-900 dark:text-zinc-100">
+                      {fmtH(p.totalMs)}
+                    </span>
                   </li>
                 ))}
               </ul>
@@ -196,7 +207,7 @@ export default async function DashboardPage({
             {inactive.ok && inactive.value.length > 0 ? (
               <ul className="space-y-1.5 text-sm">
                 {inactive.value.map((u) => (
-                  <li key={u.userId} className="text-zinc-700">
+                  <li key={u.userId} className="text-zinc-700 dark:text-zinc-300">
                     {u.fullName}
                   </li>
                 ))}
@@ -217,9 +228,13 @@ export default async function DashboardPage({
 
 function Kpi({ label, value }: { label: string; value: string }): ReactElement {
   return (
-    <div className="rounded-lg border border-zinc-200 bg-white p-4">
-      <p className="text-xs font-medium uppercase tracking-wide text-zinc-500">{label}</p>
-      <p className="mt-1 font-mono text-2xl font-semibold text-zinc-900">{value}</p>
+    <div className="rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900">
+      <p className="text-xs font-medium uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
+        {label}
+      </p>
+      <p className="mt-1 font-mono text-2xl font-semibold text-zinc-900 dark:text-zinc-100">
+        {value}
+      </p>
     </div>
   );
 }
@@ -281,7 +296,7 @@ function DailyBreakdown({
     <Card>
       <CardHeader>
         <CardTitle>Denní rozpis</CardTitle>
-        <span className="text-xs text-zinc-500">
+        <span className="text-xs text-zinc-500 dark:text-zinc-400">
           {cells.length === 1 ? 'Jeden den' : `${cells.length} dní`} · stack po klientech
         </span>
       </CardHeader>
@@ -299,18 +314,21 @@ function DailyBreakdown({
             >
               {cells.map(({ bucket, weekday, dom, month, isToday }) => {
                 const ratio = bucket.total / maxMs;
+                const fallbackColor = bucket.segments[0]?.color;
                 return (
                   <div key={bucket.day} className="flex flex-col items-center gap-1.5">
                     <span
                       className={`text-[10px] font-medium tabular-nums ${
-                        bucket.total > 0 ? 'text-zinc-700' : 'text-zinc-300'
+                        bucket.total > 0
+                          ? 'text-zinc-700 dark:text-zinc-300'
+                          : 'text-zinc-300 dark:text-zinc-600'
                       }`}
                     >
                       {bucket.total > 0 ? fmtH(bucket.total) : '—'}
                     </span>
-                    <div className="relative flex h-40 w-full flex-col-reverse overflow-hidden rounded-md border border-zinc-100 bg-zinc-50">
+                    <div className="relative flex h-40 w-full flex-col-reverse overflow-hidden rounded-md border border-zinc-100 bg-zinc-50 dark:border-zinc-800/60 dark:bg-zinc-950/40">
                       {bucket.segments.length === 0 ? (
-                        <div className="h-px w-full bg-zinc-200" aria-hidden />
+                        <div className="h-px w-full bg-zinc-200 dark:bg-zinc-800" aria-hidden />
                       ) : (
                         bucket.segments.map((s) => (
                           <div
@@ -328,22 +346,29 @@ function DailyBreakdown({
                         // renders something the eye can pick up.
                         <div
                           aria-hidden
-                          className="absolute inset-x-0 bottom-0 h-1.5"
-                          style={{ backgroundColor: bucket.segments[0]?.color ?? '#3f3f46' }}
+                          className={
+                            'absolute inset-x-0 bottom-0 h-1.5' +
+                            (fallbackColor ? '' : ' bg-zinc-300 dark:bg-zinc-700')
+                          }
+                          style={fallbackColor ? { backgroundColor: fallbackColor } : undefined}
                         />
                       ) : null}
                     </div>
                     <div className="flex flex-col items-center leading-tight">
                       <span
                         className={`text-[10px] font-medium ${
-                          isToday ? 'text-zinc-900' : 'text-zinc-500'
+                          isToday
+                            ? 'text-zinc-900 dark:text-zinc-100'
+                            : 'text-zinc-500 dark:text-zinc-400'
                         }`}
                       >
                         {WEEKDAY_CS[weekday]}
                       </span>
                       <span
                         className={`text-[10px] tabular-nums ${
-                          isToday ? 'rounded bg-zinc-900 px-1 text-white' : 'text-zinc-500'
+                          isToday
+                            ? 'rounded bg-zinc-900 px-1 text-white dark:bg-zinc-100 dark:text-zinc-900'
+                            : 'text-zinc-500 dark:text-zinc-400'
                         }`}
                       >
                         {String(dom).padStart(2, '0')}.{String(month).padStart(2, '0')}.
@@ -354,9 +379,12 @@ function DailyBreakdown({
               })}
             </div>
             {legend.size > 0 ? (
-              <div className="mt-4 flex flex-wrap gap-x-3 gap-y-1.5 border-t border-zinc-100 pt-3 text-xs">
+              <div className="mt-4 flex flex-wrap gap-x-3 gap-y-1.5 border-t border-zinc-100 pt-3 text-xs dark:border-zinc-800/60">
                 {Array.from(legend.entries()).map(([label, color]) => (
-                  <span key={label} className="inline-flex items-center gap-1.5 text-zinc-700">
+                  <span
+                    key={label}
+                    className="inline-flex items-center gap-1.5 text-zinc-700 dark:text-zinc-300"
+                  >
                     <span
                       className="h-2.5 w-2.5 rounded-sm"
                       style={{ backgroundColor: color }}

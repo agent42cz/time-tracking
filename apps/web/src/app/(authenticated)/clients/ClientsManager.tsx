@@ -87,24 +87,26 @@ export function ClientsManager({ clients }: { clients: Client[] }): ReactElement
         </FieldGroup>
       </form>
 
-      <ul className="divide-y divide-zinc-100">
+      <ul className="divide-y divide-zinc-100 dark:divide-zinc-800/60">
         {clients.map((c) => (
           <li key={c.id} className="py-3">
             <div className="flex items-center justify-between gap-3">
               <div className="flex items-center gap-2">
                 <button
                   type="button"
-                  className="text-zinc-400 hover:text-zinc-700"
+                  className="text-zinc-400 dark:text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300"
                   onClick={() => setOpenClient(openClient === c.id ? null : c.id)}
                   aria-label="Rozbalit projekty"
                 >
                   {openClient === c.id ? '▾' : '▸'}
                 </button>
-                <span className={`font-medium ${c.archived ? 'text-zinc-400' : 'text-zinc-900'}`}>
+                <span
+                  className={`font-medium ${c.archived ? 'text-zinc-400 dark:text-zinc-500' : 'text-zinc-900 dark:text-zinc-100'}`}
+                >
                   {c.name}
                 </span>
                 {c.archived ? <Badge tone="warning">archivováno</Badge> : null}
-                <span className="text-xs text-zinc-500">
+                <span className="text-xs text-zinc-500 dark:text-zinc-400">
                   ({c.projects.length} projektů, {c.entryCount} záznamů)
                 </span>
               </div>
@@ -127,16 +129,24 @@ export function ClientsManager({ clients }: { clients: Client[] }): ReactElement
             </div>
 
             {openClient === c.id ? (
-              <div className="mt-3 ml-7 space-y-3 border-l border-zinc-100 pl-4">
+              <div className="mt-3 ml-7 space-y-3 border-l border-zinc-100 dark:border-zinc-800/60 pl-4">
                 <ul className="space-y-1.5">
                   {c.projects.map((p) => (
                     <li key={p.id} className="flex items-center justify-between gap-3 text-sm">
                       <div className="flex items-center gap-2">
-                        <span className={p.archived ? 'text-zinc-400' : 'text-zinc-800'}>
+                        <span
+                          className={
+                            p.archived
+                              ? 'text-zinc-400 dark:text-zinc-500'
+                              : 'text-zinc-800 dark:text-zinc-200'
+                          }
+                        >
                           {p.name}
                         </span>
                         {p.archived ? <Badge tone="warning">archivováno</Badge> : null}
-                        <span className="text-xs text-zinc-500">({p.entryCount} záznamů)</span>
+                        <span className="text-xs text-zinc-500 dark:text-zinc-400">
+                          ({p.entryCount} záznamů)
+                        </span>
                       </div>
                       <div className="flex gap-1.5">
                         <Button
@@ -222,7 +232,7 @@ function CascadeChoice({
   label: string;
 }): ReactElement {
   return (
-    <label className="flex items-start gap-2 rounded-md bg-zinc-50 px-3 py-2 text-sm text-zinc-700">
+    <label className="flex items-start gap-2 rounded-md bg-zinc-50 dark:bg-zinc-950 px-3 py-2 text-sm text-zinc-700 dark:text-zinc-300">
       <input
         type="checkbox"
         checked={value}
