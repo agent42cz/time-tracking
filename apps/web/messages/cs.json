@@ -115,5 +115,33 @@
     "notFound": "Nenalezeno",
     "forbidden": "Přístup zamítnut",
     "tryAgain": "Zkusit znovu"
+  },
+  "clients": {
+    "title": "Seznam",
+    "search": {
+      "placeholder": "Hledat klienta nebo projekt",
+      "ariaLabel": "Hledat klienta nebo projekt",
+      "clearAriaLabel": "Vymazat hledání",
+      "empty": "Žádné výsledky",
+      "disabledDrag": "Vyhledávání je aktivní – zrušte ho pro řazení."
+    }
+  },
+  "audit": {
+    "action": {
+      "create": "vytvoření",
+      "update": "úprava",
+      "delete": "smazání",
+      "restore": "obnovení",
+      "reorder": "změna pořadí",
+      "invite": "pozvánka",
+      "invite_accepted": "pozvánka přijata",
+      "invite_revoked": "pozvánka zrušena",
+      "remove_member": "odebrání člena",
+      "role_change": "změna role",
+      "login": "přihlášení",
+      "logout": "odhlášení",
+      "totp_enable": "2FA zapnuto",
+      "totp_disable": "2FA vypnuto"
+    }
   }
 }
