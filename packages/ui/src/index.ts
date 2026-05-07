@@ -10,3 +10,4 @@ export { EmptyState } from './empty-state.js';
 export { Alert } from './alert.js';
 export { Select } from './select.js';
 export { ConfirmModal, type ConfirmModalProps } from './confirm-modal.js';
+export { SearchInput, type SearchInputProps } from './search-input.js';
