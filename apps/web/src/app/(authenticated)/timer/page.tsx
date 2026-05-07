@@ -36,8 +36,13 @@ export default async function TimerPage(): Promise<ReactElement> {
     }),
     prisma().client.findMany({
       where: { companyId: s.activeCompanyId, archived: false },
-      include: { projects: { where: { archived: false }, orderBy: { name: 'asc' } } },
-      orderBy: { name: 'asc' },
+      include: {
+        projects: {
+          where: { archived: false },
+          orderBy: [{ sortOrder: 'asc' }, { name: 'asc' }],
+        },
+      },
+      orderBy: [{ sortOrder: 'asc' }, { name: 'asc' }],
     }),
     prisma().tag.findMany({
       where: { companyId: s.activeCompanyId },

@@ -20,9 +20,12 @@ export async function GET(req: NextRequest): Promise<Response> {
     prisma().client.findMany({
       where: { companyId: active.companyId, archived: false },
       include: {
-        projects: { where: { archived: false }, orderBy: { name: 'asc' } },
+        projects: {
+          where: { archived: false },
+          orderBy: [{ sortOrder: 'asc' }, { name: 'asc' }],
+        },
       },
-      orderBy: { name: 'asc' },
+      orderBy: [{ sortOrder: 'asc' }, { name: 'asc' }],
     }),
     prisma().tag.findMany({
       where: { companyId: active.companyId },

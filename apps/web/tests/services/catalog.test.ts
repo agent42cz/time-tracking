@@ -442,4 +442,28 @@ describe('catalog (clients / projects / tags)', () => {
       expect(r.ok).toBe(false);
     });
   });
+
+  it('US-52/53: client.findMany ordered by (archived asc, sortOrder asc, name asc) returns expected sequence', async () => {
+    await withTx(async (tx) => {
+      const w = await bootstrap(tx, 'order');
+      const a = await createClient(tx, w.admin, { companyId: w.company, name: 'Apple' });
+      const b = await createClient(tx, w.admin, { companyId: w.company, name: 'Banana' });
+      const c = await createClient(tx, w.admin, { companyId: w.company, name: 'Cherry' });
+      const d = await createClient(tx, w.admin, { companyId: w.company, name: 'Damson' });
+      if (!a.ok || !b.ok || !c.ok || !d.ok) throw new Error('setup');
+
+      // canonical order: Cherry, Apple, Banana (active), Damson archived at the bottom
+      await reorderClients(tx, w.admin, {
+        companyId: w.company,
+        orderedIds: [c.value.id, a.value.id, b.value.id, d.value.id],
+      });
+      await archiveClient(tx, w.admin, d.value.id, true);
+
+      const rows = await tx.client.findMany({
+        where: { companyId: w.company },
+        orderBy: [{ archived: 'asc' }, { sortOrder: 'asc' }, { name: 'asc' }],
+      });
+      expect(rows.map((r) => r.name)).toEqual(['Cherry', 'Apple', 'Banana', 'Damson']);
+    });
+  });
 });

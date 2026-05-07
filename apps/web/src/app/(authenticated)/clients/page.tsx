@@ -9,14 +9,20 @@ export default async function ClientsPage(): Promise<ReactElement> {
   const clients = await prisma().client.findMany({
     where: { companyId: s.activeCompanyId },
     include: {
-      projects: { orderBy: { name: 'asc' }, include: { _count: { select: { timeEntries: true } } } },
+      projects: {
+        orderBy: [{ archived: 'asc' }, { sortOrder: 'asc' }, { name: 'asc' }],
+        include: { _count: { select: { timeEntries: true } } },
+      },
       _count: { select: { timeEntries: true } },
     },
-    orderBy: [{ archived: 'asc' }, { name: 'asc' }],
+    orderBy: [{ archived: 'asc' }, { sortOrder: 'asc' }, { name: 'asc' }],
   });
   return (
     <div>
-      <PageHeader title="Klienti a projekty" description="Spravujte seznam klientů a jejich projektů." />
+      <PageHeader
+        title="Klienti a projekty"
+        description="Spravujte seznam klientů a jejich projektů."
+      />
       <Card>
         <CardHeader>
           <CardTitle>Seznam</CardTitle>
