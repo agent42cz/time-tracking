@@ -17,6 +17,7 @@ import {
   deleteTag,
   listClients,
   listTags,
+  reorderClients,
   updateTag,
 } from '../../src/lib/services/catalog.js';
 
@@ -49,6 +50,10 @@ async function bootstrap(tx: Prisma.TransactionClient, suffix: string): Promise<
   // outsider has no membership in this company
   await createCompany(tx, { name: `Other ${suffix}`, createdByUserId: outsider.id });
   return { admin: admin.id, user: user.id, outsider: outsider.id, company: company.id };
+}
+
+async function auditCount(tx: Prisma.TransactionClient, companyId: string): Promise<number> {
+  return tx.auditLog.count({ where: { companyId } });
 }
 
 describe('catalog (clients / projects / tags)', () => {
@@ -221,6 +226,113 @@ describe('catalog (clients / projects / tags)', () => {
       // outsider 404
       const cross = await listClients(tx, w.outsider, w.company);
       expect(cross.ok).toBe(false);
+    });
+  });
+
+  it('US-52: reorderClients writes 1..N sortOrder for the active set and one audit row', async () => {
+    await withTx(async (tx) => {
+      const w = await bootstrap(tx, 'us52a');
+      const a = await createClient(tx, w.admin, { companyId: w.company, name: 'A' });
+      const b = await createClient(tx, w.admin, { companyId: w.company, name: 'B' });
+      const c = await createClient(tx, w.admin, { companyId: w.company, name: 'C' });
+      if (!a.ok || !b.ok || !c.ok) throw new Error('setup');
+
+      const before = await auditCount(tx, w.company);
+      const r = await reorderClients(tx, w.admin, {
+        companyId: w.company,
+        orderedIds: [c.value.id, a.value.id, b.value.id],
+      });
+      expect(r.ok).toBe(true);
+
+      const rows = await tx.client.findMany({
+        where: { companyId: w.company },
+        orderBy: { sortOrder: 'asc' },
+      });
+      expect(rows.map((r) => r.id)).toEqual([c.value.id, a.value.id, b.value.id]);
+      expect(rows.map((r) => r.sortOrder)).toEqual([1, 2, 3]);
+
+      expect(await auditCount(tx, w.company)).toBe(before + 1);
+      const audit = await tx.auditLog.findFirst({
+        where: { companyId: w.company, action: 'reorder' },
+        orderBy: { createdAt: 'desc' },
+      });
+      expect(audit?.entityType).toBe('client_order');
+      expect(audit?.entityId).toBe(w.company);
+    });
+  });
+
+  it('US-52: reorderClients ignores archived clients', async () => {
+    await withTx(async (tx) => {
+      const w = await bootstrap(tx, 'us52b');
+      const a = await createClient(tx, w.admin, { companyId: w.company, name: 'A' });
+      const b = await createClient(tx, w.admin, { companyId: w.company, name: 'B' });
+      const z = await createClient(tx, w.admin, { companyId: w.company, name: 'Z' });
+      if (!a.ok || !b.ok || !z.ok) throw new Error('setup');
+      await archiveClient(tx, w.admin, z.value.id, true);
+      const archivedBefore = await tx.client.findUniqueOrThrow({ where: { id: z.value.id } });
+
+      const r = await reorderClients(tx, w.admin, {
+        companyId: w.company,
+        orderedIds: [b.value.id, a.value.id],
+      });
+      expect(r.ok).toBe(true);
+
+      const archivedAfter = await tx.client.findUniqueOrThrow({ where: { id: z.value.id } });
+      expect(archivedAfter.sortOrder).toBe(archivedBefore.sortOrder);
+    });
+  });
+
+  it('US-52: reorderClients returns not_found when orderedIds contain a foreign-company client id', async () => {
+    await withTx(async (tx) => {
+      const w = await bootstrap(tx, 'us52c');
+      const a = await createClient(tx, w.admin, { companyId: w.company, name: 'A' });
+      if (!a.ok) throw new Error('setup');
+
+      const otherCompany = await createCompany(tx, {
+        name: 'Other co',
+        createdByUserId: w.outsider,
+      });
+      const foreign = await createClient(tx, w.outsider, {
+        companyId: otherCompany.id,
+        name: 'Foreign',
+      });
+      if (!foreign.ok) throw new Error('setup');
+
+      const r = await reorderClients(tx, w.admin, {
+        companyId: w.company,
+        orderedIds: [foreign.value.id, a.value.id],
+      });
+      expect(r.ok).toBe(false);
+      if (!r.ok) expect(r.reason).toBe('not_found');
+    });
+  });
+
+  it('US-52: reorderClients returns not_found when orderedIds is missing an active client', async () => {
+    await withTx(async (tx) => {
+      const w = await bootstrap(tx, 'us52d');
+      const a = await createClient(tx, w.admin, { companyId: w.company, name: 'A' });
+      const b = await createClient(tx, w.admin, { companyId: w.company, name: 'B' });
+      if (!a.ok || !b.ok) throw new Error('setup');
+
+      const r = await reorderClients(tx, w.admin, {
+        companyId: w.company,
+        orderedIds: [a.value.id], // missing b
+      });
+      expect(r.ok).toBe(false);
+    });
+  });
+
+  it('US-52: reorderClients denies non-admin members', async () => {
+    await withTx(async (tx) => {
+      const w = await bootstrap(tx, 'us52e');
+      const a = await createClient(tx, w.admin, { companyId: w.company, name: 'A' });
+      const b = await createClient(tx, w.admin, { companyId: w.company, name: 'B' });
+      if (!a.ok || !b.ok) throw new Error('setup');
+      const r = await reorderClients(tx, w.user, {
+        companyId: w.company,
+        orderedIds: [b.value.id, a.value.id],
+      });
+      expect(r.ok).toBe(false);
     });
   });
 });

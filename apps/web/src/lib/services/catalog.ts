@@ -10,6 +10,7 @@
  * is parameterized at the API layer via `cascade: boolean` (US-15).
  */
 import type { Prisma, PrismaClient, Role } from '@prisma/client';
+import { writeAudit } from './audit.js';
 
 type Db = PrismaClient | Prisma.TransactionClient;
 
@@ -106,9 +107,7 @@ export async function listClients(
   actorUserId: string,
   companyId: string,
   opts: { includeArchived?: boolean } = {},
-): Promise<
-  Result<{ id: string; name: string; archived: boolean }[]>
-> {
+): Promise<Result<{ id: string; name: string; archived: boolean }[]>> {
   const auth = await requireMember(db, actorUserId, companyId);
   if (!auth.ok) return auth;
   const rows = await db.client.findMany({
@@ -119,6 +118,46 @@ export async function listClients(
     ok: true,
     value: rows.map((c) => ({ id: c.id, name: c.name, archived: c.archived })),
   };
+}
+
+export async function reorderClients(
+  db: Db,
+  actorUserId: string,
+  input: { companyId: string; orderedIds: string[] },
+): Promise<Result<true>> {
+  const auth = await requireAdmin(db, actorUserId, input.companyId);
+  if (!auth.ok) return auth;
+
+  const active = await db.client.findMany({
+    where: { companyId: input.companyId, archived: false },
+    orderBy: { sortOrder: 'asc' },
+    select: { id: true },
+  });
+  const activeIds = new Set(active.map((c) => c.id));
+  const requested = new Set(input.orderedIds);
+  if (activeIds.size !== requested.size || [...requested].some((id) => !activeIds.has(id))) {
+    return { ok: false, reason: 'not_found' };
+  }
+
+  const before = active.map((c) => c.id);
+
+  await Promise.all(
+    input.orderedIds.map((id, i) =>
+      db.client.update({ where: { id }, data: { sortOrder: i + 1 } }),
+    ),
+  );
+
+  await writeAudit(db, {
+    companyId: input.companyId,
+    actorUserId,
+    action: 'reorder',
+    entityType: 'client_order',
+    entityId: input.companyId,
+    before: { ids: before },
+    after: { ids: input.orderedIds },
+  });
+
+  return { ok: true, value: true };
 }
 
 // --- Projects ---
@@ -211,11 +250,7 @@ export async function updateTag(
   return { ok: true, value: true };
 }
 
-export async function deleteTag(
-  db: Db,
-  actorUserId: string,
-  tagId: string,
-): Promise<Result<true>> {
+export async function deleteTag(db: Db, actorUserId: string, tagId: string): Promise<Result<true>> {
   const tag = await db.tag.findUnique({ where: { id: tagId } });
   if (!tag) return { ok: false, reason: 'not_found' };
   const auth = await requireAdmin(db, actorUserId, tag.companyId);
@@ -228,9 +263,7 @@ export async function listTags(
   db: Db,
   actorUserId: string,
   companyId: string,
-): Promise<
-  Result<{ id: string; name: string; color: string }[]>
-> {
+): Promise<Result<{ id: string; name: string; color: string }[]>> {
   const auth = await requireMember(db, actorUserId, companyId);
   if (!auth.ok) return auth;
   const rows = await db.tag.findMany({ where: { companyId }, orderBy: { name: 'asc' } });
