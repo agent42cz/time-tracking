@@ -1,5 +1,5 @@
 import type { ReactElement } from 'react';
-import { Card, CardBody, CardHeader, CardTitle } from '@tt/ui';
+import { Card, CardBody } from '@tt/ui';
 import { prisma, requireAdmin } from '@/lib/session';
 import { PageHeader } from '@/components/PageHeader';
 import { ClientsManager } from './ClientsManager';
@@ -24,9 +24,6 @@ export default async function ClientsPage(): Promise<ReactElement> {
         description="Spravujte seznam klientů a jejich projektů."
       />
       <Card>
-        <CardHeader>
-          <CardTitle>Seznam</CardTitle>
-        </CardHeader>
         <CardBody>
           <ClientsManager
             clients={clients.map((c) => ({

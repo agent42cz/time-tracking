@@ -1,8 +1,9 @@
 'use client';
 
 import type { ReactElement } from 'react';
-import { useState, useTransition } from 'react';
-import { Alert, Button, ConfirmModal, Field, FieldGroup, Input } from '@tt/ui';
+import { useMemo, useState, useTransition } from 'react';
+import { useTranslations } from 'next-intl';
+import { Alert, Button, ConfirmModal, Field, FieldGroup, Input, SearchInput } from '@tt/ui';
 import {
   archiveClientAction,
   archiveProjectAction,
@@ -13,6 +14,7 @@ import {
 } from '@/lib/actions/catalog';
 import { ClientRow, type ClientRowItem } from './ClientRow';
 import type { ProjectRowItem } from './ProjectRow';
+import { filterClients } from './filterClients';
 
 type PendingAction =
   | { kind: 'archive-client'; client: ClientRowItem }
@@ -21,11 +23,16 @@ type PendingAction =
   | { kind: 'delete-project'; project: ProjectRowItem };
 
 export function ClientsManager({ clients }: { clients: ClientRowItem[] }): ReactElement {
+  const tSearch = useTranslations('clients.search');
+  const tList = useTranslations('clients');
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
   const [openClient, setOpenClient] = useState<string | null>(null);
   const [action, setAction] = useState<PendingAction | null>(null);
   const [cascade, setCascade] = useState(false);
+  const [query, setQuery] = useState('');
+
+  const { visible, autoExpanded } = useMemo(() => filterClients(clients, query), [clients, query]);
 
   function close(): void {
     setAction(null);
@@ -49,6 +56,19 @@ export function ClientsManager({ clients }: { clients: ClientRowItem[] }): React
 
   return (
     <div className="space-y-6">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <h2 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100">{tList('title')}</h2>
+        <div className="w-full sm:w-72">
+          <SearchInput
+            value={query}
+            onChange={setQuery}
+            ariaLabel={tSearch('ariaLabel')}
+            clearAriaLabel={tSearch('clearAriaLabel')}
+            placeholder={tSearch('placeholder')}
+          />
+        </div>
+      </div>
+
       {error ? <Alert tone="danger">{error}</Alert> : null}
 
       <form
@@ -75,32 +95,36 @@ export function ClientsManager({ clients }: { clients: ClientRowItem[] }): React
         </FieldGroup>
       </form>
 
-      <ul className="divide-y divide-zinc-100 dark:divide-zinc-800/60">
-        {clients.map((c) => (
-          <ClientRow
-            key={c.id}
-            client={c}
-            isOpen={openClient === c.id}
-            pending={pending}
-            onToggle={() => setOpenClient(openClient === c.id ? null : c.id)}
-            onArchiveClient={() => setAction({ kind: 'archive-client', client: c })}
-            onDeleteClient={() => setAction({ kind: 'delete-client', client: c })}
-            onArchiveProject={(p) => setAction({ kind: 'archive-project', project: p })}
-            onDeleteProject={(p) => setAction({ kind: 'delete-project', project: p })}
-            onAddProject={(e) => {
-              e.preventDefault();
-              const fd = new FormData(e.currentTarget);
-              fd.set('clientId', c.id);
-              setError(null);
-              startTransition(async () => {
-                const r = await createProjectAction(fd);
-                if (!r.ok) setError(r.error);
-                else (e.target as HTMLFormElement).reset();
-              });
-            }}
-          />
-        ))}
-      </ul>
+      {visible.length === 0 ? (
+        <p className="text-sm text-zinc-500 dark:text-zinc-400">{tSearch('empty')}</p>
+      ) : (
+        <ul className="divide-y divide-zinc-100 dark:divide-zinc-800/60">
+          {visible.map((c) => (
+            <ClientRow
+              key={c.id}
+              client={c}
+              isOpen={autoExpanded.has(c.id) || openClient === c.id}
+              pending={pending}
+              onToggle={() => setOpenClient(openClient === c.id ? null : c.id)}
+              onArchiveClient={() => setAction({ kind: 'archive-client', client: c })}
+              onDeleteClient={() => setAction({ kind: 'delete-client', client: c })}
+              onArchiveProject={(p) => setAction({ kind: 'archive-project', project: p })}
+              onDeleteProject={(p) => setAction({ kind: 'delete-project', project: p })}
+              onAddProject={(e) => {
+                e.preventDefault();
+                const fd = new FormData(e.currentTarget);
+                fd.set('clientId', c.id);
+                setError(null);
+                startTransition(async () => {
+                  const r = await createProjectAction(fd);
+                  if (!r.ok) setError(r.error);
+                  else (e.target as HTMLFormElement).reset();
+                });
+              }}
+            />
+          ))}
+        </ul>
+      )}
 
       <ConfirmModal
         open={action !== null}
