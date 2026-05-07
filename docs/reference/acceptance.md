@@ -1,6 +1,6 @@
-# Acceptance criteria — PRD §16
+# Acceptance evidence — PRD §16
 
-Each box maps to the file (and test name) that proves it.
+Each box maps to the file (and test name) that proves it. v1 was declared complete on 2026-05-03; this document is updated whenever a criterion changes (test moved, behavior extended) — but the criteria themselves do not change without a new ADR.
 
 - [x] **User can be invited, register via invite link, and log in with email + password + optional TOTP.**
   - `apps/web/tests/auth/signup.test.ts` — US-1, US-2.
@@ -25,7 +25,7 @@ Each box maps to the file (and test name) that proves it.
 
 - [x] **Audit log captures all mutations with before/after snapshots.**
   - `apps/web/tests/services/time-entries.test.ts` — every US-19..28 test asserts the auditLog row count via `auditCount()`.
-  - `apps/web/tests/services/audit.test.ts` — US-44 (firm-wide log), US-45 (per-entry history), immutability boundary test that greps every services/* file for forbidden audit mutations.
+  - `apps/web/tests/services/audit.test.ts` — US-44 (firm-wide log), US-45 (per-entry history), immutability boundary test that greps every `services/*` file for forbidden audit mutations.
 
 - [x] **Admin dashboard renders all six widgets with working period selector.**
   - `apps/web/tests/services/dashboard-reports.test.ts` — US-36 (KPIs), US-37 (people totals), US-38 (drill-down via report), US-39 (inactive users), US-40 (daily breakdown), plus client share + top projects sum-to-total invariant.
@@ -43,15 +43,15 @@ Each box maps to the file (and test name) that proves it.
   - `docker-compose.yml` — web + ws + postgres + redis + db-backup with `expose:` only.
   - `docker/{web,ws}.Dockerfile` — multi-stage builds.
   - `apps/web/src/app/api/health/route.ts` — `/api/health` returns DB + Redis status.
-  - `README.md` documents the deploy walkthrough.
-  - Smoke test against the live containers is the manual verification step (per PRD §14.8: things AI cannot fully automate without a real Coolify host).
+  - [`../operations/coolify-deploy.md`](../operations/coolify-deploy.md) — deploy walkthrough.
+  - Smoke test against the live containers is the manual verification step.
 
-## Test pyramid (PRD §14.2 target)
+## Test pyramid
 
-| Layer | Count | Target | Notes |
-|-------|-------|--------|-------|
-| Unit | 12 (shared + extension queue) | ~50% | Pure logic only. |
-| Integration | 67 (db + web + ws) | ~35% | Real Postgres + Redis via testcontainers. |
-| E2E (Playwright) | 0 | ~15% | Pending — UI shell exists; route handlers + page wiring are the next iteration. |
+| Layer            | Count                         | Target | Notes                                                                           |
+| ---------------- | ----------------------------- | ------ | ------------------------------------------------------------------------------- |
+| Unit             | 12 (shared + extension queue) | ~50%   | Pure logic only.                                                                |
+| Integration      | 67 (db + web + ws)            | ~35%   | Real Postgres + Redis via testcontainers.                                       |
+| E2E (Playwright) | 0                             | ~15%   | Pending — UI shell exists; route handlers + page wiring are the next iteration. |
 
-Total: **81 tests, ~100s wall**. US coverage: **50/50 (100%)**. Lint + typecheck clean.
+Total at v1: **81 tests, ~100s wall**. US coverage: **50/50 (100%)**. Lint + typecheck clean.
