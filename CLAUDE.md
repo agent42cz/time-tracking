@@ -17,7 +17,7 @@ Self-hosted, multi-tenant time tracker — Next.js web app + Chrome extension. U
 - **Auth**: Auth.js v5 (credentials + magic link), argon2id passwords, custom TOTP via `otplib`
 - **Real-time**: WebSockets (`apps/ws`) over Redis pub/sub
 - **Extension**: Vite + React + MV3 (`apps/extension`), persistent offline queue in `chrome.storage.local`
-- **Tests**: Vitest + testcontainers (real Postgres + Redis); Playwright is wired but deferred for v1
+- **Tests**: Vitest + testcontainers (real Postgres + Redis) for unit/integration; Playwright E2E in `apps/web/tests/e2e/`
 
 ## Where to find what
 

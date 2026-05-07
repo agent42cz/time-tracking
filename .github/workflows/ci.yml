@@ -88,6 +88,19 @@ jobs:
       - run: pnpm test:trace
       - run: pnpm build
 
+      - name: Install Playwright browsers
+        run: pnpm --filter @tt/web exec playwright install --with-deps chromium
+
+      - name: Apply Prisma schema to CI Postgres
+        run: pnpm --filter @tt/db exec prisma db push --skip-generate --accept-data-loss
+        env:
+          DATABASE_URL: ${{ env.DATABASE_URL }}
+
+      - run: pnpm test:e2e
+        env:
+          DATABASE_URL: ${{ env.DATABASE_URL }}
+          REDIS_URL: ${{ env.REDIS_URL }}
+
   deploy:
     name: Deploy to Coolify
     needs: ci
