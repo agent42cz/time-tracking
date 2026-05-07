@@ -2,7 +2,7 @@
 
 import type { ReactElement } from 'react';
 import { useState, useTransition } from 'react';
-import { Alert, Badge, Button, ConfirmModal, Field, FieldGroup, Input } from '@tt/ui';
+import { Alert, Button, ConfirmModal, Field, FieldGroup, Input } from '@tt/ui';
 import {
   archiveClientAction,
   archiveProjectAction,
@@ -11,28 +11,16 @@ import {
   deleteClientAction,
   deleteProjectAction,
 } from '@/lib/actions/catalog';
-
-interface Project {
-  id: string;
-  name: string;
-  archived: boolean;
-  entryCount: number;
-}
-interface Client {
-  id: string;
-  name: string;
-  archived: boolean;
-  entryCount: number;
-  projects: Project[];
-}
+import { ClientRow, type ClientRowItem } from './ClientRow';
+import type { ProjectRowItem } from './ProjectRow';
 
 type PendingAction =
-  | { kind: 'archive-client'; client: Client }
-  | { kind: 'delete-client'; client: Client }
-  | { kind: 'archive-project'; project: Project }
-  | { kind: 'delete-project'; project: Project };
+  | { kind: 'archive-client'; client: ClientRowItem }
+  | { kind: 'delete-client'; client: ClientRowItem }
+  | { kind: 'archive-project'; project: ProjectRowItem }
+  | { kind: 'delete-project'; project: ProjectRowItem };
 
-export function ClientsManager({ clients }: { clients: Client[] }): ReactElement {
+export function ClientsManager({ clients }: { clients: ClientRowItem[] }): ReactElement {
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
   const [openClient, setOpenClient] = useState<string | null>(null);
@@ -89,107 +77,28 @@ export function ClientsManager({ clients }: { clients: Client[] }): ReactElement
 
       <ul className="divide-y divide-zinc-100 dark:divide-zinc-800/60">
         {clients.map((c) => (
-          <li key={c.id} className="py-3">
-            <div className="flex items-center justify-between gap-3">
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  className="text-zinc-400 dark:text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300"
-                  onClick={() => setOpenClient(openClient === c.id ? null : c.id)}
-                  aria-label="Rozbalit projekty"
-                >
-                  {openClient === c.id ? '▾' : '▸'}
-                </button>
-                <span
-                  className={`font-medium ${c.archived ? 'text-zinc-400 dark:text-zinc-500' : 'text-zinc-900 dark:text-zinc-100'}`}
-                >
-                  {c.name}
-                </span>
-                {c.archived ? <Badge tone="warning">archivováno</Badge> : null}
-                <span className="text-xs text-zinc-500 dark:text-zinc-400">
-                  ({c.projects.length} projektů, {c.entryCount} záznamů)
-                </span>
-              </div>
-              <div className="flex items-center gap-2">
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  onClick={() => setAction({ kind: 'archive-client', client: c })}
-                >
-                  {c.archived ? 'Obnovit' : 'Archivovat'}
-                </Button>
-                <Button
-                  size="sm"
-                  variant="danger"
-                  onClick={() => setAction({ kind: 'delete-client', client: c })}
-                >
-                  Smazat
-                </Button>
-              </div>
-            </div>
-
-            {openClient === c.id ? (
-              <div className="mt-3 ml-7 space-y-3 border-l border-zinc-100 dark:border-zinc-800/60 pl-4">
-                <ul className="space-y-1.5">
-                  {c.projects.map((p) => (
-                    <li key={p.id} className="flex items-center justify-between gap-3 text-sm">
-                      <div className="flex items-center gap-2">
-                        <span
-                          className={
-                            p.archived
-                              ? 'text-zinc-400 dark:text-zinc-500'
-                              : 'text-zinc-800 dark:text-zinc-200'
-                          }
-                        >
-                          {p.name}
-                        </span>
-                        {p.archived ? <Badge tone="warning">archivováno</Badge> : null}
-                        <span className="text-xs text-zinc-500 dark:text-zinc-400">
-                          ({p.entryCount} záznamů)
-                        </span>
-                      </div>
-                      <div className="flex gap-1.5">
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onClick={() => setAction({ kind: 'archive-project', project: p })}
-                        >
-                          {p.archived ? 'Obnovit' : 'Archivovat'}
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onClick={() => setAction({ kind: 'delete-project', project: p })}
-                          aria-label="Smazat projekt"
-                        >
-                          ✕
-                        </Button>
-                      </div>
-                    </li>
-                  ))}
-                </ul>
-                <form
-                  onSubmit={(e) => {
-                    e.preventDefault();
-                    const fd = new FormData(e.currentTarget);
-                    fd.set('clientId', c.id);
-                    setError(null);
-                    startTransition(async () => {
-                      const r = await createProjectAction(fd);
-                      if (!r.ok) setError(r.error);
-                      else (e.target as HTMLFormElement).reset();
-                    });
-                  }}
-                  className="flex gap-2"
-                >
-                  <Input name="name" placeholder="Nový projekt" />
-                  <Button type="submit" size="sm" loading={pending}>
-                    Přidat projekt
-                  </Button>
-                </form>
-              </div>
-            ) : null}
-          </li>
+          <ClientRow
+            key={c.id}
+            client={c}
+            isOpen={openClient === c.id}
+            pending={pending}
+            onToggle={() => setOpenClient(openClient === c.id ? null : c.id)}
+            onArchiveClient={() => setAction({ kind: 'archive-client', client: c })}
+            onDeleteClient={() => setAction({ kind: 'delete-client', client: c })}
+            onArchiveProject={(p) => setAction({ kind: 'archive-project', project: p })}
+            onDeleteProject={(p) => setAction({ kind: 'delete-project', project: p })}
+            onAddProject={(e) => {
+              e.preventDefault();
+              const fd = new FormData(e.currentTarget);
+              fd.set('clientId', c.id);
+              setError(null);
+              startTransition(async () => {
+                const r = await createProjectAction(fd);
+                if (!r.ok) setError(r.error);
+                else (e.target as HTMLFormElement).reset();
+              });
+            }}
+          />
         ))}
       </ul>
 
