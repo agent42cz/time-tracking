@@ -11,6 +11,8 @@ import {
   deleteClient,
   deleteProject,
   deleteTag,
+  reorderClients,
+  reorderProjects,
   updateTag,
 } from '../services/catalog.js';
 
@@ -109,5 +111,33 @@ export async function deleteTagAction(tagId: string): Promise<ActionResult> {
   const r = await deleteTag(prisma(), s.userId, tagId);
   if (!r.ok) return { ok: false, error: 'Nelze smazat' };
   revalidatePath('/tags');
+  return { ok: true };
+}
+
+export async function reorderClientsAction(orderedIds: string[]): Promise<ActionResult> {
+  const s = await requireAdmin();
+  const r = await reorderClients(prisma(), s.userId, {
+    companyId: s.activeCompanyId,
+    orderedIds,
+  });
+  if (!r.ok) return { ok: false, error: 'Nepodařilo se uložit pořadí' };
+  revalidatePath('/clients');
+  revalidatePath('/timer');
+  return { ok: true };
+}
+
+export async function reorderProjectsAction(
+  clientId: string,
+  orderedIds: string[],
+): Promise<ActionResult> {
+  const s = await requireAdmin();
+  const r = await reorderProjects(prisma(), s.userId, {
+    companyId: s.activeCompanyId,
+    clientId,
+    orderedIds,
+  });
+  if (!r.ok) return { ok: false, error: 'Nepodařilo se uložit pořadí' };
+  revalidatePath('/clients');
+  revalidatePath('/timer');
   return { ok: true };
 }
