@@ -1,4 +1,4 @@
-# Features (US-1 … US-50)
+# Features (US-1 … US-53)
 
 Feature catalogue keyed by user-story IDs from PRD §13. Test names embed the US ID so [`../../scripts/test-trace.ts`](../../scripts/test-trace.ts) can verify 100% coverage.
 
@@ -76,10 +76,16 @@ Feature catalogue keyed by user-story IDs from PRD §13. Test names embed the US
 - **US-49** — User leaves a company they no longer belong to.
 - **US-50** — Last-Admin guard: blocks leaving / demoting if it would leave the company without an Admin.
 
+## Clients & projects management
+
+- **US-51** — Search clients and projects on `/clients`. Substring match on either client or project name, diacritic- and case-insensitive. Clients matched via a project name auto-expand to show only the matching projects.
+- **US-52** — Reorder clients via drag-and-drop. Order is canonical company-wide and honored everywhere clients are listed (timer, weekly report, extension catalog).
+- **US-53** — Reorder projects within a client via drag-and-drop. Order is canonical company-wide and honored everywhere projects are listed.
+
 ## Coverage check
 
 ```bash
 pnpm test:trace
 ```
 
-Walks every test file (`*.test.{ts,tsx}`, `*.spec.{ts,tsx}`, `tests/**`) and looks for `\bUS-N\b`. Exits non-zero if any of US-1..US-50 has zero matches.
+Walks every test file (`*.test.{ts,tsx}`, `*.spec.{ts,tsx}`, `tests/**`) and looks for `\bUS-N\b`. Exits non-zero if any of US-1..US-53 has zero matches.
