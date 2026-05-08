@@ -31,8 +31,7 @@ services:
     expose:
       - '3000'
     healthcheck:
-      test:
-        ['CMD-SHELL', 'wget -qO- -T 5 http://localhost:3000/login >/dev/null 2>&1 || exit 1']
+      test: ['CMD-SHELL', 'wget -qO- -T 5 http://localhost:3000/login >/dev/null 2>&1 || exit 1']
       interval: 30s
       timeout: 10s
       retries: 5
@@ -43,10 +42,10 @@ services:
     labels:
       - traefik.enable=true
       - traefik.docker.network=coolify
-      - traefik.http.routers.tt-web-http.rule=Host(`trackerqwertzuiop.agent42.cz`)
+      - traefik.http.routers.tt-web-http.rule=Host(`tracker.agent42.cz`)
       - traefik.http.routers.tt-web-http.entrypoints=http
       - traefik.http.routers.tt-web-http.middlewares=tt-redirect
-      - traefik.http.routers.tt-web.rule=Host(`trackerqwertzuiop.agent42.cz`)
+      - traefik.http.routers.tt-web.rule=Host(`tracker.agent42.cz`)
       - traefik.http.routers.tt-web.entrypoints=https
       - traefik.http.routers.tt-web.tls=true
       - traefik.http.routers.tt-web.tls.certresolver=letsencrypt
@@ -79,10 +78,10 @@ services:
     labels:
       - traefik.enable=true
       - traefik.docker.network=coolify
-      - traefik.http.routers.tt-ws-http.rule=Host(`trackerqwertzuiop-ws.agent42.cz`)
+      - traefik.http.routers.tt-ws-http.rule=Host(`tracker-ws.agent42.cz`)
       - traefik.http.routers.tt-ws-http.entrypoints=http
       - traefik.http.routers.tt-ws-http.middlewares=tt-redirect
-      - traefik.http.routers.tt-ws.rule=Host(`trackerqwertzuiop-ws.agent42.cz`)
+      - traefik.http.routers.tt-ws.rule=Host(`tracker-ws.agent42.cz`)
       - traefik.http.routers.tt-ws.entrypoints=https
       - traefik.http.routers.tt-ws.tls=true
       - traefik.http.routers.tt-ws.tls.certresolver=letsencrypt

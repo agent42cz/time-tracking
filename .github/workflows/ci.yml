@@ -112,7 +112,7 @@ jobs:
       cancel-in-progress: false
     environment:
       name: production
-      url: https://trackerqwertzuiop.agent42.cz
+      url: https://tracker.agent42.cz
 
     env:
       COOLIFY_URL: ${{ vars.COOLIFY_URL || 'https://panelqwertzuiop.agent42.cz' }}

@@ -37,7 +37,7 @@ After CI is green on `main`, the `cd` job in `.github/workflows/ci.yml` calls th
 2. Poll the deployment status every 10s, up to 15 min (90 attempts).
 3. Fail the job if status is not `success` after the polling window.
 
-The production URL is currently `https://trackerqwertzuiop.agent42.cz` (configured in CI environment).
+The production URL is currently `https://tracker.agent42.cz` (configured in CI environment).
 
 ## First-run bootstrap
 

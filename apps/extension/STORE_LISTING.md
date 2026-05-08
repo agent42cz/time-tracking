@@ -9,7 +9,7 @@ future release.
 ## 0. Prerequisites
 
 - Chrome Web Store developer account (one-time $5 fee).
-- Privacy policy live at `https://trackerqwertzuiop.agent42.cz/privacy` (deployed from `apps/web/src/app/privacy/page.tsx`).
+- Privacy policy live at `https://tracker.agent42.cz/privacy` (deployed from `apps/web/src/app/privacy/page.tsx`).
 - The publisher account's **trader / non-trader status** has been declared
   in **Nastavení → Účet** of the dev console.
   - Pick **Toto je účet obchodníka** (trader) since the extension is tied
@@ -100,7 +100,7 @@ Then walk the four left-sidebar tabs.
   • Token relace je uložen pouze lokálně v prohlížeči přes chrome.storage.local.
   • Veškerá data o měření času jsou uložena výhradně na serveru vaší organizace.
 
-  Podrobné zásady ochrany soukromí: https://trackerqwertzuiop.agent42.cz/privacy
+  Podrobné zásady ochrany soukromí: https://tracker.agent42.cz/privacy
   ```
 
 - **Kategorie\*** — `Productivity`
@@ -121,8 +121,8 @@ Then walk the four left-sidebar tabs.
 
 - **Oficiální adresa URL** — `Žádný` (can be linked later via Search
   Console verification of `agent42.cz`)
-- **Adresa URL domovské stránky** — `https://trackerqwertzuiop.agent42.cz`
-- **Adresa URL podpory** — `https://trackerqwertzuiop.agent42.cz/privacy`
+- **Adresa URL domovské stránky** — `https://tracker.agent42.cz`
+- **Adresa URL podpory** — `https://tracker.agent42.cz/privacy`
 - **Obsah pro dospělé** — off
 
 ### Podpora položek
@@ -152,7 +152,7 @@ Click **Uložit koncept**.
 - **Data usage / shromažďování dat** — tick **"I do not collect or use
   any user data"** (žádná uživatelská data nesbírám).
 
-- **Privacy policy URL** — `https://trackerqwertzuiop.agent42.cz/privacy`
+- **Privacy policy URL** — `https://tracker.agent42.cz/privacy`
 
 - **Remote code** — `No, I am not using remote code.`
   (No `eval`, no remote scripts; only the bundled JS shipped in the zip.)
@@ -223,7 +223,7 @@ For each new version:
 | Symptom                                  | Fix                                                                                                                |
 | ---------------------------------------- | ------------------------------------------------------------------------------------------------------------------ |
 | "Justifications are not specific enough" | Use the table above; be concrete about _why_ each permission is needed.                                            |
-| "Privacy policy URL not reachable"       | Verify `https://trackerqwertzuiop.agent42.cz/privacy` returns 200 from outside your network before submitting.     |
+| "Privacy policy URL not reachable"       | Verify `https://tracker.agent42.cz/privacy` returns 200 from outside your network before submitting.               |
 | "Single purpose unclear"                 | The single-purpose statement and the description must agree. Don't mention features unrelated to time tracking.    |
 | "Host permissions too broad"             | Already handled by `pnpm build:publish` (localhost stripped). If you ever add a new domain, justify it explicitly. |
 | "Trader information missing"             | Fill in Agent42 s.r.o.'s registered office in Nastavení → Účet before submitting.                                  |
