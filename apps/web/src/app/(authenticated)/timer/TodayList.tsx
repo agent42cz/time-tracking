@@ -5,6 +5,7 @@ import { useState } from 'react';
 import { Button, Card, CardBody, CardHeader, CardTitle, EmptyState } from '@tt/ui';
 import { deleteEntryAction, playAgainAction } from '@/lib/actions/time';
 import { notifyTimerChanged } from '@/lib/timer-events';
+import { EditEntryButton } from '@/components/time/EditEntryButton';
 
 interface Entry {
   id: string;
@@ -125,6 +126,12 @@ function Row({
         <span className="font-mono font-semibold text-zinc-900 dark:text-zinc-100 tabular-nums">
           {fmtDur(entry.startedAt, entry.endedAt)}
         </span>
+        <EditEntryButton
+          entryId={entry.id}
+          startedAt={entry.startedAt}
+          endedAt={entry.endedAt}
+          onSaved={() => notifyTimerChanged()}
+        />
         <Button
           size="sm"
           variant="ghost"
