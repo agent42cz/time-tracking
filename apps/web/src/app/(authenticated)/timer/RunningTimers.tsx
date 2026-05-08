@@ -6,6 +6,7 @@ import { Badge, Button, Card, CardBody, CardHeader, CardTitle } from '@tt/ui';
 import { formatDurationHMS } from '@tt/shared';
 import { stopTimerAction } from '@/lib/actions/time';
 import { notifyTimerChanged } from '@/lib/timer-events';
+import { EditEntryButton } from '@/components/time/EditEntryButton';
 
 interface Entry {
   id: string;
@@ -89,6 +90,12 @@ function RunningRow({
         >
           {formatDurationHMS(elapsed)}
         </span>
+        <EditEntryButton
+          entryId={entry.id}
+          startedAt={entry.startedAt}
+          endedAt={null}
+          onSaved={() => notifyTimerChanged()}
+        />
         <Button variant="danger" size="sm" loading={pending} onClick={() => void handleStop()}>
           ■ Stop
         </Button>
