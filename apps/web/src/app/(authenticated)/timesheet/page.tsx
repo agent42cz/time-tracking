@@ -5,6 +5,7 @@ import { prisma, requireActiveCompany } from '@/lib/session';
 import { getPeriodRange } from '@tt/shared/time';
 import { PageHeader } from '@/components/PageHeader';
 import { listMyWeek } from '@/lib/services/time-entries';
+import { TimesheetEntryRow } from './TimesheetEntryRow';
 
 function ymd(d: Date): string {
   return `${String(d.getDate()).padStart(2, '0')}.${String(d.getMonth() + 1).padStart(2, '0')}.${d.getFullYear()}`;
@@ -124,39 +125,25 @@ export default async function TimesheetPage({
                 ) : (
                   <ul className="divide-y divide-zinc-100 dark:divide-zinc-800/60">
                     {entries.map((e) => (
-                      <li
+                      <TimesheetEntryRow
                         key={e.id}
-                        className="flex items-center justify-between gap-4 py-2 text-sm"
-                      >
-                        <div className="min-w-0">
-                          <p className="truncate font-medium text-zinc-900 dark:text-zinc-100">
-                            {e.description || (
-                              <span className="text-zinc-400 dark:text-zinc-500">(bez popisu)</span>
-                            )}
-                          </p>
-                          <div className="mt-0.5 flex flex-wrap items-center gap-1.5 text-xs text-zinc-500 dark:text-zinc-400">
-                            {e.client?.name ? <span>{e.client.name}</span> : null}
-                            {e.project?.name ? <span>· {e.project.name}</span> : null}
-                            {e.tags.map((tt) => (
-                              <span
-                                key={tt.tagId}
-                                className="rounded-full px-1.5 py-0.5 text-[10px] font-medium text-white"
-                                style={{ backgroundColor: tt.tag.color }}
-                              >
-                                {tt.tag.name}
-                              </span>
-                            ))}
-                          </div>
-                        </div>
-                        <div className="flex shrink-0 items-center gap-3 text-zinc-600 dark:text-zinc-400">
-                          <span className="font-mono tabular-nums">
-                            {fmtTime(e.startedAt)}–{e.endedAt ? fmtTime(e.endedAt) : '...'}
-                          </span>
-                          <span className="font-mono font-semibold text-zinc-900 dark:text-zinc-100 tabular-nums">
-                            {fmtDur((e.endedAt?.getTime() ?? Date.now()) - e.startedAt.getTime())}
-                          </span>
-                        </div>
-                      </li>
+                        entryId={e.id}
+                        startedAt={e.startedAt.toISOString()}
+                        endedAt={e.endedAt ? e.endedAt.toISOString() : null}
+                        description={e.description ?? ''}
+                        clientName={e.client?.name ?? null}
+                        projectName={e.project?.name ?? null}
+                        startLabel={fmtTime(e.startedAt)}
+                        endLabel={e.endedAt ? fmtTime(e.endedAt) : '...'}
+                        durationLabel={fmtDur(
+                          (e.endedAt?.getTime() ?? Date.now()) - e.startedAt.getTime(),
+                        )}
+                        tags={e.tags.map((tt) => ({
+                          id: tt.tagId,
+                          name: tt.tag.name,
+                          color: tt.tag.color,
+                        }))}
+                      />
                     ))}
                   </ul>
                 )}
