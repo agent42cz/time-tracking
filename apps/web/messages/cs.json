@@ -51,6 +51,23 @@
     "addManual": "Přidat ručně",
     "playAgain": "Spustit znovu"
   },
+  "timeEntry": {
+    "edit": {
+      "title": "Upravit záznam",
+      "startedAt": "Začátek",
+      "endedAt": "Konec",
+      "duration": "Trvání",
+      "keepRunning": "Ponechat běžící",
+      "save": "Uložit",
+      "cancel": "Zrušit",
+      "errors": {
+        "invalidWindow": "Konec musí být po začátku.",
+        "futureTimestamp": "Čas nemůže být v budoucnosti.",
+        "notFound": "Záznam nelze upravit",
+        "endRequiredForStopped": "U dokončeného záznamu je konec povinný."
+      }
+    }
+  },
   "manual": {
     "title": "Ruční zápis",
     "date": "Datum",
