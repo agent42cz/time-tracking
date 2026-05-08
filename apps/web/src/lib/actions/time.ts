@@ -68,7 +68,14 @@ export async function createManualAction(formData: FormData): Promise<ActionResu
 
 export async function updateEntryAction(
   entryId: string,
-  patch: { description?: string; clientId?: string | null; projectId?: string | null; tagIds?: string[]; startedAt?: string; endedAt?: string | null },
+  patch: {
+    description?: string;
+    clientId?: string | null;
+    projectId?: string | null;
+    tagIds?: string[];
+    startedAt?: string;
+    endedAt?: string | null;
+  },
 ): Promise<ActionResult> {
   const s = await requireActiveCompany();
   const result = await updateEntry(prisma(), s.userId, entryId, {
@@ -90,6 +97,7 @@ export async function updateEntryAction(
   }
   revalidatePath('/timer');
   revalidatePath('/timesheet');
+  revalidatePath('/reports');
   return { ok: true };
 }
 

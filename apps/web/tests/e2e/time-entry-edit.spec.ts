@@ -36,8 +36,10 @@ test.describe('US-54: edit time entry', () => {
     await page.getByRole('button', { name: 'Uložit' }).click();
     await expect(page.getByText('Upravit záznam')).toBeHidden();
 
-    // fmtDur in TodayList returns e.g. "1h 0m" — check for digits+h+space+digits+m
-    await expect(row).toContainText(/\d+h \d+m/);
+    // Start was shifted back exactly 1 hour, so the new duration must be "1h 0m".
+    // The pre-edit duration is "0h 0m" (start ≈ stop), so an exact match here also
+    // proves the save propagated rather than just falling through silently.
+    await expect(row).toContainText('1h 0m');
   });
 
   test('US-54: user opens Edit on a running timer, fills end, timer disappears from running list', async ({
