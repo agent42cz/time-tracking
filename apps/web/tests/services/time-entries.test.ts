@@ -1,6 +1,6 @@
 /**
  * Phase 5 — Time entries tests.
- * Covers US-19, US-20, US-21, US-22, US-23, US-24, US-25, US-26, US-27, US-28.
+ * Covers US-19, US-20, US-21, US-22, US-23, US-24, US-25, US-26, US-27, US-28, US-54.
  *
  * Audit assertion: every mutation produces exactly one audit row in the
  * AuditLog table.
@@ -317,6 +317,159 @@ describe('time entries', () => {
       // admin restores
       const restore = await restoreEntry(tx, w.admin, a.value.id);
       expect(restore.ok).toBe(true);
+    });
+  });
+
+  it('US-54: owner shifts start time on a running timer; entry stays running', async () => {
+    await withTx(async (tx) => {
+      const w = await bootstrap(tx, 'us54a');
+      const start = await startTimer(tx, w.user, { companyId: w.company });
+      if (!start.ok) throw new Error('setup');
+      const entry = await tx.timeEntry.findUniqueOrThrow({ where: { id: start.value.id } });
+      const newStart = new Date(entry.startedAt.getTime() - 60 * 60 * 1000);
+      const upd = await updateEntry(tx, w.user, start.value.id, { startedAt: newStart });
+      expect(upd.ok).toBe(true);
+      const reread = await tx.timeEntry.findUniqueOrThrow({ where: { id: start.value.id } });
+      expect(reread.endedAt).toBeNull();
+      expect(reread.startedAt.getTime()).toBe(newStart.getTime());
+      expect(await auditCount(tx, start.value.id)).toBe(2); // start + edit
+    });
+  });
+
+  it('US-54: owner sets endedAt on a running timer; entry becomes stopped', async () => {
+    await withTx(async (tx) => {
+      const w = await bootstrap(tx, 'us54b');
+      const timerStart = new Date('2026-05-03T09:00:00Z');
+      const start = await startTimer(tx, w.user, { companyId: w.company }, timerStart);
+      if (!start.ok) throw new Error('setup');
+      const endedAt = new Date('2026-05-03T09:20:00Z');
+      const now = new Date('2026-05-03T10:00:00Z');
+      const upd = await updateEntry(tx, w.user, start.value.id, { endedAt }, now);
+      expect(upd.ok).toBe(true);
+      const reread = await tx.timeEntry.findUniqueOrThrow({ where: { id: start.value.id } });
+      expect(reread.endedAt?.getTime()).toBe(endedAt.getTime());
+      expect(await auditCount(tx, start.value.id)).toBe(2);
+    });
+  });
+
+  it('US-54: admin corrects another members stopped entry', async () => {
+    await withTx(async (tx) => {
+      const w = await bootstrap(tx, 'us54c');
+      const now = new Date('2026-05-03T10:00:00Z');
+      const m = await createManualEntry(
+        tx,
+        w.user,
+        {
+          companyId: w.company,
+          startedAt: new Date('2026-04-15T08:00:00Z'),
+          endedAt: new Date('2026-04-15T09:00:00Z'),
+        },
+        now,
+      );
+      if (!m.ok) throw new Error('setup');
+      const newEnd = new Date('2026-04-15T08:20:00Z');
+      const upd = await updateEntry(tx, w.admin, m.value.id, { endedAt: newEnd });
+      expect(upd.ok).toBe(true);
+      const reread = await tx.timeEntry.findUniqueOrThrow({ where: { id: m.value.id } });
+      expect(reread.endedAt?.getTime()).toBe(newEnd.getTime());
+      const audits = await tx.auditLog.findMany({
+        where: { entityType: 'TimeEntry', entityId: m.value.id, action: 'update' },
+      });
+      expect(audits[0]?.actorUserId).toBe(w.admin);
+    });
+  });
+
+  it('US-54: cross-company actor gets not_found when editing entry', async () => {
+    await withTx(async (tx) => {
+      const w = await bootstrap(tx, 'us54d');
+      const start = await startTimer(tx, w.user, { companyId: w.company });
+      if (!start.ok) throw new Error('setup');
+      const upd = await updateEntry(tx, w.outsider, start.value.id, {
+        startedAt: new Date(Date.now() - 60_000),
+      });
+      expect(upd.ok).toBe(false);
+      if (!upd.ok) expect(upd.reason).toBe('not_found');
+    });
+  });
+
+  it('US-54: rejects future end timestamp', async () => {
+    await withTx(async (tx) => {
+      const w = await bootstrap(tx, 'us54e');
+      const now = new Date('2026-05-03T10:00:00Z');
+      const m = await createManualEntry(
+        tx,
+        w.user,
+        {
+          companyId: w.company,
+          startedAt: new Date('2026-05-03T08:00:00Z'),
+          endedAt: new Date('2026-05-03T09:00:00Z'),
+        },
+        now,
+      );
+      if (!m.ok) throw new Error('setup');
+      const upd = await updateEntry(
+        tx,
+        w.user,
+        m.value.id,
+        { endedAt: new Date('2026-05-03T11:00:00Z') },
+        now,
+      );
+      expect(upd.ok).toBe(false);
+      if (!upd.ok) expect(upd.reason).toBe('future_timestamp');
+    });
+  });
+
+  it('US-54: rejects end <= start', async () => {
+    await withTx(async (tx) => {
+      const w = await bootstrap(tx, 'us54f');
+      const now = new Date('2026-05-03T10:00:00Z');
+      const m = await createManualEntry(
+        tx,
+        w.user,
+        {
+          companyId: w.company,
+          startedAt: new Date('2026-05-03T08:00:00Z'),
+          endedAt: new Date('2026-05-03T09:00:00Z'),
+        },
+        now,
+      );
+      if (!m.ok) throw new Error('setup');
+      const upd = await updateEntry(
+        tx,
+        w.user,
+        m.value.id,
+        { endedAt: new Date('2026-05-03T07:30:00Z') },
+        now,
+      );
+      expect(upd.ok).toBe(false);
+      if (!upd.ok) expect(upd.reason).toBe('invalid_window');
+    });
+  });
+
+  it('US-54: rejects shifting start past existing end', async () => {
+    await withTx(async (tx) => {
+      const w = await bootstrap(tx, 'us54g');
+      const now = new Date('2026-05-03T10:00:00Z');
+      const m = await createManualEntry(
+        tx,
+        w.user,
+        {
+          companyId: w.company,
+          startedAt: new Date('2026-05-03T08:00:00Z'),
+          endedAt: new Date('2026-05-03T09:00:00Z'),
+        },
+        now,
+      );
+      if (!m.ok) throw new Error('setup');
+      const upd = await updateEntry(
+        tx,
+        w.user,
+        m.value.id,
+        { startedAt: new Date('2026-05-03T09:30:00Z') },
+        now,
+      );
+      expect(upd.ok).toBe(false);
+      if (!upd.ok) expect(upd.reason).toBe('invalid_window');
     });
   });
 
