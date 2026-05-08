@@ -81,6 +81,7 @@ Feature catalogue keyed by user-story IDs from PRD §13. Test names embed the US
 - **US-51** — Search clients and projects on `/clients`. Substring match on either client or project name, diacritic- and case-insensitive. Clients matched via a project name auto-expand to show only the matching projects.
 - **US-52** — Reorder clients via drag-and-drop. Order is canonical company-wide and honored everywhere clients are listed (timer, weekly report, extension catalog).
 - **US-53** — Reorder projects within a client via drag-and-drop. Order is canonical company-wide and honored everywhere projects are listed.
+- **US-54** — User (or admin) opens an Edit dialog from any entry list and corrects the entry's start and end times. Editing a running timer with no end specified keeps it running with the new start; supplying an end stops the timer. Validation rules (`end > start`, `start ≤ now`, `end ≤ now`) match manual-entry rules. Every save produces exactly one audit row.
 
 ## Coverage check
 
