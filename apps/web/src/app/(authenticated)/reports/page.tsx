@@ -15,6 +15,7 @@ import { prisma, requireActiveCompany } from '@/lib/session';
 import { PageHeader } from '@/components/PageHeader';
 import { runReport } from '@/lib/services/reports';
 import { ReportFiltersForm } from './ReportFiltersForm';
+import { ReportsRowActions } from './ReportsRowActions';
 
 function fmtDur(ms: number): string {
   const total = Math.max(0, Math.floor(ms / 60000));
@@ -155,6 +156,7 @@ export default async function ReportsPage({
                     <Th>Popis</Th>
                     <Th>Štítky</Th>
                     <Th className="text-right">Čas</Th>
+                    <Th>Akce</Th>
                   </tr>
                 </THead>
                 <tbody>
@@ -185,6 +187,13 @@ export default async function ReportsPage({
                         </div>
                       </Td>
                       <Td className="text-right font-mono">{fmtDur(r.durationMs)}</Td>
+                      <Td>
+                        <ReportsRowActions
+                          entryId={r.id}
+                          startedAt={r.startedAt.toISOString()}
+                          endedAt={r.endedAt ? r.endedAt.toISOString() : null}
+                        />
+                      </Td>
                     </Tr>
                   ))}
                 </tbody>
