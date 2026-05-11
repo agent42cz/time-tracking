@@ -1,5 +1,11 @@
 import { describe, it, expect, afterEach } from 'vitest';
-import { setNowProvider, now, getPeriodRange, formatDurationHMS } from './index.js';
+import {
+  setNowProvider,
+  now,
+  getPeriodRange,
+  formatDurationHMS,
+  parseAppZoneInput,
+} from './index.js';
 
 describe('time helpers', () => {
   afterEach(() => setNowProvider(null));
@@ -21,5 +27,12 @@ describe('time helpers', () => {
     expect(formatDurationHMS(0)).toBe('00:00:00');
     expect(formatDurationHMS(3_661_000)).toBe('01:01:01');
     expect(formatDurationHMS(-5)).toBe('00:00:00');
+  });
+
+  it('US-23: parses manual-entry form input as Europe/Prague wall-clock time', () => {
+    // 15:00 in Prague (CEST = UTC+2 on 2026-05-08) is 13:00 UTC.
+    expect(parseAppZoneInput('2026-05-08', '15:00').toISOString()).toBe('2026-05-08T13:00:00.000Z');
+    // Winter date (CET = UTC+1).
+    expect(parseAppZoneInput('2026-01-15', '09:30').toISOString()).toBe('2026-01-15T08:30:00.000Z');
   });
 });

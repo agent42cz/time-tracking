@@ -26,6 +26,13 @@ export function fromAppZone(d: Date): Date {
   return fromZonedTime(d, APP_TIMEZONE);
 }
 
+// `<input type="date">` and `<input type="time">` give wall-clock strings with
+// no timezone. Parse them as Europe/Prague so the resulting UTC instant is
+// independent of the server's local TZ (Coolify containers run as UTC).
+export function parseAppZoneInput(date: string, time: string): Date {
+  return fromZonedTime(`${date}T${time}:00`, APP_TIMEZONE);
+}
+
 export type Period = 'today' | 'week' | 'month' | 'custom';
 
 export interface PeriodRange {

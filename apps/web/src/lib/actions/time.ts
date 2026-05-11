@@ -1,6 +1,7 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
+import { parseAppZoneInput } from '@tt/shared/time';
 import { requireActiveCompany, prisma } from '../session.js';
 import {
   createManualEntry,
@@ -42,9 +43,16 @@ export async function createManualAction(formData: FormData): Promise<ActionResu
   const date = String(formData.get('date') ?? '');
   const from = String(formData.get('from') ?? '');
   const to = String(formData.get('to') ?? '');
-  if (!date || !from || !to) return { ok: false, error: 'Vyplňte datum a čas' };
-  const startedAt = new Date(`${date}T${from}:00`);
-  const endedAt = new Date(`${date}T${to}:00`);
+  const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+  const TIME_RE = /^\d{2}:\d{2}$/;
+  if (!DATE_RE.test(date) || !TIME_RE.test(from) || !TIME_RE.test(to)) {
+    return { ok: false, error: 'Vyplňte datum a čas' };
+  }
+  const startedAt = parseAppZoneInput(date, from);
+  const endedAt = parseAppZoneInput(date, to);
+  if (Number.isNaN(startedAt.getTime()) || Number.isNaN(endedAt.getTime())) {
+    return { ok: false, error: 'Vyplňte datum a čas' };
+  }
   const result = await createManualEntry(prisma(), s.userId, {
     companyId: s.activeCompanyId,
     description: String(formData.get('description') ?? ''),
