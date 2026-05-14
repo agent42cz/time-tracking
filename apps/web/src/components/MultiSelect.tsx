@@ -93,7 +93,7 @@ export function MultiSelect({
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className="flex w-full min-h-[38px] items-center gap-1 rounded-md border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 px-2 py-1.5 text-left text-sm text-zinc-900 dark:text-zinc-100 hover:bg-zinc-50 dark:hover:bg-zinc-800 focus:border-zinc-900 dark:focus:border-zinc-100 focus:outline-none focus:ring-2 focus:ring-zinc-900/10 dark:focus:ring-zinc-100/10"
+        className="flex w-full min-h-[38px] items-center gap-1 rounded-md border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-2 py-1.5 text-left text-sm text-zinc-900 dark:text-zinc-100 hover:bg-zinc-50 dark:hover:bg-zinc-700 focus:border-zinc-900 dark:focus:border-zinc-100 focus:outline-none focus:ring-2 focus:ring-zinc-900/10 dark:focus:ring-zinc-100/10"
         aria-expanded={open}
       >
         {selectedLabels.length === 0 ? (
@@ -103,7 +103,7 @@ export function MultiSelect({
             {selectedLabels.slice(0, 4).map((o) => (
               <span
                 key={o.id}
-                className="inline-flex items-center gap-1 rounded-full bg-zinc-100 dark:bg-zinc-800 px-2 py-0.5 text-xs text-zinc-800 dark:text-zinc-200"
+                className="inline-flex items-center gap-1 rounded-full bg-zinc-100 dark:bg-zinc-700 px-2 py-0.5 text-xs text-zinc-800 dark:text-zinc-200"
                 style={o.color ? { backgroundColor: o.color, color: '#fff' } : undefined}
               >
                 {o.label}
@@ -134,8 +134,8 @@ export function MultiSelect({
 
       {/* Popover */}
       {open ? (
-        <div className="absolute z-20 mt-1 w-full overflow-hidden rounded-md border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-lg">
-          <div className="flex items-center gap-2 border-b border-zinc-100 dark:border-zinc-800/60 px-2 py-1.5">
+        <div className="absolute z-20 mt-1 w-full overflow-hidden rounded-md border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 shadow-lg">
+          <div className="flex items-center gap-2 border-b border-zinc-100 dark:border-zinc-700/60 px-2 py-1.5">
             <input
               ref={inputRef}
               value={query}
@@ -147,7 +147,7 @@ export function MultiSelect({
               <button
                 type="button"
                 onClick={clearAll}
-                className="rounded px-1.5 text-xs text-zinc-500 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800"
+                className="rounded px-1.5 text-xs text-zinc-500 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-700"
               >
                 Vyčistit
               </button>
@@ -161,12 +161,12 @@ export function MultiSelect({
               const checked = selected.has(o.id);
               return (
                 <li key={o.id}>
-                  <label className="flex cursor-pointer items-center gap-2 px-3 py-1.5 text-sm hover:bg-zinc-50 dark:hover:bg-zinc-800">
+                  <label className="flex cursor-pointer items-center gap-2 px-3 py-1.5 text-sm hover:bg-zinc-50 dark:hover:bg-zinc-700">
                     <input
                       type="checkbox"
                       checked={checked}
                       onChange={() => toggle(o.id)}
-                      className="h-4 w-4 rounded border-zinc-300 dark:border-zinc-700 text-zinc-900 dark:text-zinc-100 focus:ring-zinc-900 dark:focus:ring-zinc-100"
+                      className="h-4 w-4 rounded border-zinc-300 dark:border-zinc-600 text-zinc-900 dark:text-zinc-100 focus:ring-zinc-900 dark:focus:ring-zinc-100"
                     />
                     {o.color ? (
                       <span
@@ -187,7 +187,7 @@ export function MultiSelect({
             })}
           </ul>
           {selected.size > 0 ? (
-            <div className="border-t border-zinc-100 dark:border-zinc-800/60 px-3 py-1.5 text-xs text-zinc-500 dark:text-zinc-400">
+            <div className="border-t border-zinc-100 dark:border-zinc-700/60 px-3 py-1.5 text-xs text-zinc-500 dark:text-zinc-400">
               Vybráno: {selected.size}
             </div>
           ) : null}

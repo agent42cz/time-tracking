@@ -227,13 +227,13 @@ function LoginForm({
         </button>
       </div>
       {showSettings ? (
-        <div className="space-y-2 rounded-md bg-zinc-50 p-2 dark:bg-zinc-900">
+        <div className="space-y-2 rounded-md bg-zinc-50 p-2 dark:bg-zinc-800">
           <label className="block text-xs text-zinc-600 dark:text-zinc-400">Adresa serveru</label>
           <input
             value={apiBase}
             onChange={(e) => setApiBaseLocal(e.target.value)}
             placeholder={DEFAULT_API_BASE}
-            className="w-full rounded border border-zinc-200 bg-white px-2 py-1 text-xs text-zinc-900 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-100"
+            className="w-full rounded border border-zinc-200 bg-white px-2 py-1 text-xs text-zinc-900 dark:border-zinc-600 dark:bg-zinc-900 dark:text-zinc-100"
           />
           <button
             type="button"
@@ -260,11 +260,11 @@ function LoginForm({
         Otevře přihlašovací stránku Time Trackeru — podporuje 2FA i magic-link
       </p>
       <div className="relative my-1 flex items-center">
-        <div className="flex-1 border-t border-zinc-200 dark:border-zinc-800" />
+        <div className="flex-1 border-t border-zinc-200 dark:border-zinc-700" />
         <span className="mx-2 text-[10px] uppercase tracking-wide text-zinc-400 dark:text-zinc-500">
           nebo přímo
         </span>
-        <div className="flex-1 border-t border-zinc-200 dark:border-zinc-800" />
+        <div className="flex-1 border-t border-zinc-200 dark:border-zinc-700" />
       </div>
       <label className="block">
         <span className="text-xs font-medium text-zinc-600 dark:text-zinc-400">E-mail</span>
@@ -273,7 +273,7 @@ function LoginForm({
           required
           value={email}
           onChange={(e) => setEmail(e.target.value)}
-          className="mt-0.5 block w-full rounded border border-zinc-200 bg-white px-2 py-1.5 text-sm text-zinc-900 focus:border-zinc-900 focus:outline-none dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100 dark:focus:border-zinc-100"
+          className="mt-0.5 block w-full rounded border border-zinc-200 bg-white px-2 py-1.5 text-sm text-zinc-900 focus:border-zinc-900 focus:outline-none dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100 dark:focus:border-zinc-100"
         />
       </label>
       <label className="block">
@@ -283,7 +283,7 @@ function LoginForm({
           required
           value={password}
           onChange={(e) => setPassword(e.target.value)}
-          className="mt-0.5 block w-full rounded border border-zinc-200 bg-white px-2 py-1.5 text-sm text-zinc-900 focus:border-zinc-900 focus:outline-none dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100 dark:focus:border-zinc-100"
+          className="mt-0.5 block w-full rounded border border-zinc-200 bg-white px-2 py-1.5 text-sm text-zinc-900 focus:border-zinc-900 focus:outline-none dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100 dark:focus:border-zinc-100"
         />
       </label>
       <label className="block">
@@ -295,7 +295,7 @@ function LoginForm({
           pattern="\d{6}"
           value={totpCode}
           onChange={(e) => setTotpCode(e.target.value)}
-          className="mt-0.5 block w-full rounded border border-zinc-200 bg-white px-2 py-1.5 text-sm text-zinc-900 focus:border-zinc-900 focus:outline-none dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100 dark:focus:border-zinc-100"
+          className="mt-0.5 block w-full rounded border border-zinc-200 bg-white px-2 py-1.5 text-sm text-zinc-900 focus:border-zinc-900 focus:outline-none dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100 dark:focus:border-zinc-100"
         />
       </label>
       <button
@@ -379,7 +379,7 @@ function AppShell({
   });
 
   return (
-    <div className="w-[380px] divide-y divide-zinc-100 text-sm dark:divide-zinc-800/60">
+    <div className="w-[380px] divide-y divide-zinc-100 text-sm dark:divide-zinc-700/60">
       <Header
         me={state.me}
         apiBase={state.session.apiBase}
@@ -549,7 +549,7 @@ function MoreMenu({
         aria-haspopup="menu"
         aria-expanded={open}
         title="Více"
-        className="flex h-7 w-7 items-center justify-center rounded text-zinc-600 hover:bg-zinc-100 dark:text-zinc-400 dark:hover:bg-zinc-800"
+        className="flex h-7 w-7 items-center justify-center rounded text-zinc-600 hover:bg-zinc-100 dark:text-zinc-400 dark:hover:bg-zinc-700"
       >
         <span aria-hidden className="text-base leading-none">
           ⋯
@@ -558,7 +558,7 @@ function MoreMenu({
       {open ? (
         <div
           role="menu"
-          className="absolute right-0 top-full z-10 mt-1 w-48 overflow-hidden rounded-md border border-zinc-200 bg-white shadow-lg dark:border-zinc-700 dark:bg-zinc-900"
+          className="absolute right-0 top-full z-10 mt-1 w-48 overflow-hidden rounded-md border border-zinc-200 bg-white shadow-lg dark:border-zinc-600 dark:bg-zinc-800"
         >
           <button
             type="button"
@@ -567,7 +567,7 @@ function MoreMenu({
               openDashboard(apiBase);
               setOpen(false);
             }}
-            className="flex w-full items-center justify-between px-3 py-2 text-left text-xs text-zinc-700 hover:bg-zinc-50 dark:text-zinc-300 dark:hover:bg-zinc-800"
+            className="flex w-full items-center justify-between px-3 py-2 text-left text-xs text-zinc-700 hover:bg-zinc-50 dark:text-zinc-300 dark:hover:bg-zinc-700"
           >
             <span>Dashboard</span>
             <span aria-hidden className="text-zinc-400 dark:text-zinc-500">
@@ -579,7 +579,7 @@ function MoreMenu({
             role="menuitem"
             onClick={() => void handleRefresh()}
             disabled={refreshing}
-            className="flex w-full items-center justify-between px-3 py-2 text-left text-xs text-zinc-700 hover:bg-zinc-50 disabled:opacity-60 dark:text-zinc-300 dark:hover:bg-zinc-800"
+            className="flex w-full items-center justify-between px-3 py-2 text-left text-xs text-zinc-700 hover:bg-zinc-50 disabled:opacity-60 dark:text-zinc-300 dark:hover:bg-zinc-700"
           >
             <span>{refreshing ? 'Načítám…' : 'Obnovit'}</span>
             <span aria-hidden className="text-zinc-400 dark:text-zinc-500">
@@ -593,7 +593,7 @@ function MoreMenu({
               onToggleStats();
               setOpen(false);
             }}
-            className="flex w-full items-center justify-between px-3 py-2 text-left text-xs text-zinc-700 hover:bg-zinc-50 dark:text-zinc-300 dark:hover:bg-zinc-800"
+            className="flex w-full items-center justify-between px-3 py-2 text-left text-xs text-zinc-700 hover:bg-zinc-50 dark:text-zinc-300 dark:hover:bg-zinc-700"
           >
             <span>{showStats ? 'Skrýt statistiky' : 'Zobrazit statistiky'}</span>
             <span aria-hidden className="text-zinc-400 dark:text-zinc-500">
@@ -603,7 +603,7 @@ function MoreMenu({
           <div
             role="group"
             aria-label="Motiv"
-            className="border-t border-zinc-100 dark:border-zinc-800"
+            className="border-t border-zinc-100 dark:border-zinc-700"
           >
             <div className="px-3 pt-2 text-[9px] font-medium uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
               Motiv
@@ -620,7 +620,7 @@ function MoreMenu({
                     onSetTheme(opt.value);
                     setOpen(false);
                   }}
-                  className="flex w-full items-center justify-between px-3 py-1.5 text-left text-xs text-zinc-700 hover:bg-zinc-50 dark:text-zinc-300 dark:hover:bg-zinc-800"
+                  className="flex w-full items-center justify-between px-3 py-1.5 text-left text-xs text-zinc-700 hover:bg-zinc-50 dark:text-zinc-300 dark:hover:bg-zinc-700"
                 >
                   <span>{opt.label}</span>
                   <span
@@ -640,7 +640,7 @@ function MoreMenu({
               setOpen(false);
               void onLogout();
             }}
-            className="flex w-full items-center justify-between border-t border-zinc-100 px-3 py-2 text-left text-xs text-zinc-700 hover:bg-zinc-50 dark:border-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-800"
+            className="flex w-full items-center justify-between border-t border-zinc-100 px-3 py-2 text-left text-xs text-zinc-700 hover:bg-zinc-50 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-700"
           >
             <span>Odhlásit</span>
             <span aria-hidden className="text-zinc-400 dark:text-zinc-500">
@@ -672,7 +672,7 @@ function SummaryCards({ summary }: { summary: TimerSummary | undefined }): React
       {cards.map((c) => (
         <div
           key={c.label}
-          className="rounded-md border border-zinc-200 bg-zinc-50 px-2 py-1.5 text-center dark:border-zinc-800 dark:bg-zinc-900"
+          className="rounded-md border border-zinc-200 bg-zinc-50 px-2 py-1.5 text-center dark:border-zinc-700 dark:bg-zinc-800"
         >
           <div className="truncate text-[9px] font-medium uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
             {c.label}
@@ -740,7 +740,7 @@ function StartRow({
         value={description}
         onChange={(e) => setDescription(e.target.value)}
         placeholder="Co děláte?"
-        className="block w-full rounded border border-zinc-200 bg-white px-2 py-1.5 text-sm text-zinc-900 placeholder:text-zinc-400 focus:border-zinc-900 focus:outline-none dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100 dark:placeholder:text-zinc-500 dark:focus:border-zinc-100"
+        className="block w-full rounded border border-zinc-200 bg-white px-2 py-1.5 text-sm text-zinc-900 placeholder:text-zinc-400 focus:border-zinc-900 focus:outline-none dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100 dark:placeholder:text-zinc-500 dark:focus:border-zinc-100"
       />
       <div className="grid grid-cols-2 gap-2">
         <select
@@ -749,7 +749,7 @@ function StartRow({
             setClientId(e.target.value);
             setProjectId('');
           }}
-          className="rounded border border-zinc-200 bg-white px-2 py-1.5 text-xs text-zinc-900 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100"
+          className="rounded border border-zinc-200 bg-white px-2 py-1.5 text-xs text-zinc-900 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100"
         >
           <option value="">— klient —</option>
           {catalog.clients.map((c) => (
@@ -762,7 +762,7 @@ function StartRow({
           value={projectId}
           onChange={(e) => setProjectId(e.target.value)}
           disabled={!clientId}
-          className="rounded border border-zinc-200 bg-white px-2 py-1.5 text-xs text-zinc-900 disabled:bg-zinc-50 disabled:text-zinc-400 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100 dark:disabled:bg-zinc-800 dark:disabled:text-zinc-500"
+          className="rounded border border-zinc-200 bg-white px-2 py-1.5 text-xs text-zinc-900 disabled:bg-zinc-50 disabled:text-zinc-400 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100 dark:disabled:bg-zinc-800 dark:disabled:text-zinc-500"
         >
           <option value="">— projekt —</option>
           {projects.map((p) => (
@@ -830,7 +830,7 @@ function RunningList({
       {entries.map((e) => (
         <div
           key={e.id}
-          className="flex items-center justify-between gap-2 rounded-md bg-zinc-50 px-2 py-1.5 dark:bg-zinc-900"
+          className="flex items-center justify-between gap-2 rounded-md bg-zinc-50 px-2 py-1.5 dark:bg-zinc-800"
         >
           <div className="min-w-0">
             <div className="truncate text-sm font-medium text-zinc-900 dark:text-zinc-100">
@@ -890,7 +890,7 @@ function HistoryList({
         Historie
       </div>
       {entries.length === 0 ? (
-        <div className="rounded-md bg-zinc-50 px-3 py-4 text-center text-xs text-zinc-400 dark:bg-zinc-900 dark:text-zinc-500">
+        <div className="rounded-md bg-zinc-50 px-3 py-4 text-center text-xs text-zinc-400 dark:bg-zinc-800 dark:text-zinc-500">
           Žádné dokončené záznamy
         </div>
       ) : (
@@ -908,17 +908,17 @@ function HistoryList({
                     <span className="text-[10px] font-semibold uppercase tracking-wide text-zinc-700 dark:text-zinc-300">
                       {g.monthLabel}
                     </span>
-                    <span className="h-px flex-1 bg-zinc-200 dark:bg-zinc-800" aria-hidden />
+                    <span className="h-px flex-1 bg-zinc-200 dark:bg-zinc-700" aria-hidden />
                   </div>
                 ) : null}
                 <div
-                  className="flex items-baseline gap-2 border-b border-zinc-100 pb-0.5 pt-1 dark:border-zinc-800/60"
+                  className="flex items-baseline gap-2 border-b border-zinc-100 pb-0.5 pt-1 dark:border-zinc-700/60"
                   aria-label={`Skupina: ${g.label}`}
                 >
                   <span className="text-[10px] font-medium text-zinc-600 dark:text-zinc-400">
                     {g.label}
                   </span>
-                  <span className="h-px flex-1 bg-zinc-100 dark:bg-zinc-800/60" aria-hidden />
+                  <span className="h-px flex-1 bg-zinc-100 dark:bg-zinc-700/60" aria-hidden />
                   <span className="font-mono text-[10px] tabular-nums text-zinc-500 dark:text-zinc-400">
                     {fmtDuration(g.total)}
                   </span>
@@ -963,7 +963,7 @@ function HistoryList({
                                 type="button"
                                 title="Zrušit"
                                 onClick={() => setPendingDeleteId(null)}
-                                className="rounded border border-zinc-200 px-1.5 py-0.5 text-[11px] text-zinc-600 hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-400 dark:hover:bg-zinc-800"
+                                className="rounded border border-zinc-200 px-1.5 py-0.5 text-[11px] text-zinc-600 hover:bg-zinc-100 dark:border-zinc-600 dark:text-zinc-400 dark:hover:bg-zinc-700"
                               >
                                 ✗
                               </button>
@@ -974,7 +974,7 @@ function HistoryList({
                                 type="button"
                                 title="Spustit znovu"
                                 onClick={() => void onPlayAgain(e.id)}
-                                className="rounded px-1.5 py-0.5 text-[11px] text-zinc-700 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-zinc-800"
+                                className="rounded px-1.5 py-0.5 text-[11px] text-zinc-700 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-zinc-700"
                               >
                                 ▶
                               </button>
@@ -982,7 +982,7 @@ function HistoryList({
                                 type="button"
                                 title="Smazat"
                                 onClick={() => setPendingDeleteId(e.id)}
-                                className="rounded px-1.5 py-0.5 text-[11px] text-zinc-700 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-zinc-800"
+                                className="rounded px-1.5 py-0.5 text-[11px] text-zinc-700 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-zinc-700"
                               >
                                 ✕
                               </button>

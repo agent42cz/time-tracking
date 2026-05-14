@@ -23,7 +23,7 @@ export function TotpManager({ enabled }: { enabled: boolean }): ReactElement {
           2FA bylo aktivováno. Uložte si tyto záložní kódy — slouží k jednorázovému přihlášení,
           pokud ztratíte zařízení.
         </Alert>
-        <ul className="grid grid-cols-2 gap-2 rounded-md bg-zinc-50 dark:bg-zinc-950 p-3 font-mono text-sm">
+        <ul className="grid grid-cols-2 gap-2 rounded-md bg-zinc-50 dark:bg-zinc-900 p-3 font-mono text-sm">
           {recoveryCodes.map((c) => (
             <li key={c}>{c}</li>
           ))}
@@ -40,20 +40,20 @@ export function TotpManager({ enabled }: { enabled: boolean }): ReactElement {
           Naskenujte QR kód v aplikaci Google Authenticator, Authy, 1Password apod. Pokud nemůžete
           skenovat, použijte tajný klíč ručně.
         </Alert>
-        <div className="flex flex-col items-center gap-3 rounded-md border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-4 sm:flex-row">
+        <div className="flex flex-col items-center gap-3 rounded-md border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 p-4 sm:flex-row">
           <img
             src={enrollment.qrDataUrl}
             alt="QR kód pro 2FA"
             width={224}
             height={224}
-            className="shrink-0 rounded border border-zinc-100 dark:border-zinc-800/60"
+            className="shrink-0 rounded border border-zinc-100 dark:border-zinc-700/60"
           />
           <div className="min-w-0 flex-1 space-y-2 text-sm">
             <div>
               <p className="text-xs font-medium text-zinc-500 dark:text-zinc-400">
                 Tajný klíč (manuální zadání):
               </p>
-              <code className="mt-0.5 block select-all break-all rounded bg-zinc-50 dark:bg-zinc-950 px-2 py-1 font-mono text-xs">
+              <code className="mt-0.5 block select-all break-all rounded bg-zinc-50 dark:bg-zinc-900 px-2 py-1 font-mono text-xs">
                 {enrollment.secret}
               </code>
             </div>
@@ -61,7 +61,7 @@ export function TotpManager({ enabled }: { enabled: boolean }): ReactElement {
               <summary className="cursor-pointer text-zinc-500 dark:text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-300">
                 Zobrazit otpauth URI
               </summary>
-              <code className="mt-1 block select-all break-all rounded bg-zinc-50 dark:bg-zinc-950 px-2 py-1 font-mono text-[10px]">
+              <code className="mt-1 block select-all break-all rounded bg-zinc-50 dark:bg-zinc-900 px-2 py-1 font-mono text-[10px]">
                 {enrollment.otpauthUrl}
               </code>
             </details>

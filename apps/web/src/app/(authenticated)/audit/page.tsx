@@ -81,7 +81,7 @@ export default async function AuditPage({
               <select
                 name="action"
                 defaultValue={sp.action ?? ''}
-                className="rounded-md border border-zinc-200 dark:border-zinc-800 px-3 py-1.5 text-sm"
+                className="rounded-md border border-zinc-200 dark:border-zinc-700 px-3 py-1.5 text-sm"
               >
                 <option value="">— vše —</option>
                 {ALL_ACTIONS.map((a) => (
@@ -99,7 +99,7 @@ export default async function AuditPage({
                 name="entity"
                 defaultValue={sp.entity ?? ''}
                 placeholder="TimeEntry, Tag, …"
-                className="rounded-md border border-zinc-200 dark:border-zinc-800 px-3 py-1.5 text-sm"
+                className="rounded-md border border-zinc-200 dark:border-zinc-700 px-3 py-1.5 text-sm"
               />
             </label>
             <label className="space-y-1">
@@ -108,7 +108,7 @@ export default async function AuditPage({
                 type="date"
                 name="from"
                 defaultValue={sp.from ?? ''}
-                className="rounded-md border border-zinc-200 dark:border-zinc-800 px-3 py-1.5 text-sm"
+                className="rounded-md border border-zinc-200 dark:border-zinc-700 px-3 py-1.5 text-sm"
               />
             </label>
             <label className="space-y-1">
@@ -117,7 +117,7 @@ export default async function AuditPage({
                 type="date"
                 name="to"
                 defaultValue={sp.to ?? ''}
-                className="rounded-md border border-zinc-200 dark:border-zinc-800 px-3 py-1.5 text-sm"
+                className="rounded-md border border-zinc-200 dark:border-zinc-700 px-3 py-1.5 text-sm"
               />
             </label>
             <button
@@ -153,7 +153,7 @@ export default async function AuditPage({
                         : '—'}
                     </Td>
                     <Td>
-                      <span className="rounded-full bg-zinc-100 dark:bg-zinc-800 px-2 py-0.5 text-xs">
+                      <span className="rounded-full bg-zinc-100 dark:bg-zinc-700 px-2 py-0.5 text-xs">
                         {r.action}
                       </span>
                     </Td>

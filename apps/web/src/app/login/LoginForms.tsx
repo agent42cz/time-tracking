@@ -86,7 +86,7 @@ export function LoginForms({ next }: { next: string | null }): ReactElement {
   return (
     <div className="space-y-4">
       {step === 'credentials' ? (
-        <div className="flex gap-1 rounded-md bg-zinc-100 dark:bg-zinc-800 p-1">
+        <div className="flex gap-1 rounded-md bg-zinc-100 dark:bg-zinc-700 p-1">
           <button
             type="button"
             onClick={() => {
@@ -95,7 +95,7 @@ export function LoginForms({ next }: { next: string | null }): ReactElement {
             }}
             className={`flex-1 rounded px-3 py-1.5 text-sm font-medium transition-colors ${
               mode === 'password'
-                ? 'bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 shadow-sm'
+                ? 'bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 shadow-sm'
                 : 'text-zinc-600 dark:text-zinc-400'
             }`}
           >
@@ -109,7 +109,7 @@ export function LoginForms({ next }: { next: string | null }): ReactElement {
             }}
             className={`flex-1 rounded px-3 py-1.5 text-sm font-medium transition-colors ${
               mode === 'magic'
-                ? 'bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 shadow-sm'
+                ? 'bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 shadow-sm'
                 : 'text-zinc-600 dark:text-zinc-400'
             }`}
           >

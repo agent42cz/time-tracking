@@ -58,7 +58,7 @@ export function TodayList({
             description="Spusťte nahoře nové měření nebo přidejte ruční zápis."
           />
         ) : (
-          <ul className="divide-y divide-zinc-100 dark:divide-zinc-800/60">
+          <ul className="divide-y divide-zinc-100 dark:divide-zinc-700/60">
             {entries.map((e) => (
               <Row key={e.id} entry={e} onDeleted={onDeleted} />
             ))}

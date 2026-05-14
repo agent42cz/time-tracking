@@ -6,7 +6,7 @@ export function Card(props: HTMLAttributes<HTMLDivElement>): ReactElement {
     <div
       {...props}
       className={cn(
-        'overflow-hidden rounded-lg border border-zinc-200 bg-white shadow-sm dark:border-zinc-800 dark:bg-zinc-900',
+        'overflow-hidden rounded-lg border border-zinc-200 bg-white shadow-sm dark:border-zinc-700 dark:bg-zinc-800',
         props.className,
       )}
     />
@@ -22,7 +22,7 @@ export function CardHeader({
     <div
       {...rest}
       className={cn(
-        'flex items-center justify-between border-b border-zinc-100 px-5 py-4 dark:border-zinc-800/60',
+        'flex items-center justify-between border-b border-zinc-100 px-5 py-4 dark:border-zinc-700/60',
         className,
       )}
     >
@@ -59,7 +59,7 @@ export function CardFooter(props: HTMLAttributes<HTMLDivElement>): ReactElement 
     <div
       {...props}
       className={cn(
-        'flex items-center justify-end gap-2 border-t border-zinc-100 bg-zinc-50/40 px-5 py-3 dark:border-zinc-800/60 dark:bg-zinc-950/40',
+        'flex items-center justify-end gap-2 border-t border-zinc-100 bg-zinc-50/40 px-5 py-3 dark:border-zinc-700/60 dark:bg-zinc-900/40',
         props.className,
       )}
     />

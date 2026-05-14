@@ -81,7 +81,7 @@ export function ThemeToggle({ compact = false }: { compact?: boolean }): ReactEl
       <div
         role="group"
         aria-label="Přepnout motiv"
-        className="inline-flex items-stretch rounded-md border border-zinc-200 p-0.5 dark:border-zinc-700"
+        className="inline-flex items-stretch rounded-md border border-zinc-200 p-0.5 dark:border-zinc-600"
       >
         {COMPACT_OPTIONS.map((o) => {
           const active = theme === o.value;
@@ -97,7 +97,7 @@ export function ThemeToggle({ compact = false }: { compact?: boolean }): ReactEl
                 'flex h-7 w-7 items-center justify-center rounded transition-colors ' +
                 (active
                   ? 'bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900'
-                  : 'text-zinc-500 hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-100')
+                  : 'text-zinc-500 hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-700 dark:hover:text-zinc-100')
               }
             >
               {o.icon}
@@ -112,7 +112,7 @@ export function ThemeToggle({ compact = false }: { compact?: boolean }): ReactEl
     <div
       role="group"
       aria-label="Přepnout motiv"
-      className="inline-flex w-full items-stretch rounded-md border border-zinc-200 p-0.5 dark:border-zinc-700"
+      className="inline-flex w-full items-stretch rounded-md border border-zinc-200 p-0.5 dark:border-zinc-600"
     >
       {FULL_OPTIONS.map((o) => {
         const active = theme === o.value;
@@ -126,7 +126,7 @@ export function ThemeToggle({ compact = false }: { compact?: boolean }): ReactEl
               'flex-1 rounded px-2 py-1 text-xs font-medium transition-colors ' +
               (active
                 ? 'bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900'
-                : 'text-zinc-600 hover:bg-zinc-100 dark:text-zinc-400 dark:hover:bg-zinc-800')
+                : 'text-zinc-600 hover:bg-zinc-100 dark:text-zinc-400 dark:hover:bg-zinc-700')
             }
           >
             {o.label}

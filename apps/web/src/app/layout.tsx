@@ -38,7 +38,7 @@ export default async function RootLayout({
       <head>
         <script dangerouslySetInnerHTML={{ __html: FOUC_SCRIPT }} />
       </head>
-      <body className="bg-zinc-50 text-zinc-900 antialiased dark:bg-zinc-950 dark:text-zinc-100">
+      <body className="bg-zinc-50 text-zinc-900 antialiased dark:bg-zinc-900 dark:text-zinc-100">
         <NextIntlClientProvider messages={messages} locale={locale} timeZone="Europe/Prague">
           {children}
         </NextIntlClientProvider>

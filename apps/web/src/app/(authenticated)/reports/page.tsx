@@ -179,7 +179,7 @@ export default async function ReportsPage({
                           {r.tags.map((t) => (
                             <span
                               key={t.id}
-                              className="rounded-full bg-zinc-100 dark:bg-zinc-800 px-1.5 py-0.5 text-[10px] text-zinc-700 dark:text-zinc-300"
+                              className="rounded-full bg-zinc-100 dark:bg-zinc-700 px-1.5 py-0.5 text-[10px] text-zinc-700 dark:text-zinc-300"
                             >
                               {t.name}
                             </span>

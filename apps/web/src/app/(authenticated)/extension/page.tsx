@@ -38,7 +38,7 @@ export default function ExtensionPage(): ReactElement {
           <ol className="list-decimal space-y-3 pl-5 text-sm text-zinc-700 dark:text-zinc-300">
             <li>
               Stáhněte ZIP tlačítkem výše a rozbalte ho do složky, kterou nebudete mazat (např.{' '}
-              <code className="rounded bg-zinc-100 dark:bg-zinc-800 px-1 py-0.5">
+              <code className="rounded bg-zinc-100 dark:bg-zinc-700 px-1 py-0.5">
                 ~/tt-extension
               </code>
               ). Chrome načítá rozšíření z cesty na disku — pokud složku smažete, rozšíření přestane
@@ -46,7 +46,7 @@ export default function ExtensionPage(): ReactElement {
             </li>
             <li>
               V prohlížeči otevřete{' '}
-              <code className="rounded bg-zinc-100 dark:bg-zinc-800 px-1 py-0.5">
+              <code className="rounded bg-zinc-100 dark:bg-zinc-700 px-1 py-0.5">
                 chrome://extensions
               </code>{' '}
               (nebo odpovídající stránku ve vašem prohlížeči).
@@ -79,7 +79,7 @@ export default function ExtensionPage(): ReactElement {
           <p className="text-sm text-zinc-700 dark:text-zinc-300">
             Při novější verzi stáhněte aktuální ZIP, rozbalte ho přes stávající složku (přepište
             soubory) a na stránce{' '}
-            <code className="rounded bg-zinc-100 dark:bg-zinc-800 px-1 py-0.5">
+            <code className="rounded bg-zinc-100 dark:bg-zinc-700 px-1 py-0.5">
               chrome://extensions
             </code>{' '}
             klikněte u rozšíření na ikonu šipky pro znovunačtení. Připojení účtu zůstává zachováno.

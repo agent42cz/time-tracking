@@ -197,15 +197,15 @@ export function ClientsManager({ clients }: { clients: ClientRowItem[] }): React
                   items={activeVisible.map((c) => c.id)}
                   strategy={verticalListSortingStrategy}
                 >
-                  <ul className="divide-y divide-zinc-100 dark:divide-zinc-800/60">
+                  <ul className="divide-y divide-zinc-100 dark:divide-zinc-700/60">
                     {activeVisible.map((c) => renderRow(c, !dragDisabled))}
                   </ul>
                 </SortableContext>
               </DndContext>
               {archivedVisible.length > 0 ? (
                 <>
-                  <hr className="border-zinc-100 dark:border-zinc-800/60" />
-                  <ul className="divide-y divide-zinc-100 dark:divide-zinc-800/60">
+                  <hr className="border-zinc-100 dark:border-zinc-700/60" />
+                  <ul className="divide-y divide-zinc-100 dark:divide-zinc-700/60">
                     {archivedVisible.map((c) => renderRow(c, false))}
                   </ul>
                 </>
@@ -254,7 +254,7 @@ function CascadeChoice({
   label: string;
 }): ReactElement {
   return (
-    <label className="flex items-start gap-2 rounded-md bg-zinc-50 dark:bg-zinc-950 px-3 py-2 text-sm text-zinc-700 dark:text-zinc-300">
+    <label className="flex items-start gap-2 rounded-md bg-zinc-50 dark:bg-zinc-900 px-3 py-2 text-sm text-zinc-700 dark:text-zinc-300">
       <input
         type="checkbox"
         checked={value}

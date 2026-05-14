@@ -77,7 +77,7 @@ export default async function DashboardPage({
         title="Dashboard"
         description={periodLabel}
         actions={
-          <div className="flex gap-1 rounded-md bg-zinc-100 p-1 text-sm dark:bg-zinc-800">
+          <div className="flex gap-1 rounded-md bg-zinc-100 p-1 text-sm dark:bg-zinc-700">
             {(['today', 'week', 'month'] satisfies Period[]).map((p) => (
               <Link
                 key={p}
@@ -125,7 +125,7 @@ export default async function DashboardPage({
                             {fmtH(p.totalMs)}
                           </span>
                         </div>
-                        <div className="h-2 overflow-hidden rounded-full bg-zinc-100 dark:bg-zinc-800">
+                        <div className="h-2 overflow-hidden rounded-full bg-zinc-100 dark:bg-zinc-700">
                           <div
                             className="h-full bg-zinc-900 dark:bg-zinc-100"
                             style={{ width: `${Math.round(ratio * 100)}%` }}
@@ -156,7 +156,7 @@ export default async function DashboardPage({
                         <span className="w-32 shrink-0 truncate text-zinc-700 dark:text-zinc-300">
                           {c.clientName}
                         </span>
-                        <div className="h-2 flex-1 overflow-hidden rounded-full bg-zinc-100 dark:bg-zinc-800">
+                        <div className="h-2 flex-1 overflow-hidden rounded-full bg-zinc-100 dark:bg-zinc-700">
                           <div
                             className="h-full bg-blue-500 dark:bg-blue-400"
                             style={{ width: `${pct}%` }}
@@ -228,7 +228,7 @@ export default async function DashboardPage({
 
 function Kpi({ label, value }: { label: string; value: string }): ReactElement {
   return (
-    <div className="rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900">
+    <div className="rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-700 dark:bg-zinc-800">
       <p className="text-xs font-medium uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
         {label}
       </p>
@@ -340,7 +340,7 @@ function DailyBreakdown({
                       </span>
                     ) : null}
                     <div
-                      className="relative flex h-40 w-full flex-col-reverse overflow-hidden rounded-md border border-zinc-100 bg-zinc-50 dark:border-zinc-800/60 dark:bg-zinc-950/40"
+                      className="relative flex h-40 w-full flex-col-reverse overflow-hidden rounded-md border border-zinc-100 bg-zinc-50 dark:border-zinc-700/60 dark:bg-zinc-900/40"
                       title={
                         bucket.total > 0
                           ? `${String(dom).padStart(2, '0')}.${String(month).padStart(2, '0')}. — ${fmtH(bucket.total)}`
@@ -348,7 +348,7 @@ function DailyBreakdown({
                       }
                     >
                       {bucket.segments.length === 0 ? (
-                        <div className="h-px w-full bg-zinc-200 dark:bg-zinc-800" aria-hidden />
+                        <div className="h-px w-full bg-zinc-200 dark:bg-zinc-700" aria-hidden />
                       ) : (
                         bucket.segments.map((s) => (
                           <div
@@ -403,7 +403,7 @@ function DailyBreakdown({
               })}
             </div>
             {legend.size > 0 ? (
-              <div className="mt-4 flex flex-wrap gap-x-3 gap-y-1.5 border-t border-zinc-100 pt-3 text-xs dark:border-zinc-800/60">
+              <div className="mt-4 flex flex-wrap gap-x-3 gap-y-1.5 border-t border-zinc-100 pt-3 text-xs dark:border-zinc-700/60">
                 {Array.from(legend.entries()).map(([label, color]) => (
                   <span
                     key={label}

@@ -136,7 +136,7 @@ export function ReportFiltersForm({
                 className={`rounded-full border px-3 py-1 text-xs font-medium transition-colors ${
                   active
                     ? 'border-zinc-900 dark:border-zinc-100 bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900'
-                    : 'border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800'
+                    : 'border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-700'
                 }`}
               >
                 {p.label}
@@ -149,7 +149,7 @@ export function ReportFiltersForm({
             name="from"
             value={from}
             onChange={(e) => setFrom(e.target.value)}
-            className="h-8 rounded-md border border-zinc-200 dark:border-zinc-800 px-2 text-sm focus:border-zinc-900 dark:focus:border-zinc-100 focus:outline-none"
+            className="h-8 rounded-md border border-zinc-200 dark:border-zinc-700 px-2 text-sm focus:border-zinc-900 dark:focus:border-zinc-100 focus:outline-none"
           />
           <span className="text-zinc-400 dark:text-zinc-500">–</span>
           <input
@@ -157,7 +157,7 @@ export function ReportFiltersForm({
             name="to"
             value={to}
             onChange={(e) => setTo(e.target.value)}
-            className="h-8 rounded-md border border-zinc-200 dark:border-zinc-800 px-2 text-sm focus:border-zinc-900 dark:focus:border-zinc-100 focus:outline-none"
+            className="h-8 rounded-md border border-zinc-200 dark:border-zinc-700 px-2 text-sm focus:border-zinc-900 dark:focus:border-zinc-100 focus:outline-none"
           />
         </div>
       </div>
@@ -197,14 +197,14 @@ export function ReportFiltersForm({
             <span className="block text-sm font-medium text-zinc-700 dark:text-zinc-300">
               Štítky
             </span>
-            <span className="inline-flex overflow-hidden rounded-full border border-zinc-200 dark:border-zinc-800 text-[10px] font-medium">
+            <span className="inline-flex overflow-hidden rounded-full border border-zinc-200 dark:border-zinc-700 text-[10px] font-medium">
               <button
                 type="button"
                 onClick={() => setTagsMode('or')}
                 className={`px-2 py-0.5 ${
                   tagsMode === 'or'
                     ? 'bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900'
-                    : 'text-zinc-600 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800'
+                    : 'text-zinc-600 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-700'
                 }`}
               >
                 Aspoň jeden
@@ -215,7 +215,7 @@ export function ReportFiltersForm({
                 className={`px-2 py-0.5 ${
                   tagsMode === 'and'
                     ? 'bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900'
-                    : 'text-zinc-600 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800'
+                    : 'text-zinc-600 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-700'
                 }`}
               >
                 Všechny
@@ -240,12 +240,12 @@ export function ReportFiltersForm({
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder="část textu z popisu záznamu…"
-          className="h-10 w-full rounded-md border border-zinc-200 dark:border-zinc-800 px-3 text-sm focus:border-zinc-900 dark:focus:border-zinc-100 focus:outline-none focus:ring-2 focus:ring-zinc-900/10 dark:focus:ring-zinc-100/10"
+          className="h-10 w-full rounded-md border border-zinc-200 dark:border-zinc-700 px-3 text-sm focus:border-zinc-900 dark:focus:border-zinc-100 focus:outline-none focus:ring-2 focus:ring-zinc-900/10 dark:focus:ring-zinc-100/10"
         />
       </Field>
 
       {/* Actions */}
-      <div className="flex flex-wrap items-center justify-between gap-2 border-t border-zinc-100 dark:border-zinc-800/60 pt-4">
+      <div className="flex flex-wrap items-center justify-between gap-2 border-t border-zinc-100 dark:border-zinc-700/60 pt-4">
         <p className="text-xs text-zinc-500 dark:text-zinc-400">
           {totalSelected === 0
             ? 'Žádné aktivní filtry — zobrazí se všechny záznamy.'
@@ -255,7 +255,7 @@ export function ReportFiltersForm({
           {totalSelected > 0 ? (
             <Link
               href="/reports"
-              className="rounded-md border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 px-3 py-1.5 text-sm text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800"
+              className="rounded-md border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 py-1.5 text-sm text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-700"
             >
               Vymazat filtry
             </Link>

@@ -16,10 +16,10 @@ export default async function AuthLayout({
   const visibleGroups = filterVisibleGroups(navGroups, isAdmin);
 
   return (
-    <div className="flex min-h-screen bg-zinc-50 dark:bg-zinc-950">
+    <div className="flex min-h-screen bg-zinc-50 dark:bg-zinc-900">
       <FaviconSwitcher />
-      <aside className="hidden h-screen w-64 shrink-0 flex-col border-r border-zinc-200 bg-white md:sticky md:top-0 md:flex dark:border-zinc-800 dark:bg-zinc-900">
-        <div className="flex h-16 shrink-0 items-center border-b border-zinc-200 px-5 dark:border-zinc-800">
+      <aside className="hidden h-screen w-64 shrink-0 flex-col border-r border-zinc-200 bg-white md:sticky md:top-0 md:flex dark:border-zinc-700 dark:bg-zinc-800">
+        <div className="flex h-16 shrink-0 items-center border-b border-zinc-200 px-5 dark:border-zinc-700">
           <Link
             href="/timer"
             className="text-base font-semibold tracking-tight text-zinc-900 dark:text-zinc-100"
@@ -38,7 +38,7 @@ export default async function AuthLayout({
             <div
               key={group.label}
               className={
-                index > 0 ? 'mt-4 border-t border-zinc-200 pt-4 dark:border-zinc-800' : undefined
+                index > 0 ? 'mt-4 border-t border-zinc-200 pt-4 dark:border-zinc-700' : undefined
               }
             >
               <p className="mb-1 px-3 text-[11px] font-semibold uppercase tracking-wider text-indigo-600 dark:text-indigo-400">
@@ -49,7 +49,7 @@ export default async function AuthLayout({
                   <Link
                     key={item.href}
                     href={item.href}
-                    className="block rounded-md px-3 py-2 text-sm text-zinc-700 transition-colors hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-300 dark:hover:bg-zinc-800 dark:hover:text-zinc-100"
+                    className="block rounded-md px-3 py-2 text-sm text-zinc-700 transition-colors hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-300 dark:hover:bg-zinc-700 dark:hover:text-zinc-100"
                   >
                     {item.label}
                   </Link>
@@ -58,7 +58,7 @@ export default async function AuthLayout({
             </div>
           ))}
         </nav>
-        <div className="shrink-0 border-t border-zinc-200 bg-white px-3 py-3 dark:border-zinc-800 dark:bg-zinc-900">
+        <div className="shrink-0 border-t border-zinc-200 bg-white px-3 py-3 dark:border-zinc-700 dark:bg-zinc-800">
           <div className="flex items-center justify-between gap-2 px-2 py-1">
             <div className="min-w-0">
               <p className="truncate text-sm font-medium text-zinc-900 dark:text-zinc-100">
@@ -71,7 +71,7 @@ export default async function AuthLayout({
         </div>
       </aside>
       <div className="flex min-h-screen flex-1 flex-col">
-        <header className="flex h-16 items-center justify-between border-b border-zinc-200 bg-white px-6 md:hidden dark:border-zinc-800 dark:bg-zinc-900">
+        <header className="flex h-16 items-center justify-between border-b border-zinc-200 bg-white px-6 md:hidden dark:border-zinc-700 dark:bg-zinc-800">
           <Link href="/timer" className="text-base font-semibold text-zinc-900 dark:text-zinc-100">
             Time Tracker
           </Link>

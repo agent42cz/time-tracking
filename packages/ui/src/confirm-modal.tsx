@@ -58,7 +58,7 @@ export function ConfirmModal({
     >
       <div
         className={cn(
-          'w-full max-w-md overflow-hidden rounded-lg border border-zinc-200 bg-white shadow-lg dark:border-zinc-800 dark:bg-zinc-900',
+          'w-full max-w-md overflow-hidden rounded-lg border border-zinc-200 bg-white shadow-lg dark:border-zinc-700 dark:bg-zinc-800',
         )}
       >
         <div className="px-5 py-4">
@@ -75,7 +75,7 @@ export function ConfirmModal({
             <div className="mt-3 text-sm text-zinc-700 dark:text-zinc-300">{children}</div>
           ) : null}
         </div>
-        <div className="flex items-center justify-end gap-2 border-t border-zinc-100 bg-zinc-50/40 px-5 py-3 dark:border-zinc-800/60 dark:bg-zinc-950/40">
+        <div className="flex items-center justify-end gap-2 border-t border-zinc-100 bg-zinc-50/40 px-5 py-3 dark:border-zinc-700/60 dark:bg-zinc-900/40">
           <Button
             autoFocus
             type="button"

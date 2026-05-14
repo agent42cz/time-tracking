@@ -3,14 +3,14 @@ import { cn } from './cn.js';
 
 export function Table(props: HTMLAttributes<HTMLTableElement>): ReactElement {
   return (
-    <div className="overflow-hidden rounded-lg border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900">
+    <div className="overflow-hidden rounded-lg border border-zinc-200 bg-white dark:border-zinc-700 dark:bg-zinc-800">
       <table {...props} className={cn('w-full text-sm', props.className)} />
     </div>
   );
 }
 
 export function THead(props: HTMLAttributes<HTMLTableSectionElement>): ReactElement {
-  return <thead {...props} className={cn('bg-zinc-50/60 dark:bg-zinc-950/40', props.className)} />;
+  return <thead {...props} className={cn('bg-zinc-50/60 dark:bg-zinc-900/40', props.className)} />;
 }
 
 export function Th(props: ThHTMLAttributes<HTMLTableCellElement>): ReactElement {
@@ -30,7 +30,7 @@ export function Tr(props: HTMLAttributes<HTMLTableRowElement>): ReactElement {
     <tr
       {...props}
       className={cn(
-        'border-t border-zinc-100 hover:bg-zinc-50/50 dark:border-zinc-800/60 dark:hover:bg-zinc-950/40',
+        'border-t border-zinc-100 hover:bg-zinc-50/50 dark:border-zinc-700/60 dark:hover:bg-zinc-950/40',
         props.className,
       )}
     />

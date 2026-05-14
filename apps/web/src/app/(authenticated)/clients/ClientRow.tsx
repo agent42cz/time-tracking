@@ -150,7 +150,7 @@ export function ClientRow({
       </div>
 
       {isOpen ? (
-        <div className="mt-3 ml-7 space-y-3 border-l border-zinc-100 dark:border-zinc-800/60 pl-4">
+        <div className="mt-3 ml-7 space-y-3 border-l border-zinc-100 dark:border-zinc-700/60 pl-4">
           {projectError ? <Alert tone="danger">{projectError}</Alert> : null}
           <DndContext
             sensors={sensors}
@@ -178,7 +178,7 @@ export function ClientRow({
             </SortableContext>
           </DndContext>
           {archivedProjects.length > 0 ? (
-            <ul className="space-y-1.5 pt-2 border-t border-zinc-100 dark:border-zinc-800/60">
+            <ul className="space-y-1.5 pt-2 border-t border-zinc-100 dark:border-zinc-700/60">
               {archivedProjects.map((p) => (
                 <ProjectRow
                   key={p.id}

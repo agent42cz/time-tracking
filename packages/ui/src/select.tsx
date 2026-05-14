@@ -8,7 +8,7 @@ export function Select(props: SelectHTMLAttributes<HTMLSelectElement>): ReactEle
       className={cn(
         'block w-full rounded-md border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-900',
         'focus:border-zinc-900 focus:outline-none focus:ring-2 focus:ring-zinc-900/10',
-        'dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100',
+        'dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100',
         'dark:focus:border-zinc-100 dark:focus:ring-zinc-100/10',
         props.className,
       )}
