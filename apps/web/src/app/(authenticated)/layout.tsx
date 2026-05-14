@@ -4,7 +4,6 @@ import { requireUser } from '@/lib/session';
 import { CompanySwitcher } from '@/components/CompanySwitcher';
 import { FaviconSwitcher } from '@/components/FaviconSwitcher';
 import { LogoutButton } from '@/components/LogoutButton';
-import { ThemeToggle } from '@/components/ThemeToggle';
 import { filterVisibleGroups, navGroups } from './nav';
 
 export default async function AuthLayout({
@@ -20,14 +19,13 @@ export default async function AuthLayout({
     <div className="flex min-h-screen bg-zinc-50 dark:bg-zinc-950">
       <FaviconSwitcher />
       <aside className="hidden h-screen w-64 shrink-0 flex-col border-r border-zinc-200 bg-white md:sticky md:top-0 md:flex dark:border-zinc-800 dark:bg-zinc-900">
-        <div className="flex h-16 shrink-0 items-center justify-between gap-2 border-b border-zinc-200 px-5 dark:border-zinc-800">
+        <div className="flex h-16 shrink-0 items-center border-b border-zinc-200 px-5 dark:border-zinc-800">
           <Link
             href="/timer"
             className="text-base font-semibold tracking-tight text-zinc-900 dark:text-zinc-100"
           >
             Time Tracker
           </Link>
-          <ThemeToggle compact />
         </div>
         <div className="shrink-0 px-3 py-4">
           <CompanySwitcher
