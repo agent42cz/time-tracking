@@ -13,11 +13,15 @@ export interface Membership {
   role: 'admin' | 'user';
 }
 
+export type ThemePreference = 'light' | 'dark' | 'system';
+
 export interface MeResponse {
   userId: string;
   email: string;
   fullName: string;
   totpEnabled: boolean;
+  /** User's preferred theme — shared with the web app. */
+  theme?: ThemePreference;
   memberships: Membership[];
   wsUrl: string | null;
 }
@@ -179,6 +183,15 @@ export async function logout(session: ApiSession): Promise<void> {
 
 export async function me(session: ApiSession): Promise<MeResponse> {
   return call<MeResponse>(session.apiBase, '/api/v1/me', { method: 'GET' }, session.token);
+}
+
+export async function updateTheme(session: ApiSession, theme: ThemePreference): Promise<void> {
+  await call(
+    session.apiBase,
+    '/api/v1/me',
+    { method: 'PATCH', body: JSON.stringify({ theme }) },
+    session.token,
+  );
 }
 
 export async function getTimer(session: ApiSession, companyId?: string): Promise<TimerResponse> {

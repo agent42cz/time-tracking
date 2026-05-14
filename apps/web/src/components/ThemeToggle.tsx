@@ -4,6 +4,34 @@ import type { ReactElement } from 'react';
 import { useEffect, useState } from 'react';
 import { applyThemeToDocument, readThemeCookie, setThemeCookie, type Theme } from '@/lib/theme';
 
+async function persistThemeToProfile(theme: Theme): Promise<void> {
+  try {
+    await fetch('/api/v1/me', {
+      method: 'PATCH',
+      credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ theme }),
+    });
+  } catch {
+    // Best-effort: theme also lives in the cookie, so a network blip
+    // doesn't strand the user with a wrong UI.
+  }
+}
+
+async function pullThemeFromProfile(): Promise<Theme | null> {
+  try {
+    const res = await fetch('/api/v1/me', { credentials: 'same-origin', cache: 'no-store' });
+    if (!res.ok) return null;
+    const data = (await res.json()) as { theme?: unknown };
+    if (data.theme === 'light' || data.theme === 'dark' || data.theme === 'system') {
+      return data.theme;
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
 const FULL_OPTIONS: { value: Theme; label: string }[] = [
   { value: 'system', label: 'Systémový' },
   { value: 'light', label: 'Světlý' },
@@ -20,6 +48,17 @@ export function ThemeToggle({ compact = false }: { compact?: boolean }): ReactEl
 
   useEffect(() => {
     setTheme(readThemeCookie());
+    // Adopt the server-side preference if it differs from the cookie — keeps
+    // the cookie around for FOUC prevention but lets the user's choice
+    // follow them across browsers / the extension.
+    void pullThemeFromProfile().then((serverTheme) => {
+      if (!serverTheme) return;
+      if (serverTheme !== readThemeCookie()) {
+        setTheme(serverTheme);
+        setThemeCookie(serverTheme);
+        applyThemeToDocument(serverTheme);
+      }
+    });
   }, []);
 
   useEffect(() => {
@@ -34,6 +73,7 @@ export function ThemeToggle({ compact = false }: { compact?: boolean }): ReactEl
     setTheme(next);
     setThemeCookie(next);
     applyThemeToDocument(next);
+    void persistThemeToProfile(next);
   }
 
   if (compact) {

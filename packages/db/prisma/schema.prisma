@@ -47,6 +47,8 @@ model User {
   fullName     String   @map("full_name")
   totpSecret   String?  @map("totp_secret")
   totpEnabled  Boolean  @default(false) @map("totp_enabled")
+  /// 'light' | 'dark' | 'system' — shared across web and extension.
+  theme        String   @default("system")
   createdAt    DateTime @default(now()) @map("created_at")
   updatedAt    DateTime @updatedAt @map("updated_at")
 

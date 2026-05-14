@@ -13,11 +13,18 @@ import type { Role } from '@prisma/client';
 import { resolveSession } from '../auth/sessions.js';
 import { prisma, SESSION_COOKIE } from '../session.js';
 
+export type ThemePreference = 'light' | 'dark' | 'system';
+
+export function isThemePreference(value: unknown): value is ThemePreference {
+  return value === 'light' || value === 'dark' || value === 'system';
+}
+
 export interface ApiSession {
   userId: string;
   email: string;
   fullName: string;
   totpEnabled: boolean;
+  theme: ThemePreference;
   memberships: { companyId: string; companyName: string; companySlug: string; role: Role }[];
 }
 
@@ -44,6 +51,7 @@ export async function resolveApiSession(req: NextRequest): Promise<ApiSession | 
     email: user.email,
     fullName: user.fullName,
     totpEnabled: user.totpEnabled,
+    theme: isThemePreference(user.theme) ? user.theme : 'system',
     memberships: user.memberships.map((m) => ({
       companyId: m.companyId,
       companyName: m.company.name,

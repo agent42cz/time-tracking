@@ -6,6 +6,7 @@ import {
   type CatalogResponse,
   type MeResponse,
   type StartTimerInput,
+  type ThemePreference,
   type TimerResponse,
   type TimerSummary,
   DEFAULT_API_BASE,
@@ -18,9 +19,18 @@ import {
   me,
   setApiBase,
   setStoredSession,
+  updateTheme,
 } from './api.js';
 import { useExtensionSync } from './sync.js';
 import { groupRecentByDay, type RecentEntryInput } from './recent.js';
+import {
+  applyThemeClass,
+  readShowStats,
+  readStoredTheme,
+  resolveTheme,
+  writeShowStats,
+  writeStoredTheme,
+} from './theme.js';
 import {
   InMemoryStorageAdapter,
   createChromeStorageAdapter,
@@ -126,7 +136,7 @@ export function Popup(): ReactElement {
 
 function Spinner(): ReactElement {
   return (
-    <div className="flex h-32 w-[360px] items-center justify-center text-sm text-zinc-500">
+    <div className="flex h-32 w-[360px] items-center justify-center text-sm text-zinc-500 dark:text-zinc-400">
       Načítám…
     </div>
   );
@@ -207,87 +217,91 @@ function LoginForm({
   return (
     <form onSubmit={submit} className="w-[360px] space-y-3 p-4 text-sm">
       <div className="flex items-center justify-between">
-        <h1 className="text-base font-semibold text-zinc-900">Time Tracker</h1>
+        <h1 className="text-base font-semibold text-zinc-900 dark:text-zinc-100">Time Tracker</h1>
         <button
           type="button"
           onClick={() => setShowSettings((s) => !s)}
-          className="text-xs text-zinc-500 underline"
+          className="text-xs text-zinc-500 underline dark:text-zinc-400"
         >
           {showSettings ? 'Zavřít' : 'API'}
         </button>
       </div>
       {showSettings ? (
-        <div className="space-y-2 rounded-md bg-zinc-50 p-2">
-          <label className="block text-xs text-zinc-600">Adresa serveru</label>
+        <div className="space-y-2 rounded-md bg-zinc-50 p-2 dark:bg-zinc-900">
+          <label className="block text-xs text-zinc-600 dark:text-zinc-400">Adresa serveru</label>
           <input
             value={apiBase}
             onChange={(e) => setApiBaseLocal(e.target.value)}
             placeholder={DEFAULT_API_BASE}
-            className="w-full rounded border border-zinc-200 px-2 py-1 text-xs"
+            className="w-full rounded border border-zinc-200 bg-white px-2 py-1 text-xs text-zinc-900 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-100"
           />
           <button
             type="button"
             onClick={saveApiBase}
-            className="rounded bg-zinc-900 px-2 py-1 text-xs text-white"
+            className="rounded bg-zinc-900 px-2 py-1 text-xs text-white dark:bg-zinc-100 dark:text-zinc-900"
           >
             Uložit
           </button>
         </div>
       ) : null}
       {error ? (
-        <div className="rounded border border-red-200 bg-red-50 px-2 py-1 text-xs text-red-800">
+        <div className="rounded border border-red-200 bg-red-50 px-2 py-1 text-xs text-red-800 dark:border-red-900 dark:bg-red-950/40 dark:text-red-200">
           {error}
         </div>
       ) : null}
       <button
         type="button"
         onClick={openWebLogin}
-        className="w-full rounded-md bg-zinc-900 py-2 font-medium text-white hover:bg-zinc-800"
+        className="w-full rounded-md bg-zinc-900 py-2 font-medium text-white hover:bg-zinc-800 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200"
       >
         Přihlásit se přes web
       </button>
-      <p className="text-center text-[10px] text-zinc-500">
+      <p className="text-center text-[10px] text-zinc-500 dark:text-zinc-400">
         Otevře přihlašovací stránku Time Trackeru — podporuje 2FA i magic-link
       </p>
       <div className="relative my-1 flex items-center">
-        <div className="flex-1 border-t border-zinc-200" />
-        <span className="mx-2 text-[10px] uppercase tracking-wide text-zinc-400">nebo přímo</span>
-        <div className="flex-1 border-t border-zinc-200" />
+        <div className="flex-1 border-t border-zinc-200 dark:border-zinc-800" />
+        <span className="mx-2 text-[10px] uppercase tracking-wide text-zinc-400 dark:text-zinc-500">
+          nebo přímo
+        </span>
+        <div className="flex-1 border-t border-zinc-200 dark:border-zinc-800" />
       </div>
       <label className="block">
-        <span className="text-xs font-medium text-zinc-600">E-mail</span>
+        <span className="text-xs font-medium text-zinc-600 dark:text-zinc-400">E-mail</span>
         <input
           type="email"
           required
           value={email}
           onChange={(e) => setEmail(e.target.value)}
-          className="mt-0.5 block w-full rounded border border-zinc-200 px-2 py-1.5 text-sm focus:border-zinc-900 focus:outline-none"
+          className="mt-0.5 block w-full rounded border border-zinc-200 bg-white px-2 py-1.5 text-sm text-zinc-900 focus:border-zinc-900 focus:outline-none dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100 dark:focus:border-zinc-100"
         />
       </label>
       <label className="block">
-        <span className="text-xs font-medium text-zinc-600">Heslo</span>
+        <span className="text-xs font-medium text-zinc-600 dark:text-zinc-400">Heslo</span>
         <input
           type="password"
           required
           value={password}
           onChange={(e) => setPassword(e.target.value)}
-          className="mt-0.5 block w-full rounded border border-zinc-200 px-2 py-1.5 text-sm focus:border-zinc-900 focus:outline-none"
+          className="mt-0.5 block w-full rounded border border-zinc-200 bg-white px-2 py-1.5 text-sm text-zinc-900 focus:border-zinc-900 focus:outline-none dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100 dark:focus:border-zinc-100"
         />
       </label>
       <label className="block">
-        <span className="text-xs font-medium text-zinc-600">Kód 2FA (volitelné)</span>
+        <span className="text-xs font-medium text-zinc-600 dark:text-zinc-400">
+          Kód 2FA (volitelné)
+        </span>
         <input
           inputMode="numeric"
           pattern="\d{6}"
           value={totpCode}
           onChange={(e) => setTotpCode(e.target.value)}
-          className="mt-0.5 block w-full rounded border border-zinc-200 px-2 py-1.5 text-sm focus:border-zinc-900 focus:outline-none"
+          className="mt-0.5 block w-full rounded border border-zinc-200 bg-white px-2 py-1.5 text-sm text-zinc-900 focus:border-zinc-900 focus:outline-none dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100 dark:focus:border-zinc-100"
         />
       </label>
       <button
         type="submit"
         disabled={pending}
-        className="w-full rounded-md bg-zinc-900 py-2 font-medium text-white hover:bg-zinc-800 disabled:bg-zinc-300"
+        className="w-full rounded-md bg-zinc-900 py-2 font-medium text-white hover:bg-zinc-800 disabled:bg-zinc-300 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200 dark:disabled:bg-zinc-700 dark:disabled:text-zinc-400"
       >
         {pending ? 'Přihlašuji…' : 'Přihlásit se'}
       </button>
@@ -318,6 +332,45 @@ function AppShell({
     return () => clearInterval(t);
   }, []);
 
+  const [theme, setThemeState] = useState<ThemePreference>(
+    () => state.me.theme ?? readStoredTheme(),
+  );
+  const [showStats, setShowStats] = useState<boolean>(() => readShowStats());
+
+  // Server's preference is the source of truth — adopt it whenever a refetch
+  // (e.g. WS bridge, manual Obnovit) brings a new value.
+  useEffect(() => {
+    if (state.me.theme && state.me.theme !== theme) setThemeState(state.me.theme);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state.me.theme]);
+
+  // Apply the resolved class on the document, follow OS changes when system.
+  useEffect(() => {
+    writeStoredTheme(theme);
+    const mq = window.matchMedia('(prefers-color-scheme: dark)');
+    const apply = (): void => applyThemeClass(resolveTheme(theme, mq.matches));
+    apply();
+    if (theme !== 'system') return;
+    mq.addEventListener('change', apply);
+    return () => mq.removeEventListener('change', apply);
+  }, [theme]);
+
+  function handleSetTheme(next: ThemePreference): void {
+    setThemeState(next);
+    void updateTheme(state.session, next).catch(() => {
+      // Best-effort: localStorage + class already updated; a network blip
+      // just delays cross-device sync, doesn't break the popup.
+    });
+  }
+
+  function handleToggleStats(): void {
+    setShowStats((v) => {
+      const next = !v;
+      writeShowStats(next);
+      return next;
+    });
+  }
+
   const sync = useExtensionSync({
     session: state.session,
     wsUrl: state.me.wsUrl,
@@ -326,19 +379,23 @@ function AppShell({
   });
 
   return (
-    <div className="w-[380px] divide-y divide-zinc-100 text-sm">
+    <div className="w-[380px] divide-y divide-zinc-100 text-sm dark:divide-zinc-800/60">
       <Header
         me={state.me}
         apiBase={state.session.apiBase}
         online={sync.online}
         pending={sync.pending}
         conflicts={sync.conflicts}
+        theme={theme}
+        showStats={showStats}
         onRefresh={() => void onChange()}
+        onSetTheme={handleSetTheme}
+        onToggleStats={handleToggleStats}
         onLogout={onLogout}
       />
       <StartRow catalog={state.catalog} onStart={sync.executeStart} />
       <RunningList entries={state.timer.running} now={now} onStop={sync.executeStop} />
-      <SummaryCards summary={state.timer.summary} />
+      {showStats ? <SummaryCards summary={state.timer.summary} /> : null}
       <HistoryList
         entries={state.timer.history ?? []}
         onPlayAgain={sync.executePlayAgain}
@@ -363,7 +420,11 @@ function Header({
   online,
   pending,
   conflicts,
+  theme,
+  showStats,
   onRefresh,
+  onSetTheme,
+  onToggleStats,
   onLogout,
 }: {
   me: MeResponse;
@@ -371,21 +432,27 @@ function Header({
   online: boolean;
   pending: number;
   conflicts: number;
+  theme: ThemePreference;
+  showStats: boolean;
   onRefresh: () => void;
+  onSetTheme: (t: ThemePreference) => void;
+  onToggleStats: () => void;
   onLogout: () => void | Promise<void>;
 }): ReactElement {
   return (
     <div className="flex items-center justify-between px-3 py-2">
       <div className="min-w-0">
-        <div className="truncate text-xs font-medium text-zinc-900">{user.fullName}</div>
-        <div className="truncate text-[10px] text-zinc-500">
+        <div className="truncate text-xs font-medium text-zinc-900 dark:text-zinc-100">
+          {user.fullName}
+        </div>
+        <div className="truncate text-[10px] text-zinc-500 dark:text-zinc-400">
           {user.memberships[0]?.companyName ?? '— bez firmy —'}
         </div>
       </div>
       <div className="flex items-center gap-1.5">
         {!online ? (
           <span
-            className="rounded-full bg-amber-100 px-1.5 py-0.5 text-[10px] font-medium text-amber-900"
+            className="rounded-full bg-amber-100 px-1.5 py-0.5 text-[10px] font-medium text-amber-900 dark:bg-amber-900/40 dark:text-amber-200"
             title="Offline — změny se uloží do fronty a synchronizují po obnovení připojení"
           >
             Offline
@@ -393,7 +460,7 @@ function Header({
         ) : null}
         {pending > 0 ? (
           <span
-            className="rounded-full bg-blue-100 px-1.5 py-0.5 text-[10px] font-medium text-blue-900"
+            className="rounded-full bg-blue-100 px-1.5 py-0.5 text-[10px] font-medium text-blue-900 dark:bg-blue-900/40 dark:text-blue-200"
             title="Čekající synchronizace"
           >
             ⟳ {pending}
@@ -401,25 +468,47 @@ function Header({
         ) : null}
         {conflicts > 0 ? (
           <span
-            className="rounded-full bg-red-100 px-1.5 py-0.5 text-[10px] font-medium text-red-900"
+            className="rounded-full bg-red-100 px-1.5 py-0.5 text-[10px] font-medium text-red-900 dark:bg-red-900/40 dark:text-red-200"
             title="Konflikty zahozeny serverem"
           >
             ! {conflicts}
           </span>
         ) : null}
-        <MoreMenu apiBase={apiBase} onRefresh={onRefresh} onLogout={onLogout} />
+        <MoreMenu
+          apiBase={apiBase}
+          theme={theme}
+          showStats={showStats}
+          onRefresh={onRefresh}
+          onSetTheme={onSetTheme}
+          onToggleStats={onToggleStats}
+          onLogout={onLogout}
+        />
       </div>
     </div>
   );
 }
 
+const THEME_OPTIONS: { value: ThemePreference; label: string }[] = [
+  { value: 'light', label: 'Světlý' },
+  { value: 'dark', label: 'Tmavý' },
+  { value: 'system', label: 'Systémový' },
+];
+
 function MoreMenu({
   apiBase,
+  theme,
+  showStats,
   onRefresh,
+  onSetTheme,
+  onToggleStats,
   onLogout,
 }: {
   apiBase: string;
+  theme: ThemePreference;
+  showStats: boolean;
   onRefresh: () => void;
+  onSetTheme: (t: ThemePreference) => void;
+  onToggleStats: () => void;
   onLogout: () => void | Promise<void>;
 }): ReactElement {
   const [open, setOpen] = useState(false);
@@ -460,7 +549,7 @@ function MoreMenu({
         aria-haspopup="menu"
         aria-expanded={open}
         title="Více"
-        className="flex h-7 w-7 items-center justify-center rounded text-zinc-600 hover:bg-zinc-100"
+        className="flex h-7 w-7 items-center justify-center rounded text-zinc-600 hover:bg-zinc-100 dark:text-zinc-400 dark:hover:bg-zinc-800"
       >
         <span aria-hidden className="text-base leading-none">
           ⋯
@@ -469,7 +558,7 @@ function MoreMenu({
       {open ? (
         <div
           role="menu"
-          className="absolute right-0 top-full z-10 mt-1 w-44 overflow-hidden rounded-md border border-zinc-200 bg-white shadow-lg"
+          className="absolute right-0 top-full z-10 mt-1 w-48 overflow-hidden rounded-md border border-zinc-200 bg-white shadow-lg dark:border-zinc-700 dark:bg-zinc-900"
         >
           <button
             type="button"
@@ -478,10 +567,10 @@ function MoreMenu({
               openDashboard(apiBase);
               setOpen(false);
             }}
-            className="flex w-full items-center justify-between px-3 py-2 text-left text-xs text-zinc-700 hover:bg-zinc-50"
+            className="flex w-full items-center justify-between px-3 py-2 text-left text-xs text-zinc-700 hover:bg-zinc-50 dark:text-zinc-300 dark:hover:bg-zinc-800"
           >
             <span>Dashboard</span>
-            <span aria-hidden className="text-zinc-400">
+            <span aria-hidden className="text-zinc-400 dark:text-zinc-500">
               ↗
             </span>
           </button>
@@ -490,10 +579,10 @@ function MoreMenu({
             role="menuitem"
             onClick={() => void handleRefresh()}
             disabled={refreshing}
-            className="flex w-full items-center justify-between px-3 py-2 text-left text-xs text-zinc-700 hover:bg-zinc-50 disabled:opacity-60"
+            className="flex w-full items-center justify-between px-3 py-2 text-left text-xs text-zinc-700 hover:bg-zinc-50 disabled:opacity-60 dark:text-zinc-300 dark:hover:bg-zinc-800"
           >
             <span>{refreshing ? 'Načítám…' : 'Obnovit'}</span>
-            <span aria-hidden className="text-zinc-400">
+            <span aria-hidden className="text-zinc-400 dark:text-zinc-500">
               ⟳
             </span>
           </button>
@@ -501,13 +590,60 @@ function MoreMenu({
             type="button"
             role="menuitem"
             onClick={() => {
+              onToggleStats();
+              setOpen(false);
+            }}
+            className="flex w-full items-center justify-between px-3 py-2 text-left text-xs text-zinc-700 hover:bg-zinc-50 dark:text-zinc-300 dark:hover:bg-zinc-800"
+          >
+            <span>{showStats ? 'Skrýt statistiky' : 'Zobrazit statistiky'}</span>
+            <span aria-hidden className="text-zinc-400 dark:text-zinc-500">
+              {showStats ? '◐' : '○'}
+            </span>
+          </button>
+          <div
+            role="group"
+            aria-label="Motiv"
+            className="border-t border-zinc-100 dark:border-zinc-800"
+          >
+            <div className="px-3 pt-2 text-[9px] font-medium uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
+              Motiv
+            </div>
+            {THEME_OPTIONS.map((opt) => {
+              const active = theme === opt.value;
+              return (
+                <button
+                  key={opt.value}
+                  type="button"
+                  role="menuitemradio"
+                  aria-checked={active}
+                  onClick={() => {
+                    onSetTheme(opt.value);
+                    setOpen(false);
+                  }}
+                  className="flex w-full items-center justify-between px-3 py-1.5 text-left text-xs text-zinc-700 hover:bg-zinc-50 dark:text-zinc-300 dark:hover:bg-zinc-800"
+                >
+                  <span>{opt.label}</span>
+                  <span
+                    aria-hidden
+                    className={active ? 'text-zinc-900 dark:text-zinc-100' : 'text-transparent'}
+                  >
+                    ✓
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+          <button
+            type="button"
+            role="menuitem"
+            onClick={() => {
               setOpen(false);
               void onLogout();
             }}
-            className="flex w-full items-center justify-between px-3 py-2 text-left text-xs text-zinc-700 hover:bg-zinc-50"
+            className="flex w-full items-center justify-between border-t border-zinc-100 px-3 py-2 text-left text-xs text-zinc-700 hover:bg-zinc-50 dark:border-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-800"
           >
             <span>Odhlásit</span>
-            <span aria-hidden className="text-zinc-400">
+            <span aria-hidden className="text-zinc-400 dark:text-zinc-500">
               ⏻
             </span>
           </button>
@@ -536,12 +672,12 @@ function SummaryCards({ summary }: { summary: TimerSummary | undefined }): React
       {cards.map((c) => (
         <div
           key={c.label}
-          className="rounded-md border border-zinc-200 bg-zinc-50 px-2 py-1.5 text-center"
+          className="rounded-md border border-zinc-200 bg-zinc-50 px-2 py-1.5 text-center dark:border-zinc-800 dark:bg-zinc-900"
         >
-          <div className="truncate text-[9px] font-medium uppercase tracking-wide text-zinc-500">
+          <div className="truncate text-[9px] font-medium uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
             {c.label}
           </div>
-          <div className="mt-0.5 font-mono text-xs font-semibold tabular-nums text-zinc-900">
+          <div className="mt-0.5 font-mono text-xs font-semibold tabular-nums text-zinc-900 dark:text-zinc-100">
             {fmtHM(c.ms)}
           </div>
         </div>
@@ -596,7 +732,7 @@ function StartRow({
   return (
     <div className="space-y-2 p-3">
       {error ? (
-        <div className="rounded border border-red-200 bg-red-50 px-2 py-1 text-xs text-red-800">
+        <div className="rounded border border-red-200 bg-red-50 px-2 py-1 text-xs text-red-800 dark:border-red-900 dark:bg-red-950/40 dark:text-red-200">
           {error}
         </div>
       ) : null}
@@ -604,7 +740,7 @@ function StartRow({
         value={description}
         onChange={(e) => setDescription(e.target.value)}
         placeholder="Co děláte?"
-        className="block w-full rounded border border-zinc-200 px-2 py-1.5 text-sm focus:border-zinc-900 focus:outline-none"
+        className="block w-full rounded border border-zinc-200 bg-white px-2 py-1.5 text-sm text-zinc-900 placeholder:text-zinc-400 focus:border-zinc-900 focus:outline-none dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100 dark:placeholder:text-zinc-500 dark:focus:border-zinc-100"
       />
       <div className="grid grid-cols-2 gap-2">
         <select
@@ -613,7 +749,7 @@ function StartRow({
             setClientId(e.target.value);
             setProjectId('');
           }}
-          className="rounded border border-zinc-200 px-2 py-1.5 text-xs"
+          className="rounded border border-zinc-200 bg-white px-2 py-1.5 text-xs text-zinc-900 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100"
         >
           <option value="">— klient —</option>
           {catalog.clients.map((c) => (
@@ -626,7 +762,7 @@ function StartRow({
           value={projectId}
           onChange={(e) => setProjectId(e.target.value)}
           disabled={!clientId}
-          className="rounded border border-zinc-200 px-2 py-1.5 text-xs disabled:bg-zinc-50"
+          className="rounded border border-zinc-200 bg-white px-2 py-1.5 text-xs text-zinc-900 disabled:bg-zinc-50 disabled:text-zinc-400 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100 dark:disabled:bg-zinc-800 dark:disabled:text-zinc-500"
         >
           <option value="">— projekt —</option>
           {projects.map((p) => (
@@ -649,7 +785,7 @@ function StartRow({
                 style={
                   active
                     ? { backgroundColor: t.color, borderColor: t.color, color: '#fff' }
-                    : { borderColor: '#e4e4e7', color: '#3f3f46' }
+                    : { borderColor: '#52525b', color: '#a1a1aa' }
                 }
               >
                 {t.name}
@@ -662,7 +798,7 @@ function StartRow({
         type="button"
         onClick={start}
         disabled={pending}
-        className="w-full rounded-md bg-zinc-900 py-2 font-medium text-white hover:bg-zinc-800 disabled:bg-zinc-300"
+        className="w-full rounded-md bg-zinc-900 py-2 font-medium text-white hover:bg-zinc-800 disabled:bg-zinc-300 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200 dark:disabled:bg-zinc-700 dark:disabled:text-zinc-400"
       >
         {pending ? 'Spouštím…' : '▶ Spustit'}
       </button>
@@ -688,30 +824,32 @@ function RunningList({
   if (entries.length === 0) return null;
   return (
     <div className="space-y-1.5 p-3">
-      <div className="text-[10px] font-medium uppercase tracking-wide text-zinc-500">
+      <div className="text-[10px] font-medium uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
         Probíhá ({entries.length})
       </div>
       {entries.map((e) => (
         <div
           key={e.id}
-          className="flex items-center justify-between gap-2 rounded-md bg-zinc-50 px-2 py-1.5"
+          className="flex items-center justify-between gap-2 rounded-md bg-zinc-50 px-2 py-1.5 dark:bg-zinc-900"
         >
           <div className="min-w-0">
-            <div className="truncate text-sm font-medium text-zinc-900">
-              {e.description || <span className="text-zinc-400">(bez popisu)</span>}
+            <div className="truncate text-sm font-medium text-zinc-900 dark:text-zinc-100">
+              {e.description || (
+                <span className="text-zinc-400 dark:text-zinc-500">(bez popisu)</span>
+              )}
             </div>
-            <div className="truncate text-[10px] text-zinc-500">
+            <div className="truncate text-[10px] text-zinc-500 dark:text-zinc-400">
               {[e.clientName, e.projectName].filter(Boolean).join(' · ') || '—'}
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <span className="font-mono text-xs font-semibold text-zinc-900 tabular-nums">
+            <span className="font-mono text-xs font-semibold tabular-nums text-zinc-900 dark:text-zinc-100">
               {fmtDuration(now - new Date(e.startedAt).getTime())}
             </span>
             <button
               type="button"
               onClick={() => void onStop(e.id)}
-              className="rounded bg-red-600 px-2 py-1 text-[10px] font-semibold text-white hover:bg-red-700"
+              className="rounded bg-red-600 px-2 py-1 text-[10px] font-semibold text-white hover:bg-red-700 dark:bg-red-700 dark:hover:bg-red-600"
             >
               Stop
             </button>
@@ -748,11 +886,11 @@ function HistoryList({
 
   return (
     <div className="p-3">
-      <div className="mb-1 text-[10px] font-medium uppercase tracking-wide text-zinc-500">
+      <div className="mb-1 text-[10px] font-medium uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
         Historie
       </div>
       {entries.length === 0 ? (
-        <div className="rounded-md bg-zinc-50 px-3 py-4 text-center text-xs text-zinc-400">
+        <div className="rounded-md bg-zinc-50 px-3 py-4 text-center text-xs text-zinc-400 dark:bg-zinc-900 dark:text-zinc-500">
           Žádné dokončené záznamy
         </div>
       ) : (
@@ -767,19 +905,21 @@ function HistoryList({
                     className="mt-2 flex items-center gap-2 pb-1 pt-1 first:mt-0"
                     aria-label={`Měsíc: ${g.monthLabel}`}
                   >
-                    <span className="text-[10px] font-semibold uppercase tracking-wide text-zinc-700">
+                    <span className="text-[10px] font-semibold uppercase tracking-wide text-zinc-700 dark:text-zinc-300">
                       {g.monthLabel}
                     </span>
-                    <span className="h-px flex-1 bg-zinc-200" aria-hidden />
+                    <span className="h-px flex-1 bg-zinc-200 dark:bg-zinc-800" aria-hidden />
                   </div>
                 ) : null}
                 <div
-                  className="flex items-baseline gap-2 border-b border-zinc-100 pb-0.5 pt-1"
+                  className="flex items-baseline gap-2 border-b border-zinc-100 pb-0.5 pt-1 dark:border-zinc-800/60"
                   aria-label={`Skupina: ${g.label}`}
                 >
-                  <span className="text-[10px] font-medium text-zinc-600">{g.label}</span>
-                  <span className="h-px flex-1 bg-zinc-100" aria-hidden />
-                  <span className="font-mono text-[10px] text-zinc-500 tabular-nums">
+                  <span className="text-[10px] font-medium text-zinc-600 dark:text-zinc-400">
+                    {g.label}
+                  </span>
+                  <span className="h-px flex-1 bg-zinc-100 dark:bg-zinc-800/60" aria-hidden />
+                  <span className="font-mono text-[10px] tabular-nums text-zinc-500 dark:text-zinc-400">
                     {fmtDuration(g.total)}
                   </span>
                 </div>
@@ -789,15 +929,17 @@ function HistoryList({
                     return (
                       <div key={e.id} className="flex items-center justify-between gap-2 px-1 py-1">
                         <div className="min-w-0">
-                          <div className="truncate text-xs font-medium text-zinc-900">
-                            {e.description || <span className="text-zinc-400">(bez popisu)</span>}
+                          <div className="truncate text-xs font-medium text-zinc-900 dark:text-zinc-100">
+                            {e.description || (
+                              <span className="text-zinc-400 dark:text-zinc-500">(bez popisu)</span>
+                            )}
                           </div>
-                          <div className="truncate text-[10px] text-zinc-500">
+                          <div className="truncate text-[10px] text-zinc-500 dark:text-zinc-400">
                             {[e.clientName, e.projectName].filter(Boolean).join(' · ') || '—'}
                           </div>
                         </div>
                         <div className="flex items-center gap-1.5">
-                          <span className="font-mono text-[11px] tabular-nums text-zinc-700">
+                          <span className="font-mono text-[11px] tabular-nums text-zinc-700 dark:text-zinc-300">
                             {e.endedAt
                               ? fmtDuration(
                                   new Date(e.endedAt).getTime() - new Date(e.startedAt).getTime(),
@@ -806,12 +948,14 @@ function HistoryList({
                           </span>
                           {confirming ? (
                             <>
-                              <span className="text-[10px] text-zinc-600">Smazat?</span>
+                              <span className="text-[10px] text-zinc-600 dark:text-zinc-400">
+                                Smazat?
+                              </span>
                               <button
                                 type="button"
                                 title="Potvrdit smazání"
                                 onClick={() => void confirmDelete(e.id)}
-                                className="rounded bg-red-600 px-1.5 py-0.5 text-[11px] font-semibold text-white hover:bg-red-700"
+                                className="rounded bg-red-600 px-1.5 py-0.5 text-[11px] font-semibold text-white hover:bg-red-700 dark:bg-red-700 dark:hover:bg-red-600"
                               >
                                 ✓
                               </button>
@@ -819,7 +963,7 @@ function HistoryList({
                                 type="button"
                                 title="Zrušit"
                                 onClick={() => setPendingDeleteId(null)}
-                                className="rounded border border-zinc-200 px-1.5 py-0.5 text-[11px] text-zinc-600 hover:bg-zinc-100"
+                                className="rounded border border-zinc-200 px-1.5 py-0.5 text-[11px] text-zinc-600 hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-400 dark:hover:bg-zinc-800"
                               >
                                 ✗
                               </button>
@@ -830,7 +974,7 @@ function HistoryList({
                                 type="button"
                                 title="Spustit znovu"
                                 onClick={() => void onPlayAgain(e.id)}
-                                className="rounded px-1.5 py-0.5 text-[11px] hover:bg-zinc-100"
+                                className="rounded px-1.5 py-0.5 text-[11px] text-zinc-700 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-zinc-800"
                               >
                                 ▶
                               </button>
@@ -838,7 +982,7 @@ function HistoryList({
                                 type="button"
                                 title="Smazat"
                                 onClick={() => setPendingDeleteId(e.id)}
-                                className="rounded px-1.5 py-0.5 text-[11px] hover:bg-zinc-100"
+                                className="rounded px-1.5 py-0.5 text-[11px] text-zinc-700 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-zinc-800"
                               >
                                 ✕
                               </button>
