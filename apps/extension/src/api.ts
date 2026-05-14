@@ -52,15 +52,30 @@ export interface EntryDto {
   tags: TagDto[];
 }
 
+export interface TimerSummary {
+  /** Total ms of completed entries whose start is within the current ISO week (Mon, Europe/Prague). */
+  weekMs: number;
+  /** Total ms of completed entries whose start is within the current calendar month. */
+  monthMs: number;
+  /** Total ms of completed entries whose start is within the previous calendar month. */
+  lastMonthMs: number;
+}
+
 export interface TimerResponse {
   companyId: string | null;
   running: EntryDto[];
+  /** Today's completed entries — used by the web /timer page. */
+  today?: EntryDto[];
   /**
-   * Last 5 completed entries (any day), newest first.
-   * Optional so the popup tolerates a brief server/extension version skew
-   * (e.g. extension reloaded before the web app finishes redeploying).
+   * Completed entries from start-of-last-month through end-of-this-month
+   * (extended to end-of-week when the current week spills into the next month).
+   * Newest first. Optional so the popup tolerates a brief server/extension
+   * version skew (e.g. extension reloaded before the web app finishes
+   * redeploying).
    */
-  recent?: EntryDto[];
+  history?: EntryDto[];
+  /** Pre-computed totals shown in the popup's summary cards. */
+  summary?: TimerSummary;
 }
 
 export interface ApiSession {

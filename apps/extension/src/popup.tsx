@@ -1,5 +1,5 @@
 import type { ReactElement } from 'react';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ApiError,
   type ApiSession,
@@ -7,6 +7,7 @@ import {
   type MeResponse,
   type StartTimerInput,
   type TimerResponse,
+  type TimerSummary,
   DEFAULT_API_BASE,
   getApiBase,
   getCatalog,
@@ -332,12 +333,14 @@ function AppShell({
         online={sync.online}
         pending={sync.pending}
         conflicts={sync.conflicts}
+        onRefresh={() => void onChange()}
         onLogout={onLogout}
       />
       <StartRow catalog={state.catalog} onStart={sync.executeStart} />
       <RunningList entries={state.timer.running} now={now} onStop={sync.executeStop} />
-      <RecentList
-        entries={state.timer.recent ?? []}
+      <SummaryCards summary={state.timer.summary} />
+      <HistoryList
+        entries={state.timer.history ?? []}
         onPlayAgain={sync.executePlayAgain}
         onDelete={sync.executeDelete}
       />
@@ -360,6 +363,7 @@ function Header({
   online,
   pending,
   conflicts,
+  onRefresh,
   onLogout,
 }: {
   me: MeResponse;
@@ -367,6 +371,7 @@ function Header({
   online: boolean;
   pending: number;
   conflicts: number;
+  onRefresh: () => void;
   onLogout: () => void | Promise<void>;
 }): ReactElement {
   return (
@@ -402,22 +407,145 @@ function Header({
             ! {conflicts}
           </span>
         ) : null}
-        <button
-          type="button"
-          onClick={() => openDashboard(apiBase)}
-          className="rounded px-2 py-1 text-xs font-medium text-zinc-700 hover:bg-zinc-100"
-          title="Otevřít dashboard"
-        >
-          Dashboard ↗
-        </button>
-        <button
-          type="button"
-          onClick={onLogout}
-          className="rounded px-2 py-1 text-xs text-zinc-500 hover:bg-zinc-100"
-        >
-          Odhlásit
-        </button>
+        <MoreMenu apiBase={apiBase} onRefresh={onRefresh} onLogout={onLogout} />
       </div>
+    </div>
+  );
+}
+
+function MoreMenu({
+  apiBase,
+  onRefresh,
+  onLogout,
+}: {
+  apiBase: string;
+  onRefresh: () => void;
+  onLogout: () => void | Promise<void>;
+}): ReactElement {
+  const [open, setOpen] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const onDocClick = (e: MouseEvent): void => {
+      if (!ref.current?.contains(e.target as Node)) setOpen(false);
+    };
+    const onKey = (e: KeyboardEvent): void => {
+      if (e.key === 'Escape') setOpen(false);
+    };
+    document.addEventListener('mousedown', onDocClick);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('mousedown', onDocClick);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [open]);
+
+  async function handleRefresh(): Promise<void> {
+    setRefreshing(true);
+    try {
+      await onRefresh();
+    } finally {
+      setRefreshing(false);
+      setOpen(false);
+    }
+  }
+
+  return (
+    <div ref={ref} className="relative">
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        aria-haspopup="menu"
+        aria-expanded={open}
+        title="Více"
+        className="flex h-7 w-7 items-center justify-center rounded text-zinc-600 hover:bg-zinc-100"
+      >
+        <span aria-hidden className="text-base leading-none">
+          ⋯
+        </span>
+      </button>
+      {open ? (
+        <div
+          role="menu"
+          className="absolute right-0 top-full z-10 mt-1 w-44 overflow-hidden rounded-md border border-zinc-200 bg-white shadow-lg"
+        >
+          <button
+            type="button"
+            role="menuitem"
+            onClick={() => {
+              openDashboard(apiBase);
+              setOpen(false);
+            }}
+            className="flex w-full items-center justify-between px-3 py-2 text-left text-xs text-zinc-700 hover:bg-zinc-50"
+          >
+            <span>Dashboard</span>
+            <span aria-hidden className="text-zinc-400">
+              ↗
+            </span>
+          </button>
+          <button
+            type="button"
+            role="menuitem"
+            onClick={() => void handleRefresh()}
+            disabled={refreshing}
+            className="flex w-full items-center justify-between px-3 py-2 text-left text-xs text-zinc-700 hover:bg-zinc-50 disabled:opacity-60"
+          >
+            <span>{refreshing ? 'Načítám…' : 'Obnovit'}</span>
+            <span aria-hidden className="text-zinc-400">
+              ⟳
+            </span>
+          </button>
+          <button
+            type="button"
+            role="menuitem"
+            onClick={() => {
+              setOpen(false);
+              void onLogout();
+            }}
+            className="flex w-full items-center justify-between px-3 py-2 text-left text-xs text-zinc-700 hover:bg-zinc-50"
+          >
+            <span>Odhlásit</span>
+            <span aria-hidden className="text-zinc-400">
+              ⏻
+            </span>
+          </button>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+function fmtHM(ms: number): string {
+  const total = Math.max(0, Math.floor(ms / 60_000));
+  const h = Math.floor(total / 60);
+  const m = total % 60;
+  return `${h}h ${String(m).padStart(2, '0')}m`;
+}
+
+function SummaryCards({ summary }: { summary: TimerSummary | undefined }): ReactElement {
+  const s = summary ?? { weekMs: 0, monthMs: 0, lastMonthMs: 0 };
+  const cards: { label: string; ms: number }[] = [
+    { label: 'Tento týden', ms: s.weekMs },
+    { label: 'Tento měsíc', ms: s.monthMs },
+    { label: 'Minulý měsíc', ms: s.lastMonthMs },
+  ];
+  return (
+    <div className="grid grid-cols-3 gap-2 p-3">
+      {cards.map((c) => (
+        <div
+          key={c.label}
+          className="rounded-md border border-zinc-200 bg-zinc-50 px-2 py-1.5 text-center"
+        >
+          <div className="truncate text-[9px] font-medium uppercase tracking-wide text-zinc-500">
+            {c.label}
+          </div>
+          <div className="mt-0.5 font-mono text-xs font-semibold tabular-nums text-zinc-900">
+            {fmtHM(c.ms)}
+          </div>
+        </div>
+      ))}
     </div>
   );
 }
@@ -594,7 +722,7 @@ function RunningList({
   );
 }
 
-function RecentList({
+function HistoryList({
   entries,
   onPlayAgain,
   onDelete,
@@ -604,11 +732,24 @@ function RecentList({
   onDelete: (entryId: string) => Promise<void>;
 }): ReactElement {
   const groups = groupRecentByDay(entries, new Date());
+  const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
+
+  // Cancel any in-flight confirmation if the underlying list refreshes the row away.
+  useEffect(() => {
+    if (pendingDeleteId && !entries.some((e) => e.id === pendingDeleteId)) {
+      setPendingDeleteId(null);
+    }
+  }, [entries, pendingDeleteId]);
+
+  async function confirmDelete(id: string): Promise<void> {
+    setPendingDeleteId(null);
+    await onDelete(id);
+  }
 
   return (
     <div className="p-3">
       <div className="mb-1 text-[10px] font-medium uppercase tracking-wide text-zinc-500">
-        Nedávno
+        Historie
       </div>
       {entries.length === 0 ? (
         <div className="rounded-md bg-zinc-50 px-3 py-4 text-center text-xs text-zinc-400">
@@ -616,59 +757,101 @@ function RecentList({
         </div>
       ) : (
         <div className="space-y-2">
-          {groups.map((g) => (
-            <div key={g.key}>
-              <div
-                className="flex items-baseline gap-2 border-b border-zinc-100 pb-0.5 pt-1"
-                aria-label={`Skupina: ${g.label}`}
-              >
-                <span className="text-[10px] font-medium text-zinc-600">{g.label}</span>
-                <span className="h-px flex-1 bg-zinc-100" aria-hidden />
-                <span className="font-mono text-[10px] text-zinc-500 tabular-nums">
-                  {fmtDuration(g.total)}
-                </span>
-              </div>
-              <div className="space-y-0.5 pt-1">
-                {g.items.map((e) => (
-                  <div key={e.id} className="flex items-center justify-between gap-2 px-1 py-1">
-                    <div className="min-w-0">
-                      <div className="truncate text-xs font-medium text-zinc-900">
-                        {e.description || <span className="text-zinc-400">(bez popisu)</span>}
-                      </div>
-                      <div className="truncate text-[10px] text-zinc-500">
-                        {[e.clientName, e.projectName].filter(Boolean).join(' · ') || '—'}
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-1.5">
-                      <span className="font-mono text-[11px] tabular-nums text-zinc-700">
-                        {e.endedAt
-                          ? fmtDuration(
-                              new Date(e.endedAt).getTime() - new Date(e.startedAt).getTime(),
-                            )
-                          : '…'}
-                      </span>
-                      <button
-                        type="button"
-                        title="Spustit znovu"
-                        onClick={() => void onPlayAgain(e.id)}
-                        className="rounded px-1.5 py-0.5 text-[11px] hover:bg-zinc-100"
-                      >
-                        ▶
-                      </button>
-                      <button
-                        type="button"
-                        title="Smazat"
-                        onClick={() => void onDelete(e.id)}
-                        className="rounded px-1.5 py-0.5 text-[11px] hover:bg-zinc-100"
-                      >
-                        ✕
-                      </button>
-                    </div>
+          {groups.map((g, i) => {
+            const prev = groups[i - 1];
+            const showMonth = !prev || prev.monthKey !== g.monthKey;
+            return (
+              <div key={g.key}>
+                {showMonth ? (
+                  <div
+                    className="mt-2 flex items-center gap-2 pb-1 pt-1 first:mt-0"
+                    aria-label={`Měsíc: ${g.monthLabel}`}
+                  >
+                    <span className="text-[10px] font-semibold uppercase tracking-wide text-zinc-700">
+                      {g.monthLabel}
+                    </span>
+                    <span className="h-px flex-1 bg-zinc-200" aria-hidden />
                   </div>
-                ))}
+                ) : null}
+                <div
+                  className="flex items-baseline gap-2 border-b border-zinc-100 pb-0.5 pt-1"
+                  aria-label={`Skupina: ${g.label}`}
+                >
+                  <span className="text-[10px] font-medium text-zinc-600">{g.label}</span>
+                  <span className="h-px flex-1 bg-zinc-100" aria-hidden />
+                  <span className="font-mono text-[10px] text-zinc-500 tabular-nums">
+                    {fmtDuration(g.total)}
+                  </span>
+                </div>
+                <div className="space-y-0.5 pt-1">
+                  {g.items.map((e) => {
+                    const confirming = pendingDeleteId === e.id;
+                    return (
+                      <div key={e.id} className="flex items-center justify-between gap-2 px-1 py-1">
+                        <div className="min-w-0">
+                          <div className="truncate text-xs font-medium text-zinc-900">
+                            {e.description || <span className="text-zinc-400">(bez popisu)</span>}
+                          </div>
+                          <div className="truncate text-[10px] text-zinc-500">
+                            {[e.clientName, e.projectName].filter(Boolean).join(' · ') || '—'}
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          <span className="font-mono text-[11px] tabular-nums text-zinc-700">
+                            {e.endedAt
+                              ? fmtDuration(
+                                  new Date(e.endedAt).getTime() - new Date(e.startedAt).getTime(),
+                                )
+                              : '…'}
+                          </span>
+                          {confirming ? (
+                            <>
+                              <span className="text-[10px] text-zinc-600">Smazat?</span>
+                              <button
+                                type="button"
+                                title="Potvrdit smazání"
+                                onClick={() => void confirmDelete(e.id)}
+                                className="rounded bg-red-600 px-1.5 py-0.5 text-[11px] font-semibold text-white hover:bg-red-700"
+                              >
+                                ✓
+                              </button>
+                              <button
+                                type="button"
+                                title="Zrušit"
+                                onClick={() => setPendingDeleteId(null)}
+                                className="rounded border border-zinc-200 px-1.5 py-0.5 text-[11px] text-zinc-600 hover:bg-zinc-100"
+                              >
+                                ✗
+                              </button>
+                            </>
+                          ) : (
+                            <>
+                              <button
+                                type="button"
+                                title="Spustit znovu"
+                                onClick={() => void onPlayAgain(e.id)}
+                                className="rounded px-1.5 py-0.5 text-[11px] hover:bg-zinc-100"
+                              >
+                                ▶
+                              </button>
+                              <button
+                                type="button"
+                                title="Smazat"
+                                onClick={() => setPendingDeleteId(e.id)}
+                                className="rounded px-1.5 py-0.5 text-[11px] hover:bg-zinc-100"
+                              >
+                                ✕
+                              </button>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>

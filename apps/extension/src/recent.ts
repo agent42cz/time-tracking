@@ -1,5 +1,5 @@
 /**
- * Pure helpers behind the popup's "Nedávno" (recent entries) section.
+ * Pure helpers behind the popup's history section.
  * Kept in a separate module so they can be unit-tested without React.
  */
 
@@ -17,15 +17,41 @@ export interface RecentDayGroup {
   key: string;
   /** Czech-localized label: "Dnes", "Včera", or e.g. "Po 12.05.". */
   label: string;
+  /** YYYY-MM key — for inserting month dividers between groups. */
+  monthKey: string;
+  /** Czech month-divider label, e.g. "Květen 2026". */
+  monthLabel: string;
   /** Sum of entry durations for the group, in ms. Running entries clamp to `now`. */
   total: number;
   items: RecentEntryInput[];
 }
 
 const WEEKDAY_CS = ['Ne', 'Po', 'Út', 'St', 'Čt', 'Pá', 'So'];
+const MONTH_CS = [
+  'Leden',
+  'Únor',
+  'Březen',
+  'Duben',
+  'Květen',
+  'Červen',
+  'Červenec',
+  'Srpen',
+  'Září',
+  'Říjen',
+  'Listopad',
+  'Prosinec',
+];
 
 export function dayKey(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+export function monthKey(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+}
+
+export function monthLabel(d: Date): string {
+  return `${MONTH_CS[d.getMonth()] ?? ''} ${d.getFullYear()}`;
 }
 
 export function dayLabel(d: Date, todayKey: string, yesterdayKey: string): string {
@@ -66,6 +92,8 @@ export function groupRecentByDay(
       groups.push({
         key: k,
         label: dayLabel(started, todayKey, yesterdayKey),
+        monthKey: monthKey(started),
+        monthLabel: monthLabel(started),
         total: dur,
         items: [e],
       });

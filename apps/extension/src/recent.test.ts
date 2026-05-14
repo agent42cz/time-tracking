@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { dayKey, dayLabel, groupRecentByDay, type RecentEntryInput } from './recent.js';
+import {
+  dayKey,
+  dayLabel,
+  groupRecentByDay,
+  monthKey,
+  monthLabel,
+  type RecentEntryInput,
+} from './recent.js';
 
 function entry(partial: Partial<RecentEntryInput> & { startedAt: string }): RecentEntryInput {
   return {
@@ -77,6 +84,32 @@ describe('groupRecentByDay', () => {
       now,
     );
     expect(groups.map((g) => g.items.map((i) => i.id))).toEqual([['a'], ['b'], ['c']]);
+  });
+});
+
+describe('month-divider metadata', () => {
+  const now = new Date('2026-05-14T22:00:00');
+
+  it('carries monthKey + Czech monthLabel on every group', () => {
+    const groups = groupRecentByDay(
+      [
+        entry({ startedAt: '2026-05-14T20:00:00', endedAt: '2026-05-14T21:00:00' }),
+        entry({ startedAt: '2026-04-30T10:00:00', endedAt: '2026-04-30T11:00:00' }),
+      ],
+      now,
+    );
+    expect(groups[0]).toMatchObject({ monthKey: '2026-05', monthLabel: 'Květen 2026' });
+    expect(groups[1]).toMatchObject({ monthKey: '2026-04', monthLabel: 'Duben 2026' });
+  });
+
+  it('monthKey produces YYYY-MM local-zone', () => {
+    expect(monthKey(new Date('2026-05-14T12:00:00'))).toBe('2026-05');
+    expect(monthKey(new Date('2026-01-01T12:00:00'))).toBe('2026-01');
+  });
+
+  it('monthLabel returns Czech month name + year', () => {
+    expect(monthLabel(new Date('2026-05-14T12:00:00'))).toBe('Květen 2026');
+    expect(monthLabel(new Date('2025-12-31T12:00:00'))).toBe('Prosinec 2025');
   });
 });
 
