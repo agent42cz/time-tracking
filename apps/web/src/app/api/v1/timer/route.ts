@@ -1,5 +1,5 @@
 /**
- * GET  /api/v1/timer  → running timers + today's entries for the active company
+ * GET  /api/v1/timer  → running timers + the user's last 5 completed entries
  * POST /api/v1/timer  → start a timer in the active company
  *
  * Active company is the one in the `tt-company` query param if present,
@@ -23,14 +23,9 @@ export async function GET(req: NextRequest): Promise<Response> {
   if (!session) return errorCors(req, 401, 'unauthorized');
   const preferred = req.nextUrl.searchParams.get('company');
   const active = pickActiveCompany(session, preferred);
-  if (!active) return jsonCors(req, { companyId: null, running: [], today: [] });
+  if (!active) return jsonCors(req, { companyId: null, running: [], recent: [] });
 
-  const dayStart = new Date();
-  dayStart.setHours(0, 0, 0, 0);
-  const dayEnd = new Date(dayStart);
-  dayEnd.setDate(dayEnd.getDate() + 1);
-
-  const [running, today] = await Promise.all([
+  const [running, recent] = await Promise.all([
     prisma().timeEntry.findMany({
       where: {
         userId: session.userId,
@@ -47,10 +42,10 @@ export async function GET(req: NextRequest): Promise<Response> {
         companyId: active.companyId,
         deletedAt: null,
         endedAt: { not: null },
-        startedAt: { gte: dayStart, lt: dayEnd },
       },
       include: { client: true, project: true, tags: { include: { tag: true } } },
       orderBy: { startedAt: 'desc' },
+      take: 5,
     }),
   ]);
 
@@ -70,7 +65,7 @@ export async function GET(req: NextRequest): Promise<Response> {
   return jsonCors(req, {
     companyId: active.companyId,
     running: running.map(dto),
-    today: today.map(dto),
+    recent: recent.map(dto),
   });
 }
 

@@ -327,6 +327,7 @@ function AppShell({
     <div className="w-[380px] divide-y divide-zinc-100 text-sm">
       <Header
         me={state.me}
+        apiBase={state.session.apiBase}
         online={sync.online}
         pending={sync.pending}
         conflicts={sync.conflicts}
@@ -334,8 +335,8 @@ function AppShell({
       />
       <StartRow catalog={state.catalog} onStart={sync.executeStart} />
       <RunningList entries={state.timer.running} now={now} onStop={sync.executeStop} />
-      <TodayList
-        entries={state.timer.today}
+      <RecentList
+        entries={state.timer.recent}
         onPlayAgain={sync.executePlayAgain}
         onDelete={sync.executeDelete}
       />
@@ -343,14 +344,25 @@ function AppShell({
   );
 }
 
+function openDashboard(apiBase: string): void {
+  const url = `${apiBase.replace(/\/$/, '')}/dashboard`;
+  if (typeof chrome !== 'undefined' && chrome?.tabs?.create) {
+    chrome.tabs.create({ url, active: true });
+  } else {
+    window.open(url, '_blank', 'noopener');
+  }
+}
+
 function Header({
   me: user,
+  apiBase,
   online,
   pending,
   conflicts,
   onLogout,
 }: {
   me: MeResponse;
+  apiBase: string;
   online: boolean;
   pending: number;
   conflicts: number;
@@ -389,6 +401,14 @@ function Header({
             ! {conflicts}
           </span>
         ) : null}
+        <button
+          type="button"
+          onClick={() => openDashboard(apiBase)}
+          className="rounded px-2 py-1 text-xs font-medium text-zinc-700 hover:bg-zinc-100"
+          title="Otevřít dashboard"
+        >
+          Dashboard ↗
+        </button>
         <button
           type="button"
           onClick={onLogout}
@@ -573,78 +593,120 @@ function RunningList({
   );
 }
 
-function TodayList({
+interface RecentEntry {
+  id: string;
+  description: string;
+  startedAt: string;
+  endedAt: string | null;
+  clientName: string | null;
+  projectName: string | null;
+}
+
+const RECENT_WEEKDAY_CS = ['Ne', 'Po', 'Út', 'St', 'Čt', 'Pá', 'So'];
+
+function dayKey(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+function dayLabel(d: Date, todayKey: string, yesterdayKey: string): string {
+  const k = dayKey(d);
+  if (k === todayKey) return 'Dnes';
+  if (k === yesterdayKey) return 'Včera';
+  return `${RECENT_WEEKDAY_CS[d.getDay()]} ${String(d.getDate()).padStart(2, '0')}.${String(d.getMonth() + 1).padStart(2, '0')}.`;
+}
+
+function RecentList({
   entries,
   onPlayAgain,
   onDelete,
 }: {
-  entries: {
-    id: string;
-    description: string;
-    startedAt: string;
-    endedAt: string | null;
-    clientName: string | null;
-    projectName: string | null;
-  }[];
+  entries: RecentEntry[];
   onPlayAgain: (entryId: string) => Promise<void>;
   onDelete: (entryId: string) => Promise<void>;
 }): ReactElement {
+  const now = new Date();
+  const todayKey = dayKey(now);
+  const yKey = dayKey(new Date(now.getTime() - 86_400_000));
+
+  const groups: { key: string; label: string; total: number; items: RecentEntry[] }[] = [];
+  for (const e of entries) {
+    const started = new Date(e.startedAt);
+    const k = dayKey(started);
+    const dur = (e.endedAt ? new Date(e.endedAt).getTime() : Date.now()) - started.getTime();
+    const last = groups[groups.length - 1];
+    if (last && last.key === k) {
+      last.total += dur;
+      last.items.push(e);
+    } else {
+      groups.push({ key: k, label: dayLabel(started, todayKey, yKey), total: dur, items: [e] });
+    }
+  }
+
   return (
-    <div className="space-y-1 p-3">
-      <div className="flex items-center justify-between">
-        <span className="text-[10px] font-medium uppercase tracking-wide text-zinc-500">Dnes</span>
-        <span className="font-mono text-[10px] text-zinc-500 tabular-nums">
-          {fmtDuration(
-            entries.reduce(
-              (acc, e) =>
-                acc +
-                ((e.endedAt ? new Date(e.endedAt).getTime() : Date.now()) -
-                  new Date(e.startedAt).getTime()),
-              0,
-            ),
-          )}
-        </span>
+    <div className="p-3">
+      <div className="mb-1 text-[10px] font-medium uppercase tracking-wide text-zinc-500">
+        Nedávno
       </div>
       {entries.length === 0 ? (
         <div className="rounded-md bg-zinc-50 px-3 py-4 text-center text-xs text-zinc-400">
           Žádné dokončené záznamy
         </div>
       ) : (
-        entries.map((e) => (
-          <div key={e.id} className="flex items-center justify-between gap-2 px-1 py-1">
-            <div className="min-w-0">
-              <div className="truncate text-xs font-medium text-zinc-900">
-                {e.description || <span className="text-zinc-400">(bez popisu)</span>}
+        <div className="space-y-2">
+          {groups.map((g) => (
+            <div key={g.key}>
+              <div
+                className="flex items-baseline gap-2 border-b border-zinc-100 pb-0.5 pt-1"
+                aria-label={`Skupina: ${g.label}`}
+              >
+                <span className="text-[10px] font-medium text-zinc-600">{g.label}</span>
+                <span className="h-px flex-1 bg-zinc-100" aria-hidden />
+                <span className="font-mono text-[10px] text-zinc-500 tabular-nums">
+                  {fmtDuration(g.total)}
+                </span>
               </div>
-              <div className="truncate text-[10px] text-zinc-500">
-                {[e.clientName, e.projectName].filter(Boolean).join(' · ') || '—'}
+              <div className="space-y-0.5 pt-1">
+                {g.items.map((e) => (
+                  <div key={e.id} className="flex items-center justify-between gap-2 px-1 py-1">
+                    <div className="min-w-0">
+                      <div className="truncate text-xs font-medium text-zinc-900">
+                        {e.description || <span className="text-zinc-400">(bez popisu)</span>}
+                      </div>
+                      <div className="truncate text-[10px] text-zinc-500">
+                        {[e.clientName, e.projectName].filter(Boolean).join(' · ') || '—'}
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <span className="font-mono text-[11px] tabular-nums text-zinc-700">
+                        {e.endedAt
+                          ? fmtDuration(
+                              new Date(e.endedAt).getTime() - new Date(e.startedAt).getTime(),
+                            )
+                          : '…'}
+                      </span>
+                      <button
+                        type="button"
+                        title="Spustit znovu"
+                        onClick={() => void onPlayAgain(e.id)}
+                        className="rounded px-1.5 py-0.5 text-[11px] hover:bg-zinc-100"
+                      >
+                        ▶
+                      </button>
+                      <button
+                        type="button"
+                        title="Smazat"
+                        onClick={() => void onDelete(e.id)}
+                        className="rounded px-1.5 py-0.5 text-[11px] hover:bg-zinc-100"
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  </div>
+                ))}
               </div>
             </div>
-            <div className="flex items-center gap-1.5">
-              <span className="font-mono text-[11px] tabular-nums text-zinc-700">
-                {e.endedAt
-                  ? fmtDuration(new Date(e.endedAt).getTime() - new Date(e.startedAt).getTime())
-                  : '…'}
-              </span>
-              <button
-                type="button"
-                title="Spustit znovu"
-                onClick={() => void onPlayAgain(e.id)}
-                className="rounded px-1.5 py-0.5 text-[11px] hover:bg-zinc-100"
-              >
-                ▶
-              </button>
-              <button
-                type="button"
-                title="Smazat"
-                onClick={() => void onDelete(e.id)}
-                className="rounded px-1.5 py-0.5 text-[11px] hover:bg-zinc-100"
-              >
-                ✕
-              </button>
-            </div>
-          </div>
-        ))
+          ))}
+        </div>
       )}
     </div>
   );

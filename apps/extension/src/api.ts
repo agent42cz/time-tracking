@@ -55,7 +55,8 @@ export interface EntryDto {
 export interface TimerResponse {
   companyId: string | null;
   running: EntryDto[];
-  today: EntryDto[];
+  /** Last 5 completed entries (any day), newest first. */
+  recent: EntryDto[];
 }
 
 export interface ApiSession {

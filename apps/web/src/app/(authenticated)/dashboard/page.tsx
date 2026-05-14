@@ -247,6 +247,11 @@ interface Bucket {
 
 const WEEKDAY_CS = ['Ne', 'Po', 'Út', 'St', 'Čt', 'Pá', 'So'];
 
+const DENSITY = {
+  normal: { gapPx: 12, gapClass: 'gap-3' },
+  dense: { gapPx: 4, gapClass: 'gap-1' },
+} as const;
+
 interface DayCell {
   bucket: Bucket;
   weekday: number; // 0..6, Sun..Sat
@@ -291,6 +296,11 @@ function DailyBreakdown({
 
   const maxMs = Math.max(1, ...buckets.map((b) => b.total));
   const hasData = buckets.length > 0;
+  const density = cells.length > 14 ? DENSITY.dense : DENSITY.normal;
+  // Cap the grid width so a small range (e.g. one week) keeps reasonable bar
+  // widths instead of stretching across the whole card.
+  const maxGridWidth = `${cells.length * 56 + Math.max(0, cells.length - 1) * density.gapPx}px`;
+  const isDense = density === DENSITY.dense;
 
   return (
     <Card>
@@ -306,9 +316,10 @@ function DailyBreakdown({
         ) : (
           <>
             <div
-              className="grid items-end gap-3"
+              className={`grid items-end ${density.gapClass}`}
               style={{
-                gridTemplateColumns: `repeat(${cells.length}, minmax(28px, 56px))`,
+                gridTemplateColumns: `repeat(${cells.length}, minmax(0, 1fr))`,
+                maxWidth: maxGridWidth,
                 minHeight: '12rem',
               }}
             >
@@ -316,17 +327,26 @@ function DailyBreakdown({
                 const ratio = bucket.total / maxMs;
                 const fallbackColor = bucket.segments[0]?.color;
                 return (
-                  <div key={bucket.day} className="flex flex-col items-center gap-1.5">
-                    <span
-                      className={`text-[10px] font-medium tabular-nums ${
+                  <div key={bucket.day} className="flex min-w-0 flex-col items-center gap-1.5">
+                    {!isDense ? (
+                      <span
+                        className={`text-[10px] font-medium tabular-nums ${
+                          bucket.total > 0
+                            ? 'text-zinc-700 dark:text-zinc-300'
+                            : 'text-zinc-300 dark:text-zinc-600'
+                        }`}
+                      >
+                        {bucket.total > 0 ? fmtH(bucket.total) : '—'}
+                      </span>
+                    ) : null}
+                    <div
+                      className="relative flex h-40 w-full flex-col-reverse overflow-hidden rounded-md border border-zinc-100 bg-zinc-50 dark:border-zinc-800/60 dark:bg-zinc-950/40"
+                      title={
                         bucket.total > 0
-                          ? 'text-zinc-700 dark:text-zinc-300'
-                          : 'text-zinc-300 dark:text-zinc-600'
-                      }`}
+                          ? `${String(dom).padStart(2, '0')}.${String(month).padStart(2, '0')}. — ${fmtH(bucket.total)}`
+                          : undefined
+                      }
                     >
-                      {bucket.total > 0 ? fmtH(bucket.total) : '—'}
-                    </span>
-                    <div className="relative flex h-40 w-full flex-col-reverse overflow-hidden rounded-md border border-zinc-100 bg-zinc-50 dark:border-zinc-800/60 dark:bg-zinc-950/40">
                       {bucket.segments.length === 0 ? (
                         <div className="h-px w-full bg-zinc-200 dark:bg-zinc-800" aria-hidden />
                       ) : (
@@ -354,24 +374,28 @@ function DailyBreakdown({
                         />
                       ) : null}
                     </div>
-                    <div className="flex flex-col items-center leading-tight">
+                    <div className="flex w-full flex-col items-center leading-tight">
+                      {!isDense ? (
+                        <span
+                          className={`text-[10px] font-medium ${
+                            isToday
+                              ? 'text-zinc-900 dark:text-zinc-100'
+                              : 'text-zinc-500 dark:text-zinc-400'
+                          }`}
+                        >
+                          {WEEKDAY_CS[weekday]}
+                        </span>
+                      ) : null}
                       <span
-                        className={`text-[10px] font-medium ${
-                          isToday
-                            ? 'text-zinc-900 dark:text-zinc-100'
-                            : 'text-zinc-500 dark:text-zinc-400'
-                        }`}
-                      >
-                        {WEEKDAY_CS[weekday]}
-                      </span>
-                      <span
-                        className={`text-[10px] tabular-nums ${
+                        className={`tabular-nums ${isDense ? 'text-[9px]' : 'text-[10px]'} ${
                           isToday
                             ? 'rounded bg-zinc-900 px-1 text-white dark:bg-zinc-100 dark:text-zinc-900'
                             : 'text-zinc-500 dark:text-zinc-400'
                         }`}
                       >
-                        {String(dom).padStart(2, '0')}.{String(month).padStart(2, '0')}.
+                        {isDense
+                          ? String(dom)
+                          : `${String(dom).padStart(2, '0')}.${String(month).padStart(2, '0')}.`}
                       </span>
                     </div>
                   </div>
