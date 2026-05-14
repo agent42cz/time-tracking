@@ -1,5 +1,9 @@
 /**
- * GET  /api/v1/timer  → running timers + the user's last 5 completed entries
+ * GET  /api/v1/timer
+ *   → running timers (`running`)
+ *   → today's completed entries (`today`) — drives the web /timer page
+ *   → last 5 completed entries regardless of day (`recent`) — drives the
+ *     extension popup's "Nedávno" list
  * POST /api/v1/timer  → start a timer in the active company
  *
  * Active company is the one in the `tt-company` query param if present,
@@ -23,15 +27,31 @@ export async function GET(req: NextRequest): Promise<Response> {
   if (!session) return errorCors(req, 401, 'unauthorized');
   const preferred = req.nextUrl.searchParams.get('company');
   const active = pickActiveCompany(session, preferred);
-  if (!active) return jsonCors(req, { companyId: null, running: [], recent: [] });
+  if (!active) return jsonCors(req, { companyId: null, running: [], today: [], recent: [] });
 
-  const [running, recent] = await Promise.all([
+  const dayStart = new Date();
+  dayStart.setHours(0, 0, 0, 0);
+  const dayEnd = new Date(dayStart);
+  dayEnd.setDate(dayEnd.getDate() + 1);
+
+  const [running, today, recent] = await Promise.all([
     prisma().timeEntry.findMany({
       where: {
         userId: session.userId,
         companyId: active.companyId,
         endedAt: null,
         deletedAt: null,
+      },
+      include: { client: true, project: true, tags: { include: { tag: true } } },
+      orderBy: { startedAt: 'desc' },
+    }),
+    prisma().timeEntry.findMany({
+      where: {
+        userId: session.userId,
+        companyId: active.companyId,
+        deletedAt: null,
+        endedAt: { not: null },
+        startedAt: { gte: dayStart, lt: dayEnd },
       },
       include: { client: true, project: true, tags: { include: { tag: true } } },
       orderBy: { startedAt: 'desc' },
@@ -65,6 +85,7 @@ export async function GET(req: NextRequest): Promise<Response> {
   return jsonCors(req, {
     companyId: active.companyId,
     running: running.map(dto),
+    today: today.map(dto),
     recent: recent.map(dto),
   });
 }

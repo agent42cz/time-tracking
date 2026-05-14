@@ -55,8 +55,12 @@ export interface EntryDto {
 export interface TimerResponse {
   companyId: string | null;
   running: EntryDto[];
-  /** Last 5 completed entries (any day), newest first. */
-  recent: EntryDto[];
+  /**
+   * Last 5 completed entries (any day), newest first.
+   * Optional so the popup tolerates a brief server/extension version skew
+   * (e.g. extension reloaded before the web app finishes redeploying).
+   */
+  recent?: EntryDto[];
 }
 
 export interface ApiSession {

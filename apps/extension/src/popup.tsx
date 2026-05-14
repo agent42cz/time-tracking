@@ -19,6 +19,7 @@ import {
   setStoredSession,
 } from './api.js';
 import { useExtensionSync } from './sync.js';
+import { groupRecentByDay, type RecentEntryInput } from './recent.js';
 import {
   InMemoryStorageAdapter,
   createChromeStorageAdapter,
@@ -336,7 +337,7 @@ function AppShell({
       <StartRow catalog={state.catalog} onStart={sync.executeStart} />
       <RunningList entries={state.timer.running} now={now} onStop={sync.executeStop} />
       <RecentList
-        entries={state.timer.recent}
+        entries={state.timer.recent ?? []}
         onPlayAgain={sync.executePlayAgain}
         onDelete={sync.executeDelete}
       />
@@ -593,54 +594,16 @@ function RunningList({
   );
 }
 
-interface RecentEntry {
-  id: string;
-  description: string;
-  startedAt: string;
-  endedAt: string | null;
-  clientName: string | null;
-  projectName: string | null;
-}
-
-const RECENT_WEEKDAY_CS = ['Ne', 'Po', 'Út', 'St', 'Čt', 'Pá', 'So'];
-
-function dayKey(d: Date): string {
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-}
-
-function dayLabel(d: Date, todayKey: string, yesterdayKey: string): string {
-  const k = dayKey(d);
-  if (k === todayKey) return 'Dnes';
-  if (k === yesterdayKey) return 'Včera';
-  return `${RECENT_WEEKDAY_CS[d.getDay()]} ${String(d.getDate()).padStart(2, '0')}.${String(d.getMonth() + 1).padStart(2, '0')}.`;
-}
-
 function RecentList({
   entries,
   onPlayAgain,
   onDelete,
 }: {
-  entries: RecentEntry[];
+  entries: RecentEntryInput[];
   onPlayAgain: (entryId: string) => Promise<void>;
   onDelete: (entryId: string) => Promise<void>;
 }): ReactElement {
-  const now = new Date();
-  const todayKey = dayKey(now);
-  const yKey = dayKey(new Date(now.getTime() - 86_400_000));
-
-  const groups: { key: string; label: string; total: number; items: RecentEntry[] }[] = [];
-  for (const e of entries) {
-    const started = new Date(e.startedAt);
-    const k = dayKey(started);
-    const dur = (e.endedAt ? new Date(e.endedAt).getTime() : Date.now()) - started.getTime();
-    const last = groups[groups.length - 1];
-    if (last && last.key === k) {
-      last.total += dur;
-      last.items.push(e);
-    } else {
-      groups.push({ key: k, label: dayLabel(started, todayKey, yKey), total: dur, items: [e] });
-    }
-  }
+  const groups = groupRecentByDay(entries, new Date());
 
   return (
     <div className="p-3">
