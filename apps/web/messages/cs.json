@@ -126,7 +126,26 @@
     "twoFaEnable": "Zapnout 2FA",
     "twoFaDisable": "Vypnout 2FA",
     "recoveryCodes": "Záložní kódy",
-    "leaveCompany": "Opustit firmu"
+    "leaveCompany": "Opustit firmu",
+    "apiTokens": {
+      "title": "API tokeny",
+      "subtitle": "Osobní tokeny pro připojení Claude Code (MCP).",
+      "create": "Vytvořit token",
+      "name": "Název",
+      "company": "Firma",
+      "createdAt": "Vytvořeno",
+      "lastUsed": "Naposledy použit",
+      "status": "Stav",
+      "active": "Aktivní",
+      "revoked": "Zrušený",
+      "revoke": "Zrušit",
+      "revokeConfirm": "Token nelze obnovit. Chcete jej opravdu zrušit?",
+      "createdOnce": "Token zkopírujte teď. Po zavření jej už neuvidíme.",
+      "copy": "Zkopírovat",
+      "downloadConfig": "Stáhnout JSON pro Claude Code",
+      "empty": "Zatím nemáte žádné tokeny.",
+      "linkLabel": "Spravovat API tokeny"
+    }
   },
   "errors": {
     "notFound": "Nenalezeno",

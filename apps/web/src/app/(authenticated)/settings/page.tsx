@@ -1,4 +1,5 @@
 import type { ReactElement } from 'react';
+import Link from 'next/link';
 import { Card, CardBody, CardHeader, CardTitle } from '@tt/ui';
 import { requireUser } from '@/lib/session';
 import { PageHeader } from '@/components/PageHeader';
@@ -53,6 +54,24 @@ export default async function SettingsPage(): Promise<ReactElement> {
         </CardHeader>
         <CardBody>
           <TotpManager enabled={session.totpEnabled} />
+        </CardBody>
+      </Card>
+      <Card>
+        <CardHeader>
+          <CardTitle>API tokeny</CardTitle>
+        </CardHeader>
+        <CardBody>
+          <p className="text-sm text-zinc-700 dark:text-zinc-300">
+            Osobní tokeny pro připojení Claude Code (MCP).
+          </p>
+          <div className="mt-3">
+            <Link
+              href="/settings/api-tokens"
+              className="inline-flex items-center rounded-md border border-zinc-200 bg-white px-3 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-50 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-200 dark:hover:bg-zinc-700"
+            >
+              Spravovat API tokeny
+            </Link>
+          </div>
         </CardBody>
       </Card>
     </div>
