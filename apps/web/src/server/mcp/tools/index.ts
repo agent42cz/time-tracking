@@ -13,3 +13,4 @@ export function registerAllTools(server: McpServer, ctx: ToolContext): void {
 // Side-effect imports: each module pushes its registrar onto toolRegistrars.
 // registry.ts has no imports from index.ts so there is no circular reference.
 import './list-running-entries.js';
+import './list-recent-entries.js';
