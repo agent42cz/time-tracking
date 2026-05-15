@@ -40,6 +40,14 @@ enum AuditAction {
   totp_disable
 }
 
+enum AuditSource {
+  web
+  extension
+  mcp
+
+  @@map("audit_source")
+}
+
 model User {
   id           String   @id @default(cuid())
   email        String   @unique
@@ -62,6 +70,7 @@ model User {
   loginAttempts  PasswordLoginAttempt[]
   magicLinks     MagicLink[]
   passwordResets PasswordReset[]
+  apiTokens      ApiToken[]
 
   @@map("users")
 }
@@ -80,6 +89,7 @@ model Company {
   invites     Invite[]
   timeEntries TimeEntry[]
   auditLogs   AuditLog[]
+  apiTokens   ApiToken[]
 
   @@map("companies")
 }
@@ -214,6 +224,7 @@ model AuditLog {
   entityId    String      @map("entity_id")
   before      Json?
   after       Json?
+  source      AuditSource @default(web)
   createdAt   DateTime    @default(now()) @map("created_at")
 
   company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
@@ -322,4 +333,23 @@ model PasswordReset {
 
   @@index([userId, expiresAt])
   @@map("password_resets")
+}
+
+model ApiToken {
+  id         String    @id @default(cuid())
+  userId     String    @map("user_id")
+  companyId  String    @map("company_id")
+  name       String
+  tokenHash  String    @unique @map("token_hash")
+  prefix     String    @map("prefix")
+  lastUsedAt DateTime? @map("last_used_at")
+  revokedAt  DateTime? @map("revoked_at")
+  createdAt  DateTime  @default(now()) @map("created_at")
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@index([userId, companyId])
+  @@index([prefix])
+  @@map("api_tokens")
 }
