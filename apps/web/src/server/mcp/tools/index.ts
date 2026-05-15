@@ -16,3 +16,4 @@ import './list-running-entries.js';
 import './list-recent-entries.js';
 import './start-timer.js';
 import './stop-timer.js';
+import './update-entry.js';
