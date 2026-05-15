@@ -15,3 +15,4 @@ export function registerAllTools(server: McpServer, ctx: ToolContext): void {
 import './list-running-entries.js';
 import './list-recent-entries.js';
 import './start-timer.js';
+import './stop-timer.js';
