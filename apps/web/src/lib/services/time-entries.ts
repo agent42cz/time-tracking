@@ -413,6 +413,83 @@ export async function listTrash(
   };
 }
 
+export async function listRunningEntries(
+  db: Db,
+  actorUserId: string,
+  companyId: string,
+): Promise<
+  Result<
+    {
+      id: string;
+      description: string;
+      startedAt: Date;
+      clientId: string | null;
+      projectId: string | null;
+      tagIds: string[];
+    }[]
+  >
+> {
+  const role = await getMembership(db, actorUserId, companyId);
+  if (!role) return { ok: false, reason: 'not_found' };
+  const rows = await db.timeEntry.findMany({
+    where: { userId: actorUserId, companyId, endedAt: null, deletedAt: null },
+    orderBy: { startedAt: 'asc' },
+    include: { tags: true },
+  });
+  return {
+    ok: true,
+    value: rows.map((r) => ({
+      id: r.id,
+      description: r.description,
+      startedAt: r.startedAt,
+      clientId: r.clientId,
+      projectId: r.projectId,
+      tagIds: r.tags.map((t) => t.tagId),
+    })),
+  };
+}
+
+export async function listRecentEntries(
+  db: Db,
+  actorUserId: string,
+  companyId: string,
+  limit: number,
+): Promise<
+  Result<
+    {
+      id: string;
+      description: string;
+      startedAt: Date;
+      endedAt: Date | null;
+      clientId: string | null;
+      projectId: string | null;
+      tagIds: string[];
+    }[]
+  >
+> {
+  const role = await getMembership(db, actorUserId, companyId);
+  if (!role) return { ok: false, reason: 'not_found' };
+  const capped = Math.max(1, Math.min(50, Math.trunc(limit)));
+  const rows = await db.timeEntry.findMany({
+    where: { userId: actorUserId, companyId, deletedAt: null },
+    orderBy: { startedAt: 'desc' },
+    take: capped,
+    include: { tags: true },
+  });
+  return {
+    ok: true,
+    value: rows.map((r) => ({
+      id: r.id,
+      description: r.description,
+      startedAt: r.startedAt,
+      endedAt: r.endedAt,
+      clientId: r.clientId,
+      projectId: r.projectId,
+      tagIds: r.tags.map((t) => t.tagId),
+    })),
+  };
+}
+
 export async function getEntryHistory(
   db: Db,
   actorUserId: string,

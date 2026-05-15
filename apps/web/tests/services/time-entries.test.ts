@@ -14,6 +14,8 @@ import {
   createManualEntry,
   getEntryHistory,
   listMyWeek,
+  listRecentEntries,
+  listRunningEntries,
   listTrash,
   purgeOldDeleted,
   restoreEntry,
@@ -541,6 +543,50 @@ describe('time entries', () => {
         { action: 'update', source: 'mcp' },
         { action: 'update', source: 'mcp' },
       ]);
+    });
+  });
+
+  it('US-57: listRunningEntries returns only endedAt-null entries for the user', async () => {
+    await withTx(async (tx) => {
+      const w = await bootstrap(tx, 'lr');
+      const a = await startTimer(tx, w.user, { companyId: w.company, description: 'a' });
+      const b = await startTimer(tx, w.user, { companyId: w.company, description: 'b' });
+      if (!a.ok || !b.ok) throw new Error('setup');
+      await stopTimer(tx, w.user, a.value.id);
+
+      const res = await listRunningEntries(tx, w.user, w.company);
+      expect(res.ok).toBe(true);
+      if (!res.ok) return;
+      expect(res.value.map((e) => e.id)).toEqual([b.value.id]);
+    });
+  });
+
+  it('listRecentEntries returns most-recent first up to limit', async () => {
+    await withTx(async (tx) => {
+      const w = await bootstrap(tx, 'lre');
+      const ids: string[] = [];
+      for (let i = 0; i < 3; i++) {
+        const r = await startTimer(tx, w.user, {
+          companyId: w.company,
+          description: `e${i}`,
+        });
+        if (!r.ok) throw new Error('setup');
+        ids.push(r.value.id);
+        await stopTimer(tx, w.user, r.value.id);
+      }
+      const res = await listRecentEntries(tx, w.user, w.company, 2);
+      expect(res.ok).toBe(true);
+      if (!res.ok) return;
+      expect(res.value.map((e) => e.id)).toEqual([ids[2], ids[1]]);
+    });
+  });
+
+  it('listRunningEntries returns not_found for a non-member', async () => {
+    await withTx(async (tx) => {
+      const w = await bootstrap(tx, 'lrx');
+      const res = await listRunningEntries(tx, w.outsider, w.company);
+      expect(res.ok).toBe(false);
+      if (!res.ok) expect(res.reason).toBe('not_found');
     });
   });
 });
