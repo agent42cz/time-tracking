@@ -18,9 +18,13 @@
  *    (called by the daily cron job).
  *  - getHistory: returns the audit rows for a single entry (US-27, US-45).
  */
-import type { Prisma, PrismaClient, Role } from '@prisma/client';
+import type { AuditSource, Prisma, PrismaClient, Role } from '@prisma/client';
 import { writeAudit } from './audit.js';
 import { publishTimeEntry } from '../realtime.js';
+
+export interface AuditOpts {
+  source?: AuditSource;
+}
 
 type Db = PrismaClient | Prisma.TransactionClient;
 
@@ -31,11 +35,7 @@ export type Result<T, R extends string = 'not_found'> =
 const TRASH_RETENTION_MS = 30 * 24 * 60 * 60 * 1000;
 const FUTURE_GRACE_MS = 60_000;
 
-async function getMembership(
-  db: Db,
-  userId: string,
-  companyId: string,
-): Promise<Role | null> {
+async function getMembership(db: Db, userId: string, companyId: string): Promise<Role | null> {
   const m = await db.membership.findUnique({
     where: { userId_companyId: { userId, companyId } },
   });
@@ -92,6 +92,7 @@ export async function startTimer(
   actorUserId: string,
   input: StartTimerInput,
   now: Date = new Date(),
+  audit: AuditOpts = {},
 ): Promise<Result<{ id: string }>> {
   const role = await getMembership(db, actorUserId, input.companyId);
   if (!role) return { ok: false, reason: 'not_found' };
@@ -115,6 +116,7 @@ export async function startTimer(
     entityType: 'TimeEntry',
     entityId: entry.id,
     after: (await snapshot(db, entry.id)) as never,
+    source: audit.source,
   });
   await publishTimeEntry('timer.started', {
     userId: actorUserId,
@@ -129,6 +131,7 @@ export async function stopTimer(
   actorUserId: string,
   entryId: string,
   now: Date = new Date(),
+  audit: AuditOpts = {},
 ): Promise<Result<true, 'not_found' | 'not_running' | 'forbidden'>> {
   const entry = await db.timeEntry.findUnique({ where: { id: entryId } });
   if (!entry || entry.deletedAt) return { ok: false, reason: 'not_found' };
@@ -148,6 +151,7 @@ export async function stopTimer(
     entityId: entryId,
     before: before as never,
     after: (await snapshot(db, entryId)) as never,
+    source: audit.source,
   });
   await publishTimeEntry('timer.stopped', {
     userId: actorUserId,
@@ -219,6 +223,7 @@ export async function updateEntry(
   entryId: string,
   patch: UpdateEntryPatch,
   now: Date = new Date(),
+  audit: AuditOpts = {},
 ): Promise<Result<true, 'not_found' | 'invalid_window' | 'future_timestamp'>> {
   const entry = await db.timeEntry.findUnique({ where: { id: entryId } });
   if (!entry || entry.deletedAt) return { ok: false, reason: 'not_found' };
@@ -240,7 +245,8 @@ export async function updateEntry(
   const update: Prisma.TimeEntryUpdateInput = {};
   if (patch.description !== undefined) update.description = patch.description;
   if (patch.clientId !== undefined)
-    update.client = patch.clientId === null ? { disconnect: true } : { connect: { id: patch.clientId } };
+    update.client =
+      patch.clientId === null ? { disconnect: true } : { connect: { id: patch.clientId } };
   if (patch.projectId !== undefined)
     update.project =
       patch.projectId === null ? { disconnect: true } : { connect: { id: patch.projectId } };
@@ -265,6 +271,7 @@ export async function updateEntry(
     entityId: entryId,
     before: before as never,
     after: (await snapshot(db, entryId)) as never,
+    source: audit.source,
   });
   await publishTimeEntry('time_entry.updated', {
     userId: entry.userId,
@@ -336,10 +343,7 @@ export async function restoreEntry(
 }
 
 /** Daily cron — purges anything soft-deleted >30 days ago. */
-export async function purgeOldDeleted(
-  db: Db,
-  now: Date = new Date(),
-): Promise<{ purged: number }> {
+export async function purgeOldDeleted(db: Db, now: Date = new Date()): Promise<{ purged: number }> {
   const cutoff = new Date(now.getTime() - TRASH_RETENTION_MS);
   const { count } = await db.timeEntry.deleteMany({
     where: { deletedAt: { lt: cutoff } },

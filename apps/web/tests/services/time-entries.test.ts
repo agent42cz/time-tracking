@@ -514,4 +514,33 @@ describe('time entries', () => {
       expect(userView.ok).toBe(false);
     });
   });
+
+  it('US-59: startTimer/updateEntry/stopTimer forward source to audit', async () => {
+    await withTx(async (tx) => {
+      const w = await bootstrap(tx, 'src');
+      const s = await startTimer(
+        tx,
+        w.user,
+        { companyId: w.company, description: 'mcp start' },
+        undefined, // now
+        { source: 'mcp' },
+      );
+      if (!s.ok) throw new Error('startTimer');
+      await updateEntry(tx, w.user, s.value.id, { description: 'mcp edit' }, undefined, {
+        source: 'mcp',
+      });
+      await stopTimer(tx, w.user, s.value.id, undefined, { source: 'mcp' });
+
+      const rows = await tx.auditLog.findMany({
+        where: { entityId: s.value.id },
+        orderBy: { createdAt: 'asc' },
+        select: { action: true, source: true },
+      });
+      expect(rows).toEqual([
+        { action: 'create', source: 'mcp' },
+        { action: 'update', source: 'mcp' },
+        { action: 'update', source: 'mcp' },
+      ]);
+    });
+  });
 });
