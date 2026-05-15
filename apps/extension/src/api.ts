@@ -90,8 +90,38 @@ export interface ApiSession {
 
 const SESSION_KEY = 'tt:session';
 const API_BASE_KEY = 'tt:api-base';
+const POPUP_CACHE_KEY = 'tt:popup-cache';
+const POPUP_CACHE_VERSION = 1;
 export const DEFAULT_API_BASE: string =
   import.meta.env.VITE_DEFAULT_API_BASE?.trim() || 'http://localhost:3000';
+
+export interface PopupSnapshot {
+  me: MeResponse;
+  timer: TimerResponse;
+  catalog: CatalogResponse;
+}
+
+interface PopupCacheEnvelope extends PopupSnapshot {
+  version: number;
+}
+
+export async function getPopupCache(storage: StorageAdapter): Promise<PopupSnapshot | null> {
+  const raw = await storage.get<PopupCacheEnvelope>(POPUP_CACHE_KEY);
+  if (!raw || raw.version !== POPUP_CACHE_VERSION) return null;
+  return { me: raw.me, timer: raw.timer, catalog: raw.catalog };
+}
+
+export async function setPopupCache(
+  storage: StorageAdapter,
+  snapshot: PopupSnapshot,
+): Promise<void> {
+  const envelope: PopupCacheEnvelope = { version: POPUP_CACHE_VERSION, ...snapshot };
+  await storage.set(POPUP_CACHE_KEY, envelope);
+}
+
+export async function clearPopupCache(storage: StorageAdapter): Promise<void> {
+  await storage.remove(POPUP_CACHE_KEY);
+}
 
 export async function getStoredSession(storage: StorageAdapter): Promise<ApiSession | null> {
   return storage.get<ApiSession>(SESSION_KEY);

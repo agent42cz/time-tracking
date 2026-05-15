@@ -21,7 +21,7 @@ import {
 import { CSS } from '@dnd-kit/utilities';
 import { useTranslations } from 'next-intl';
 import { Alert, Badge, Button, Input } from '@tt/ui';
-import { reorderProjectsAction } from '@/lib/actions/catalog';
+import { renameClientAction, reorderProjectsAction } from '@/lib/actions/catalog';
 import { ProjectRow, type ProjectRowItem } from './ProjectRow';
 
 export interface ClientRowItem {
@@ -71,6 +71,32 @@ export function ClientRow({
 
   const [projectsMirror, setProjectsMirror] = useState<ProjectRowItem[]>(client.projects);
   const [projectError, setProjectError] = useState<string | null>(null);
+  const [isRenaming, setIsRenaming] = useState(false);
+  const [renameValue, setRenameValue] = useState(client.name);
+  const [renamePending, setRenamePending] = useState(false);
+  const [renameError, setRenameError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!isRenaming) setRenameValue(client.name);
+  }, [client.name, isRenaming]);
+
+  async function submitRename(): Promise<void> {
+    const next = renameValue.trim();
+    if (!next || next === client.name) {
+      setIsRenaming(false);
+      setRenameError(null);
+      return;
+    }
+    setRenamePending(true);
+    setRenameError(null);
+    const r = await renameClientAction(client.id, next);
+    setRenamePending(false);
+    if (!r.ok) {
+      setRenameError(r.error);
+      return;
+    }
+    setIsRenaming(false);
+  }
 
   useEffect(() => {
     setProjectsMirror(client.projects);
@@ -119,25 +145,75 @@ export function ClientRow({
           ) : null}
           <button
             type="button"
-            className="text-zinc-400 dark:text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300"
+            className="flex h-6 w-6 items-center justify-center text-xl leading-none text-zinc-500 dark:text-zinc-400 hover:text-zinc-800 dark:hover:text-zinc-200"
             onClick={onToggle}
             aria-label="Rozbalit projekty"
           >
             {isOpen ? '▾' : '▸'}
           </button>
-          <span
-            className={`font-medium ${
-              client.archived
-                ? 'text-zinc-400 dark:text-zinc-500'
-                : 'text-zinc-900 dark:text-zinc-100'
-            }`}
-          >
-            {client.name}
-          </span>
-          {client.archived ? <Badge tone="warning">archivováno</Badge> : null}
-          <span className="text-xs text-zinc-500 dark:text-zinc-400">
-            ({client.projects.length} projektů, {client.entryCount} záznamů)
-          </span>
+          {isRenaming ? (
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                void submitRename();
+              }}
+              className="flex items-center gap-2"
+            >
+              <Input
+                autoFocus
+                value={renameValue}
+                onChange={(e) => setRenameValue(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Escape') {
+                    setIsRenaming(false);
+                    setRenameError(null);
+                  }
+                }}
+                disabled={renamePending}
+              />
+              <Button type="submit" size="sm" loading={renamePending}>
+                Uložit
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant="ghost"
+                onClick={() => {
+                  setIsRenaming(false);
+                  setRenameError(null);
+                }}
+              >
+                Zrušit
+              </Button>
+            </form>
+          ) : (
+            <>
+              <span
+                className={`font-medium ${
+                  client.archived
+                    ? 'text-zinc-400 dark:text-zinc-500'
+                    : 'text-zinc-900 dark:text-zinc-100'
+                }`}
+              >
+                {client.name}
+              </span>
+              <button
+                type="button"
+                onClick={() => {
+                  setRenameValue(client.name);
+                  setIsRenaming(true);
+                }}
+                aria-label="Přejmenovat klienta"
+                className="text-zinc-400 dark:text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300"
+              >
+                ✎
+              </button>
+              {client.archived ? <Badge tone="warning">archivováno</Badge> : null}
+              <span className="text-xs text-zinc-500 dark:text-zinc-400">
+                ({client.projects.length} projektů, {client.entryCount} záznamů)
+              </span>
+            </>
+          )}
         </div>
         <div className="flex items-center gap-2">
           <Button size="sm" variant="ghost" onClick={onArchiveClient}>
@@ -148,6 +224,11 @@ export function ClientRow({
           </Button>
         </div>
       </div>
+      {renameError ? (
+        <div className="mt-2 ml-7">
+          <Alert tone="danger">{renameError}</Alert>
+        </div>
+      ) : null}
 
       {isOpen ? (
         <div className="mt-3 ml-7 space-y-3 border-l border-zinc-100 dark:border-zinc-700/60 pl-4">

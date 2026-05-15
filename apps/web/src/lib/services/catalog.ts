@@ -61,6 +61,22 @@ export async function createClient(
   return { ok: true, value: { id: c.id } };
 }
 
+export async function renameClient(
+  db: Db,
+  actorUserId: string,
+  clientId: string,
+  name: string,
+): Promise<Result<true, 'not_found' | 'invalid'>> {
+  const trimmed = name.trim();
+  if (!trimmed || trimmed.length > 200) return { ok: false, reason: 'invalid' };
+  const c = await db.client.findUnique({ where: { id: clientId } });
+  if (!c) return { ok: false, reason: 'not_found' };
+  const auth = await requireAdmin(db, actorUserId, c.companyId);
+  if (!auth.ok) return { ok: false, reason: 'not_found' };
+  await db.client.update({ where: { id: clientId }, data: { name: trimmed } });
+  return { ok: true, value: true };
+}
+
 export async function archiveClient(
   db: Db,
   actorUserId: string,
@@ -176,6 +192,25 @@ export async function createProject(
   if (!auth.ok) return auth;
   const p = await db.project.create({ data: { clientId: input.clientId, name: input.name } });
   return { ok: true, value: { id: p.id } };
+}
+
+export async function renameProject(
+  db: Db,
+  actorUserId: string,
+  projectId: string,
+  name: string,
+): Promise<Result<true, 'not_found' | 'invalid'>> {
+  const trimmed = name.trim();
+  if (!trimmed || trimmed.length > 200) return { ok: false, reason: 'invalid' };
+  const p = await db.project.findUnique({
+    where: { id: projectId },
+    include: { client: true },
+  });
+  if (!p) return { ok: false, reason: 'not_found' };
+  const auth = await requireAdmin(db, actorUserId, p.client.companyId);
+  if (!auth.ok) return { ok: false, reason: 'not_found' };
+  await db.project.update({ where: { id: projectId }, data: { name: trimmed } });
+  return { ok: true, value: true };
 }
 
 export async function archiveProject(

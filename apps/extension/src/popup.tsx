@@ -10,14 +10,17 @@ import {
   type TimerResponse,
   type TimerSummary,
   DEFAULT_API_BASE,
+  clearPopupCache,
   getApiBase,
   getCatalog,
+  getPopupCache,
   getStoredSession,
   getTimer,
   login,
   logout,
   me,
   setApiBase,
+  setPopupCache,
   setStoredSession,
   updateTheme,
 } from './api.js';
@@ -55,20 +58,44 @@ export function Popup(): ReactElement {
   const [view, setView] = useState<View>('loading');
   const [state, setState] = useState<AppState | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
 
   const refresh = useCallback(async (session: ApiSession, companyId?: string) => {
-    const [user, timer, catalog] = await Promise.all([
-      me(session),
-      getTimer(session, companyId),
-      getCatalog(session, companyId),
-    ]);
-    setState({ session, me: user, timer, catalog });
+    setRefreshing(true);
+    try {
+      const [user, timer, catalog] = await Promise.all([
+        me(session),
+        getTimer(session, companyId),
+        getCatalog(session, companyId),
+      ]);
+      setState({ session, me: user, timer, catalog });
+      await setPopupCache(storage, { me: user, timer, catalog });
+    } finally {
+      setRefreshing(false);
+    }
   }, []);
 
   const tryLoadFromStorage = useCallback(async (): Promise<void> => {
-    const session = await getStoredSession(storage);
+    const [session, cached] = await Promise.all([
+      getStoredSession(storage),
+      getPopupCache(storage),
+    ]);
     if (!session) {
+      await clearPopupCache(storage);
       setView('login');
+      return;
+    }
+    if (cached) {
+      setState({ session, ...cached });
+      setView('app');
+      void refresh(session).catch(async (err) => {
+        if (err instanceof ApiError && err.status === 401) {
+          await setStoredSession(storage, null);
+          await clearPopupCache(storage);
+          setState(null);
+          setView('login');
+        }
+      });
       return;
     }
     try {
@@ -77,6 +104,7 @@ export function Popup(): ReactElement {
     } catch (err) {
       if (err instanceof ApiError && err.status === 401) {
         await setStoredSession(storage, null);
+        await clearPopupCache(storage);
         setView('login');
       } else {
         setError('Nelze se připojit k serveru');
@@ -123,10 +151,12 @@ export function Popup(): ReactElement {
   return (
     <AppShell
       state={state}
+      refreshing={refreshing}
       onChange={() => refresh(state.session, state.timer.companyId ?? undefined)}
       onLogout={async () => {
         await logout(state.session);
         await setStoredSession(storage, null);
+        await clearPopupCache(storage);
         setState(null);
         setView('login');
       }}
@@ -319,10 +349,12 @@ function fmtDuration(ms: number): string {
 
 function AppShell({
   state,
+  refreshing,
   onChange,
   onLogout,
 }: {
   state: AppState;
+  refreshing: boolean;
   onChange: () => void | Promise<void>;
   onLogout: () => void | Promise<void>;
 }): ReactElement {
@@ -386,6 +418,7 @@ function AppShell({
         online={sync.online}
         pending={sync.pending}
         conflicts={sync.conflicts}
+        refreshing={refreshing}
         theme={theme}
         showStats={showStats}
         onRefresh={() => void onChange()}
@@ -420,6 +453,7 @@ function Header({
   online,
   pending,
   conflicts,
+  refreshing,
   theme,
   showStats,
   onRefresh,
@@ -432,6 +466,7 @@ function Header({
   online: boolean;
   pending: number;
   conflicts: number;
+  refreshing: boolean;
   theme: ThemePreference;
   showStats: boolean;
   onRefresh: () => void;
@@ -456,6 +491,14 @@ function Header({
             title="Offline — změny se uloží do fronty a synchronizují po obnovení připojení"
           >
             Offline
+          </span>
+        ) : null}
+        {refreshing ? (
+          <span
+            className="rounded-full bg-zinc-100 px-1.5 py-0.5 text-[10px] font-medium text-zinc-700 dark:bg-zinc-700 dark:text-zinc-200"
+            title="Načítám aktuální data ze serveru"
+          >
+            Obnovuji…
           </span>
         ) : null}
         {pending > 0 ? (

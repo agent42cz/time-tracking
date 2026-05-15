@@ -11,6 +11,8 @@ import {
   deleteClient,
   deleteProject,
   deleteTag,
+  renameClient,
+  renameProject,
   reorderClients,
   reorderProjects,
   updateTag,
@@ -25,6 +27,19 @@ export async function createClientAction(formData: FormData): Promise<ActionResu
   const r = await createClient(prisma(), s.userId, { companyId: s.activeCompanyId, name });
   if (!r.ok) return { ok: false, error: 'Nepodařilo se vytvořit' };
   revalidatePath('/clients');
+  return { ok: true };
+}
+
+export async function renameClientAction(clientId: string, name: string): Promise<ActionResult> {
+  const s = await requireAdmin();
+  const trimmed = name.trim();
+  if (!trimmed) return { ok: false, error: 'Vyplňte název' };
+  if (trimmed.length > 200) return { ok: false, error: 'Název je příliš dlouhý (max 200 znaků)' };
+  const r = await renameClient(prisma(), s.userId, clientId, trimmed);
+  if (!r.ok)
+    return { ok: false, error: r.reason === 'invalid' ? 'Vyplňte název' : 'Nelze přejmenovat' };
+  revalidatePath('/clients');
+  revalidatePath('/timer');
   return { ok: true };
 }
 
@@ -59,6 +74,19 @@ export async function createProjectAction(formData: FormData): Promise<ActionRes
   const r = await createProject(prisma(), s.userId, { clientId, name });
   if (!r.ok) return { ok: false, error: 'Nepodařilo se vytvořit' };
   revalidatePath('/clients');
+  return { ok: true };
+}
+
+export async function renameProjectAction(projectId: string, name: string): Promise<ActionResult> {
+  const s = await requireAdmin();
+  const trimmed = name.trim();
+  if (!trimmed) return { ok: false, error: 'Vyplňte název' };
+  if (trimmed.length > 200) return { ok: false, error: 'Název je příliš dlouhý (max 200 znaků)' };
+  const r = await renameProject(prisma(), s.userId, projectId, trimmed);
+  if (!r.ok)
+    return { ok: false, error: r.reason === 'invalid' ? 'Vyplňte název' : 'Nelze přejmenovat' };
+  revalidatePath('/clients');
+  revalidatePath('/timer');
   return { ok: true };
 }
 
