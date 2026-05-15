@@ -8,6 +8,7 @@
 export type McpErrorCode = 'not_found' | 'invalid_args' | 'conflict' | 'internal';
 
 export interface McpToolError {
+  [x: string]: unknown;
   isError: true;
   content: { type: 'text'; text: string }[];
   structuredContent: { code: McpErrorCode; message: string };
