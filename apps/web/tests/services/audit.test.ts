@@ -163,5 +163,20 @@ describe('audit log', () => {
       const src = fs.readFileSync(path.join(servicesDir, f), 'utf8');
       expect(src).not.toMatch(/\.auditLog\.(update|delete|deleteMany|updateMany)\(/);
     }
+
+    const mcpDir = path.resolve(here, '../../src/server/mcp');
+    function walkDir(dir: string): string[] {
+      const out: string[] = [];
+      for (const e of fs.readdirSync(dir)) {
+        const full = path.join(dir, e);
+        if (fs.statSync(full).isDirectory()) out.push(...walkDir(full));
+        else if (full.endsWith('.ts')) out.push(full);
+      }
+      return out;
+    }
+    for (const f of walkDir(mcpDir)) {
+      const src = fs.readFileSync(f, 'utf8');
+      expect(src).not.toMatch(/\.auditLog\.(update|delete|deleteMany|updateMany)\(/);
+    }
   });
 });
