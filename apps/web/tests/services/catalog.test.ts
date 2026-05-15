@@ -16,6 +16,7 @@ import {
   deleteProject,
   deleteTag,
   listClients,
+  listProjects,
   listTags,
   reorderClients,
   reorderProjects,
@@ -440,6 +441,32 @@ describe('catalog (clients / projects / tags)', () => {
         orderedIds: [p1.value.id, p1.value.id],
       });
       expect(r.ok).toBe(false);
+    });
+  });
+
+  it('listProjects returns projects for company across clients', async () => {
+    await withTx(async (tx) => {
+      const w = await bootstrap(tx, 'lp1');
+      const c = await createClient(tx, w.admin, { companyId: w.company, name: 'Client LP' });
+      if (!c.ok) throw new Error('setup');
+      const p1 = await createProject(tx, w.admin, { clientId: c.value.id, name: 'Project Alpha' });
+      const p2 = await createProject(tx, w.admin, { clientId: c.value.id, name: 'Project Beta' });
+      if (!p1.ok || !p2.ok) throw new Error('setup');
+
+      const res = await listProjects(tx, w.user, w.company, {});
+      expect(res.ok).toBe(true);
+      if (!res.ok) return;
+      expect(res.value.length).toBeGreaterThanOrEqual(2);
+      expect(res.value.every((p) => typeof p.clientId === 'string')).toBe(true);
+    });
+  });
+
+  it('listProjects is not_found for a non-member', async () => {
+    await withTx(async (tx) => {
+      const w = await bootstrap(tx, 'lp2');
+      const res = await listProjects(tx, w.outsider, w.company, {});
+      expect(res.ok).toBe(false);
+      if (!res.ok) expect(res.reason).toBe('not_found');
     });
   });
 

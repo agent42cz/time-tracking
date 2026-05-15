@@ -349,6 +349,33 @@ export async function deleteTag(db: Db, actorUserId: string, tagId: string): Pro
   return { ok: true, value: true };
 }
 
+export async function listProjects(
+  db: Db,
+  actorUserId: string,
+  companyId: string,
+  opts: { includeArchived?: boolean; clientId?: string } = {},
+): Promise<Result<{ id: string; name: string; clientId: string; archived: boolean }[]>> {
+  const auth = await requireMember(db, actorUserId, companyId);
+  if (!auth.ok) return auth;
+  const rows = await db.project.findMany({
+    where: {
+      client: { companyId },
+      ...(opts.includeArchived ? {} : { archived: false }),
+      ...(opts.clientId ? { clientId: opts.clientId } : {}),
+    },
+    orderBy: [{ clientId: 'asc' }, { sortOrder: 'asc' }, { name: 'asc' }],
+  });
+  return {
+    ok: true,
+    value: rows.map((p) => ({
+      id: p.id,
+      name: p.name,
+      clientId: p.clientId,
+      archived: p.archived,
+    })),
+  };
+}
+
 export async function listTags(
   db: Db,
   actorUserId: string,
