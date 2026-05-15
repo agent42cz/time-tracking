@@ -8,7 +8,7 @@
  * Audit rows are immutable in the API surface — there is no update/delete
  * operation exposed; the route layer would 405 those.
  */
-import type { AuditAction, Prisma, PrismaClient } from '@prisma/client';
+import type { AuditAction, AuditSource, Prisma, PrismaClient } from '@prisma/client';
 
 type Db = PrismaClient | Prisma.TransactionClient;
 
@@ -22,6 +22,7 @@ export interface AuditWriteInput {
   entityId: string;
   before?: JsonValue;
   after?: JsonValue;
+  source?: AuditSource;
 }
 
 export async function writeAudit(db: Db, input: AuditWriteInput): Promise<void> {
@@ -34,6 +35,7 @@ export async function writeAudit(db: Db, input: AuditWriteInput): Promise<void> 
       entityId: input.entityId,
       before: (input.before ?? null) as Prisma.InputJsonValue,
       after: (input.after ?? null) as Prisma.InputJsonValue,
+      source: input.source ?? 'web',
     },
   });
 }

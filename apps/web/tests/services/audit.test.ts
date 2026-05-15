@@ -4,6 +4,7 @@
  */
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { Prisma } from '@prisma/client';
+import type { AuditSource } from '@prisma/client';
 import { getTestPrisma, stopTestPrisma, withTx } from '@tt/db/test';
 import { createCompany } from '../../src/lib/services/companies.js';
 import {
@@ -13,6 +14,7 @@ import {
   updateEntry,
 } from '../../src/lib/services/time-entries.js';
 import { listAuditLog } from '../../src/lib/services/audit-query.js';
+import { writeAudit } from '../../src/lib/services/audit.js';
 
 beforeAll(async () => {
   await getTestPrisma();
@@ -58,14 +60,16 @@ describe('audit log', () => {
         actorUserId: w.admin,
       });
       expect(onlyAdmin.ok).toBe(true);
-      if (onlyAdmin.ok) expect(onlyAdmin.value.rows.every((r) => r.actorUserId === w.admin)).toBe(true);
+      if (onlyAdmin.ok)
+        expect(onlyAdmin.value.rows.every((r) => r.actorUserId === w.admin)).toBe(true);
 
       const onlyUpdates = await listAuditLog(tx, w.admin, {
         companyId: w.company,
         action: 'update',
       });
       expect(onlyUpdates.ok).toBe(true);
-      if (onlyUpdates.ok) expect(onlyUpdates.value.rows.every((r) => r.action === 'update')).toBe(true);
+      if (onlyUpdates.ok)
+        expect(onlyUpdates.value.rows.every((r) => r.action === 'update')).toBe(true);
 
       // cross-company / non-admin
       const userView = await listAuditLog(tx, w.user, { companyId: w.company });
@@ -107,6 +111,38 @@ describe('audit log', () => {
         orderBy: { createdAt: 'asc' },
       });
       expect(audit.map((r) => r.action)).toEqual(['create', 'delete', 'restore']);
+    });
+  });
+
+  it('writeAudit defaults source to web and stores the override', async () => {
+    await withTx(async (tx) => {
+      const w = await bootstrap(tx, 'src');
+      const e = await startTimer(tx, w.user, { companyId: w.company });
+      if (!e.ok) throw new Error('setup');
+
+      // Default branch
+      await writeAudit(tx, {
+        companyId: w.company,
+        actorUserId: w.user,
+        action: 'update',
+        entityType: 'TimeEntry',
+        entityId: e.value.id,
+      });
+      // Explicit mcp branch
+      await writeAudit(tx, {
+        companyId: w.company,
+        actorUserId: w.user,
+        action: 'update',
+        entityType: 'TimeEntry',
+        entityId: e.value.id,
+        source: 'mcp' satisfies AuditSource,
+      });
+
+      const rows = await tx.auditLog.findMany({
+        where: { entityType: 'TimeEntry', entityId: e.value.id, action: 'update' },
+        orderBy: { createdAt: 'asc' },
+      });
+      expect(rows.map((r) => r.source)).toEqual(['web', 'mcp']);
     });
   });
 
