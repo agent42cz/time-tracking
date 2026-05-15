@@ -16,6 +16,11 @@ export default defineConfig({
     environment: 'node',
     testTimeout: 60_000,
     hookTimeout: 180_000,
+    // Run test files sequentially. The integration tests share a single
+    // testcontainers Postgres (connection-pool starvation otherwise) and
+    // some `server/mcp/` modules keep per-process state in `globalThis`
+    // (rate-limit buckets) that would leak across parallel files.
+    fileParallelism: false,
     server: {
       deps: {
         external: ['argon2', '@prisma/client'],
