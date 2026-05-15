@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import { fmtTime, dayKey, ymd, fmtDur, weekdayLabel, isWeekend } from './format';
+import { fmtTime, dayKey, ymd, fmtDur, weekdayLabel, isWeekend } from './time-format';
 
-describe('Výkaz (weekly timesheet) formatters', () => {
+describe('time-format (Europe/Prague helpers)', () => {
   it('US-26: fmtTime renders Prague wall-clock for a UTC instant', () => {
     // 2026-05-14 20:22 UTC = 22:22 Prague (CEST = UTC+2 in May)
     expect(fmtTime(new Date('2026-05-14T20:22:00Z'))).toBe('22:22');

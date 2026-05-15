@@ -6,6 +6,7 @@ import { Button, Card, CardBody, CardHeader, CardTitle, EmptyState } from '@tt/u
 import { deleteEntryAction, playAgainAction } from '@/lib/actions/time';
 import { notifyTimerChanged } from '@/lib/timer-events';
 import { EditEntryButton } from '@/components/time/EditEntryButton';
+import { fmtTime, fmtDur } from '@/lib/time-format';
 
 interface Entry {
   id: string;
@@ -15,18 +16,6 @@ interface Entry {
   startedAt: string;
   endedAt: string;
   tags: { name: string; color: string }[];
-}
-
-function fmtTime(iso: string): string {
-  const d = new Date(iso);
-  return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
-}
-function fmtDur(startIso: string, endIso: string): string {
-  const ms = new Date(endIso).getTime() - new Date(startIso).getTime();
-  const total = Math.max(0, Math.floor(ms / 1000));
-  const h = Math.floor(total / 3600);
-  const m = Math.floor((total % 3600) / 60);
-  return `${h}h ${m}m`;
 }
 
 export function TodayList({
@@ -47,7 +36,7 @@ export function TodayList({
         <span className="text-sm text-zinc-500 dark:text-zinc-400">
           Celkem:{' '}
           <span className="font-mono font-semibold text-zinc-900 dark:text-zinc-100">
-            {Math.floor(total / 3600000)}h {Math.floor((total % 3600000) / 60000)}m
+            {fmtDur(total)}
           </span>
         </span>
       </CardHeader>
@@ -97,6 +86,8 @@ function Row({
     }
     notifyTimerChanged();
   }
+  const startedAt = new Date(entry.startedAt);
+  const endedAt = new Date(entry.endedAt);
   return (
     <li className="flex items-center justify-between gap-4 py-2.5">
       <div className="min-w-0">
@@ -121,10 +112,10 @@ function Row({
       </div>
       <div className="flex shrink-0 items-center gap-3 text-sm text-zinc-600 dark:text-zinc-400">
         <span className="font-mono tabular-nums">
-          {fmtTime(entry.startedAt)}–{fmtTime(entry.endedAt)}
+          {fmtTime(startedAt)}–{fmtTime(endedAt)}
         </span>
         <span className="font-mono font-semibold text-zinc-900 dark:text-zinc-100 tabular-nums">
-          {fmtDur(entry.startedAt, entry.endedAt)}
+          {fmtDur(endedAt.getTime() - startedAt.getTime())}
         </span>
         <EditEntryButton
           entryId={entry.id}

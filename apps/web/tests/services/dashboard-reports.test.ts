@@ -49,7 +49,9 @@ async function buildWorld(tx: Prisma.TransactionClient, suffix: string): Promise
   const admin = await tx.user.create({
     data: { email: `d-a-${suffix}@x.test`, fullName: 'Admin' },
   });
-  const user = await tx.user.create({ data: { email: `d-u-${suffix}@x.test`, fullName: 'Worker' } });
+  const user = await tx.user.create({
+    data: { email: `d-u-${suffix}@x.test`, fullName: 'Worker' },
+  });
   const inactive = await tx.user.create({
     data: { email: `d-i-${suffix}@x.test`, fullName: 'Idle' },
   });
@@ -58,7 +60,9 @@ async function buildWorld(tx: Prisma.TransactionClient, suffix: string): Promise
   });
   const company = await createCompany(tx, { name: `Dash ${suffix}`, createdByUserId: admin.id });
   await tx.membership.create({ data: { userId: user.id, companyId: company.id, role: 'user' } });
-  await tx.membership.create({ data: { userId: inactive.id, companyId: company.id, role: 'user' } });
+  await tx.membership.create({
+    data: { userId: inactive.id, companyId: company.id, role: 'user' },
+  });
   await createCompany(tx, { name: `Other ${suffix}`, createdByUserId: outsider.id });
 
   const clientA = await createClient(tx, admin.id, { companyId: company.id, name: 'Acme' });
@@ -198,6 +202,35 @@ describe('dashboard widgets', () => {
       expect(may1Acme?.totalMs).toBe(4 * 60 * 60 * 1000);
       expect(may1Beta?.totalMs).toBe(1 * 60 * 60 * 1000);
       expect(may2Beta?.totalMs).toBe(2 * 60 * 60 * 1000);
+    });
+  });
+
+  it('US-40: daily breakdown buckets cross-midnight entries by Prague start-day, not UTC', async () => {
+    await withTx(async (tx) => {
+      const w = await buildWorld(tx, 'us40-tz');
+      // 2026-05-01 22:30 UTC = 00:30 Prague on 2026-05-02 (CEST = UTC+2).
+      // UTC-based bucketing would file this under 2026-05-01; Prague-based
+      // bucketing must file it under 2026-05-02 where the user lived through it.
+      await tx.timeEntry.create({
+        data: {
+          userId: w.user,
+          companyId: w.company,
+          clientId: w.clientA,
+          projectId: w.projectA,
+          description: 'Late-night fix',
+          startedAt: new Date('2026-05-01T22:30:00Z'),
+          endedAt: new Date('2026-05-01T23:00:00Z'),
+        },
+      });
+      const res = await dailyBreakdown(tx, w.admin, w.company, w.range, 'client');
+      expect(res.ok).toBe(true);
+      if (!res.ok) return;
+      const may2Acme = res.value.find((r) => r.day === '2026-05-02' && r.label === 'Acme');
+      const may1Acme = res.value.find((r) => r.day === '2026-05-01' && r.label === 'Acme');
+      // The new 30m entry lands on May 2 (Prague day), not May 1 (UTC day).
+      expect(may2Acme?.totalMs).toBe(30 * 60 * 1000);
+      // May 1's Acme total is unchanged by the new entry.
+      expect(may1Acme?.totalMs).toBe(4 * 60 * 60 * 1000);
     });
   });
 

@@ -3,7 +3,8 @@ import Link from 'next/link';
 import { Card, CardBody, CardHeader, CardTitle, EmptyState } from '@tt/ui';
 import { prisma, requireAdmin } from '@/lib/session';
 import { PageHeader } from '@/components/PageHeader';
-import { getPeriodRange } from '@tt/shared/time';
+import { getPeriodRange, toAppZone } from '@tt/shared/time';
+import { dayKey, fmtDur } from '@/lib/time-format';
 import {
   clientShare,
   dailyBreakdown,
@@ -14,12 +15,6 @@ import {
 } from '@/lib/services/dashboard';
 
 type Period = 'today' | 'week' | 'month';
-
-function fmtH(ms: number): string {
-  const h = Math.floor(ms / 3_600_000);
-  const m = Math.floor((ms % 3_600_000) / 60_000);
-  return `${h}h ${m}m`;
-}
 
 export default async function DashboardPage({
   searchParams,
@@ -96,7 +91,7 @@ export default async function DashboardPage({
       />
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <Kpi label="Celkový čas" value={fmtH(kpis.value.totalMs)} />
+        <Kpi label="Celkový čas" value={fmtDur(kpis.value.totalMs)} />
         <Kpi label="Aktivní členové" value={kpis.value.activeMembers.toString()} />
         <Kpi label="Klienti" value={kpis.value.distinctClients.toString()} />
         <Kpi label="Projekty" value={kpis.value.distinctProjects.toString()} />
@@ -122,7 +117,7 @@ export default async function DashboardPage({
                             {p.fullName}
                           </span>
                           <span className="font-mono text-zinc-700 dark:text-zinc-300">
-                            {fmtH(p.totalMs)}
+                            {fmtDur(p.totalMs)}
                           </span>
                         </div>
                         <div className="h-2 overflow-hidden rounded-full bg-zinc-100 dark:bg-zinc-700">
@@ -188,7 +183,7 @@ export default async function DashboardPage({
                       {p.projectName}
                     </span>
                     <span className="font-mono text-zinc-900 dark:text-zinc-100">
-                      {fmtH(p.totalMs)}
+                      {fmtDur(p.totalMs)}
                     </span>
                   </li>
                 ))}
@@ -260,10 +255,6 @@ interface DayCell {
   isToday: boolean;
 }
 
-function toDayKey(d: Date): string {
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-}
-
 function DailyBreakdown({
   range,
   buckets,
@@ -273,20 +264,23 @@ function DailyBreakdown({
 }): ReactElement {
   const dayMap = new Map(buckets.map((b) => [b.day, b]));
   const cells: DayCell[] = [];
+  // `range.start` is already the UTC instant for the first Prague midnight
+  // of the period — don't reset hours, that would re-anchor to the server's
+  // local midnight. Step in 24h Prague increments and read parts in Prague.
   const cursor = new Date(range.start);
-  cursor.setHours(0, 0, 0, 0);
   const stop = new Date(range.end);
-  const todayKey = toDayKey(new Date());
+  const todayKey = dayKey(new Date());
   while (cursor < stop) {
-    const key = toDayKey(cursor);
+    const key = dayKey(cursor);
+    const z = toAppZone(cursor);
     cells.push({
       bucket: dayMap.get(key) ?? { day: key, segments: [], total: 0 },
-      weekday: cursor.getDay(),
-      dom: cursor.getDate(),
-      month: cursor.getMonth() + 1,
+      weekday: z.getDay(),
+      dom: z.getDate(),
+      month: z.getMonth() + 1,
       isToday: key === todayKey,
     });
-    cursor.setDate(cursor.getDate() + 1);
+    cursor.setUTCDate(cursor.getUTCDate() + 1);
   }
 
   const legend = new Map<string, string>();
@@ -336,14 +330,14 @@ function DailyBreakdown({
                             : 'text-zinc-300 dark:text-zinc-600'
                         }`}
                       >
-                        {bucket.total > 0 ? fmtH(bucket.total) : '—'}
+                        {bucket.total > 0 ? fmtDur(bucket.total) : '—'}
                       </span>
                     ) : null}
                     <div
                       className="relative flex h-40 w-full flex-col-reverse overflow-hidden rounded-md border border-zinc-100 bg-zinc-50 dark:border-zinc-700/60 dark:bg-zinc-900/40"
                       title={
                         bucket.total > 0
-                          ? `${String(dom).padStart(2, '0')}.${String(month).padStart(2, '0')}. — ${fmtH(bucket.total)}`
+                          ? `${String(dom).padStart(2, '0')}.${String(month).padStart(2, '0')}. — ${fmtDur(bucket.total)}`
                           : undefined
                       }
                     >
@@ -357,7 +351,7 @@ function DailyBreakdown({
                               height: `${(s.ms / maxMs) * 100}%`,
                               backgroundColor: s.color,
                             }}
-                            title={`${s.label}: ${fmtH(s.ms)}`}
+                            title={`${s.label}: ${fmtDur(s.ms)}`}
                           />
                         ))
                       )}

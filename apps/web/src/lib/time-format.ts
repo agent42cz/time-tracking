@@ -1,9 +1,11 @@
 import { toAppZone } from '@tt/shared/time';
 
-// All times in the DB are real UTC instants (Postgres timestamptz). These
-// helpers render them as Europe/Prague wall-clock independently of the
-// server's local TZ — Coolify containers run UTC, but `pnpm dev` may run
-// anywhere. Every Date that touches a label goes through `toAppZone` first.
+// Renders real UTC instants (Postgres `timestamptz`) as Europe/Prague
+// wall-clock labels, independently of the runtime's local TZ. The web app
+// is Czech-only, so weekday names use `cs-CZ`. Every Date that produces a
+// user-visible label or a day-bucket key goes through `toAppZone` first —
+// Coolify containers run UTC, `pnpm dev` may run anywhere, and the same
+// helpers also execute in the browser during hydration.
 
 const pad = (n: number): string => String(n).padStart(2, '0');
 

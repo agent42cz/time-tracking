@@ -9,6 +9,7 @@
  * pass period boundaries from `@tt/shared/time#getPeriodRange`.
  */
 import type { Prisma, PrismaClient } from '@prisma/client';
+import { dayKey } from '../time-format';
 
 type Db = PrismaClient | Prisma.TransactionClient;
 
@@ -36,12 +37,14 @@ export async function headlineKpis(
   actorUserId: string,
   companyId: string,
   range: DateRange,
-): Promise<DashResult<{
-  totalMs: number;
-  activeMembers: number;
-  distinctClients: number;
-  distinctProjects: number;
-}>> {
+): Promise<
+  DashResult<{
+    totalMs: number;
+    activeMembers: number;
+    distinctClients: number;
+    distinctProjects: number;
+  }>
+> {
   if (!(await requireAdmin(db, actorUserId, companyId))) return { ok: false, reason: 'not_found' };
   const entries = await db.timeEntry.findMany({
     where: {
@@ -138,11 +141,7 @@ export async function topProjects(
   companyId: string,
   range: DateRange,
   limit = 10,
-): Promise<
-  DashResult<
-    { projectId: string | null; projectName: string; totalMs: number }[]
-  >
-> {
+): Promise<DashResult<{ projectId: string | null; projectName: string; totalMs: number }[]>> {
   if (!(await requireAdmin(db, actorUserId, companyId))) return { ok: false, reason: 'not_found' };
   const entries = await db.timeEntry.findMany({
     where: {
@@ -217,10 +216,9 @@ export async function dailyBreakdown(
   });
   const out = new Map<string, { day: string; key: string; label: string; totalMs: number }>();
   for (const e of entries) {
-    const day = e.startedAt.toISOString().slice(0, 10);
+    const day = dayKey(e.startedAt);
     const key = groupBy === 'client' ? (e.clientId ?? 'none') : e.userId;
-    const label =
-      groupBy === 'client' ? e.client?.name ?? '(deleted client)' : e.user.fullName;
+    const label = groupBy === 'client' ? (e.client?.name ?? '(deleted client)') : e.user.fullName;
     const k = `${day}|${key}`;
     const existing = out.get(k);
     if (existing) existing.totalMs += durationMs(e);

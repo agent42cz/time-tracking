@@ -6,7 +6,7 @@ import { getPeriodRange } from '@tt/shared/time';
 import { PageHeader } from '@/components/PageHeader';
 import { listMyWeek } from '@/lib/services/time-entries';
 import { TimesheetEntryRow } from './TimesheetEntryRow';
-import { fmtTime, dayKey, ymd, fmtDur, weekdayLabel, isWeekend } from './format';
+import { fmtTime, dayKey, ymd, fmtDur, weekdayLabel, isWeekend } from '@/lib/time-format';
 
 export default async function TimesheetPage({
   searchParams,
