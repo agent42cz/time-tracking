@@ -1,6 +1,6 @@
 # MCP server (US-55 … US-63)
 
-**Status**: design approved, awaiting implementation plan
+**Status**: implemented
 **Date**: 2026-05-15
 **Owner**: misalenert@gmail.com
 

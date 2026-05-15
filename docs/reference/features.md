@@ -1,4 +1,4 @@
-# Features (US-1 … US-53)
+# Features (US-1 … US-63)
 
 Feature catalogue keyed by user-story IDs from PRD §13. Test names embed the US ID so [`../../scripts/test-trace.ts`](../../scripts/test-trace.ts) can verify 100% coverage.
 
@@ -83,10 +83,22 @@ Feature catalogue keyed by user-story IDs from PRD §13. Test names embed the US
 - **US-53** — Reorder projects within a client via drag-and-drop. Order is canonical company-wide and honored everywhere projects are listed.
 - **US-54** — User (or admin) opens an Edit dialog from any entry list and corrects the entry's start and end times. Editing a running timer with no end specified keeps it running with the new start; supplying an end stops the timer. Validation rules (`end > start`, `start ≤ now`, `end ≤ now`) match manual-entry rules. Every save produces exactly one audit row.
 
+## MCP server
+
+- **US-55** — User issues a personal MCP token scoped to one company; plaintext shown exactly once; subsequent loads show only the prefix.
+- **US-56** — User lists and revokes their MCP tokens; revocation is immediate.
+- **US-57** — `list_running_entries` returns every currently running entry for the authenticated user as an array (possibly empty).
+- **US-58** — `start_timer` opens a new running entry and broadcasts `timer.started`; other running entries are left alone.
+- **US-59** — `update_entry` with an explicit `entryId` patches fields; one audit row written with `source = 'mcp'`.
+- **US-60** — `stop_timer` with an explicit `entryId` ends that entry and broadcasts `timer.stopped`.
+- **US-61** — A token scoped to Company A targeting Company B's entry returns the MCP `not_found` error (no existence leak).
+- **US-62** — A revoked token returns HTTP `401` on every call.
+- **US-63** — A token over the rate limit returns HTTP `429` with `Retry-After`; next bucket allows again.
+
 ## Coverage check
 
 ```bash
 pnpm test:trace
 ```
 
-Walks every test file (`*.test.{ts,tsx}`, `*.spec.{ts,tsx}`, `tests/**`) and looks for `\bUS-N\b`. Exits non-zero if any of US-1..US-53 has zero matches.
+Walks every test file (`*.test.{ts,tsx}`, `*.spec.{ts,tsx}`, `tests/**`) and looks for `\bUS-N\b`. Exits non-zero if any of US-1..US-63 has zero matches.

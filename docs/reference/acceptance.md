@@ -55,3 +55,15 @@ Each box maps to the file (and test name) that proves it. v1 was declared comple
 | E2E (Playwright) | 0                             | ~15%   | Pending — UI shell exists; route handlers + page wiring are the next iteration. |
 
 Total at v1: **81 tests, ~100s wall**. US coverage: **50/50 (100%)**. Lint + typecheck clean.
+
+- [x] **User can issue and revoke personal API tokens scoped to a single company.**
+  - `apps/web/tests/services/api-tokens.test.ts` — US-55 (issue token, plaintext once, prefix on re-list), US-56 (list tokens, revoke is immediate).
+
+- [x] **MCP tools list, start, stop, and update time entries over an authenticated HTTP channel.**
+  - `apps/web/tests/server/mcp/list-running.test.ts` — US-57 (`list_running_entries` returns running entries, empty array when none).
+  - `apps/web/tests/server/mcp/start-timer.test.ts` — US-58 (`start_timer` opens entry, broadcasts `timer.started`, leaves other timers alone).
+  - `apps/web/tests/server/mcp/update-entry.test.ts` — US-59 (`update_entry` patches fields, audit row with `source = 'mcp'`).
+  - `apps/web/tests/server/mcp/stop-timer.test.ts` — US-60 (`stop_timer` ends entry, broadcasts `timer.stopped`).
+
+- [x] **MCP layer enforces cross-company isolation, revocation, and rate limiting.**
+  - `apps/web/tests/server/mcp/auth.test.ts` — US-61 (cross-company entry returns `not_found`, no existence leak), US-62 (revoked token returns HTTP 401), US-63 (rate-limit returns HTTP 429 with `Retry-After`; next window allows).
