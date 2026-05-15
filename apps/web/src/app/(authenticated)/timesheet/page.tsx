@@ -6,20 +6,7 @@ import { getPeriodRange } from '@tt/shared/time';
 import { PageHeader } from '@/components/PageHeader';
 import { listMyWeek } from '@/lib/services/time-entries';
 import { TimesheetEntryRow } from './TimesheetEntryRow';
-
-function ymd(d: Date): string {
-  return `${String(d.getDate()).padStart(2, '0')}.${String(d.getMonth() + 1).padStart(2, '0')}.${d.getFullYear()}`;
-}
-function dayKey(d: Date): string {
-  return d.toISOString().slice(0, 10);
-}
-function fmtDur(ms: number): string {
-  const total = Math.max(0, Math.floor(ms / 60000));
-  return `${Math.floor(total / 60)}h ${total % 60}m`;
-}
-function fmtTime(d: Date): string {
-  return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
-}
+import { fmtTime, dayKey, ymd, fmtDur, weekdayLabel, isWeekend } from './format';
 
 export default async function TimesheetPage({
   searchParams,
@@ -106,13 +93,12 @@ export default async function TimesheetPage({
             (acc, e) => acc + ((e.endedAt?.getTime() ?? 0) - e.startedAt.getTime()),
             0,
           );
-          const isWeekend = date.getDay() === 0 || date.getDay() === 6;
           return (
             <Card key={dayKey(date)}>
               <CardHeader>
                 <CardTitle>
-                  <span className={isWeekend ? 'text-zinc-500 dark:text-zinc-400' : ''}>
-                    {date.toLocaleDateString('cs-CZ', { weekday: 'long' })} {ymd(date)}
+                  <span className={isWeekend(date) ? 'text-zinc-500 dark:text-zinc-400' : ''}>
+                    {weekdayLabel(date)} {ymd(date)}
                   </span>
                 </CardTitle>
                 <span className="font-mono text-sm text-zinc-700 dark:text-zinc-300">
