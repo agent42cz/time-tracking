@@ -6,7 +6,7 @@
 
 ## Problem
 
-A user wants to drive their time-tracking entry from inside a Claude Code (or Cursor, etc.) session: read the currently running timer, append "what I just did and which commit" to its description, and optionally start/stop timers without leaving the terminal. The companion workflow on the LLM side already handles Plane (existing `mcp__plane` server) — closing the description in the tracker is the missing leg.
+A user wants to drive their time-tracking entries from inside a Claude Code (or Cursor, etc.) session: read currently running timers, append "what I just did and which commit" to a chosen entry's description, and optionally start/stop timers without leaving the terminal. The companion workflow on the LLM side already handles Plane (existing `mcp__plane` server) — closing the description in the tracker is the missing leg. A user may have multiple timers running concurrently (US-21), so every tool that targets an entry takes an explicit `entryId`.
 
 There is no machine-friendly API today: the web app authenticates via Auth.js session cookies and the extension talks via the same session. Time to expose a multi-tenant, token-authenticated MCP endpoint so any user can plug their own Claude into their own data.
 
@@ -16,10 +16,10 @@ These are appended to `docs/reference/features.md` and `tests/_helpers/trace.ts`
 
 - **US-55** — A user issues a personal MCP token scoped to one company from `/settings/api-tokens`. Plaintext is shown exactly once; subsequent loads show only the prefix.
 - **US-56** — A user lists and revokes their tokens; revocation is immediate.
-- **US-57** — An MCP client calling `get_current_entry` with a valid token returns the running entry for that user/company (or `null`).
-- **US-58** — `start_timer` opens an entry against optional `clientId`/`projectId`/`tagIds`; the WS layer publishes `timer.started` so any open browser/extension reflects the change.
-- **US-59** — `update_entry` (defaulting `entryId` to the running entry) replaces `description` and/or `clientId`/`projectId`/`billable`/`tagIds`; one audit row is written with `source = 'mcp'`.
-- **US-60** — `stop_timer` ends the running entry; broadcasts `timer.stopped`.
+- **US-57** — An MCP client calling `list_running_entries` with a valid token returns every currently running entry for that user/company as an array (possibly empty).
+- **US-58** — `start_timer` opens an entry against optional `clientId`/`projectId`/`tagIds`; the WS layer publishes `timer.started` so any open browser/extension reflects the change. Other running entries (US-21) are left alone.
+- **US-59** — `update_entry` with an explicit `entryId` replaces `description` and/or `clientId`/`projectId`/`billable`/`tagIds`; one audit row is written with `source = 'mcp'`.
+- **US-60** — `stop_timer` with an explicit `entryId` ends that entry and broadcasts `timer.stopped`; other running entries continue.
 - **US-61** — A token issued for Company A targeting Company B's `entryId` returns the MCP `not_found` error code (no existence leak).
 - **US-62** — A revoked token returns HTTP `401` on every call (read or write).
 - **US-63** — A token over the rate limit returns HTTP `429` with `Retry-After`; the next minute it succeeds again.
@@ -134,18 +134,20 @@ model AuditLog {
 
 All six tools resolve `{userId, companyId}` from `McpAuthContext`. Input validation: Zod schemas; failures map to `invalid_args`. Output schemas are also Zod for forward compatibility.
 
-| Tool                  | Args                                                                                                          | Wraps                                                            | Audit (action)       | WS broadcast         |
-| --------------------- | ------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------- | -------------------- | -------------------- |
-| `get_current_entry`   | —                                                                                                             | `services/time-entries.listMyWeek` filtered to `endedAt IS NULL` | —                    | —                    |
-| `list_recent_entries` | `limit?: 1..50` (default 10)                                                                                  | same                                                             | —                    | —                    |
-| `start_timer`         | `description?`, `clientId?`, `projectId?`, `tagIds?: string[]`                                                | `services/time-entries.startTimer`                               | `time_entry.created` | `timer.started`      |
-| `stop_timer`          | —                                                                                                             | `services/time-entries.stopTimer`                                | `time_entry.updated` | `timer.stopped`      |
-| `update_entry`        | `entryId?` (defaults to running), `description?`, `clientId?`, `projectId?`, `billable?`, `tagIds?: string[]` | `services/time-entries.updateEntry`                              | `time_entry.updated` | `time_entry.updated` |
-| `list_catalog`        | `kind: 'clients' \| 'projects' \| 'tags'`, `query?: string`                                                   | `services/catalog.*`                                             | —                    | —                    |
+| Tool                   | Args                                                                                              | Wraps                                                                                               | Audit (action)       | WS broadcast         |
+| ---------------------- | ------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------- | -------------------- | -------------------- |
+| `list_running_entries` | —                                                                                                 | `services/time-entries.listMyWeek` filtered to `endedAt IS NULL`; returns an array (possibly empty) | —                    | —                    |
+| `list_recent_entries`  | `limit?: 1..50` (default 10)                                                                      | same                                                                                                | —                    | —                    |
+| `start_timer`          | `description?`, `clientId?`, `projectId?`, `tagIds?: string[]`                                    | `services/time-entries.startTimer`                                                                  | `time_entry.created` | `timer.started`      |
+| `stop_timer`           | `entryId` (required)                                                                              | `services/time-entries.stopTimer`                                                                   | `time_entry.updated` | `timer.stopped`      |
+| `update_entry`         | `entryId` (required), `description?`, `clientId?`, `projectId?`, `billable?`, `tagIds?: string[]` | `services/time-entries.updateEntry`                                                                 | `time_entry.updated` | `time_entry.updated` |
+| `list_catalog`         | `kind: 'clients' \| 'projects' \| 'tags'`, `query?: string`                                       | `services/catalog.*`                                                                                | —                    | —                    |
 
 **Response shape**: tools return JSON-serialisable objects. Timestamps come from the services (UTC ISO 8601), and tool descriptions document the `Europe/Prague` business-day convention so the LLM can format for the user.
 
-**Caps**: `list_recent_entries` truncates `description` to 500 chars per row and caps `limit` at 50.
+**Concurrent timers**: the app permits multiple running entries per user (US-21). `list_running_entries` always returns an array; the LLM must inspect it and pass an explicit `entryId` to `update_entry` / `stop_timer`. No "default to the running one" sugar in v1.
+
+**Caps**: `list_recent_entries` truncates `description` to 500 chars per row and caps `limit` at 50. `list_running_entries` does not truncate (running set is small) but applies the same 50-row cap defensively.
 
 ## Auth, transport, request lifecycle
 
@@ -207,7 +209,7 @@ Existence-leak hygiene: never differentiate "wrong company" from "missing" — b
 - Every mutating tool produces **exactly one** audit row via the underlying service, with `source = 'mcp'`. Tests use `auditCount()` before/after.
 - Token issuance and revocation produce an audit row (`entityType = 'ApiToken'`, action `created` / `revoked`).
 - `AuditLog` rows remain immutable; no service touches `auditLog.update/delete`. The existing static check in `apps/web/tests/services/audit.test.ts` will be extended to cover the new MCP files.
-- Reads (`get_current_entry`, `list_recent_entries`, `list_catalog`) write **no** audit rows.
+- Reads (`list_running_entries`, `list_recent_entries`, `list_catalog`) write **no** audit rows.
 
 ## Testing strategy
 
@@ -220,7 +222,7 @@ apps/web/tests/
 ├── server/mcp/
 │   ├── authenticate.test.ts          # bearer parsing, prefix lookup, revoked, rate limit
 │   ├── tools/
-│   │   ├── get-current-entry.test.ts
+│   │   ├── list-running-entries.test.ts
 │   │   ├── list-recent-entries.test.ts
 │   │   ├── start-timer.test.ts
 │   │   ├── stop-timer.test.ts
@@ -231,8 +233,8 @@ apps/web/tests/
     └── mcp-skill-flow.spec.ts        # Playwright: settings UI issues token; real MCP Client round-trips
 ```
 
-- **One US per `it`.** Names embed the US: e.g. `it('US-59: update_entry replaces description on the running entry')`.
-- **Cross-company 404** has a block per tool that takes an ID (`update_entry`).
+- **One US per `it`.** Names embed the US: e.g. `it('US-59: update_entry replaces description on the targeted running entry')`.
+- **Cross-company 404** has a block per tool that takes an ID (`update_entry`, `stop_timer`).
 - **Audit assertion** in every mutation test uses `auditCount()`.
 - **Helper**: `tests/_helpers/mcp.ts` spins up an in-process `Client` from `@modelcontextprotocol/sdk` against the route handler. One file, reused by all `tools/*.test.ts`.
 - **`pnpm test:trace`** must report 100% across US-1..US-63. Trace cap is bumped in the same PR.
@@ -267,6 +269,6 @@ Not in this repo. To close the user's described loop, the local skill would:
 
 1. Call `mcp__plane.update_work_item` to mark the item Done.
 2. Call `mcp__plane.create_work_item_comment` with the summary + commit SHA.
-3. Call this server's `update_entry` (no `entryId` arg — defaults to the running entry) with a description that embeds the Plane work-item identifier and the commit SHA.
+3. Call this server's `list_running_entries`, pick the right one (typically the latest, or the entry whose `clientId`/`projectId` matches), and call `update_entry { entryId, description }` with a description that embeds the Plane work-item identifier and the commit SHA.
 
 The skill itself ships separately; this spec is only about the MCP server that step 3 depends on.
