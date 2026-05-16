@@ -1,4 +1,4 @@
-# Features (US-1 … US-63)
+# Features (US-1 … US-76)
 
 Feature catalogue keyed by user-story IDs from PRD §13. Test names embed the US ID so [`../../scripts/test-trace.ts`](../../scripts/test-trace.ts) can verify 100% coverage.
 
@@ -95,10 +95,26 @@ Feature catalogue keyed by user-story IDs from PRD §13. Test names embed the US
 - **US-62** — A revoked token returns HTTP `401` on every call.
 - **US-63** — A token over the rate limit returns HTTP `429` with `Retry-After`; next bucket allows again.
 
+## Auto-stack overlapping entries
+
+- **US-64** — User enables "Automaticky řadit překrývající se záznamy za sebou" in profile settings; off by default.
+- **US-65** — With the setting OFF, saving an overlapping closed entry succeeds with no shifts and no dialog (current behavior).
+- **US-66** — With the setting ON, saving a non-overlapping closed entry goes through with no dialog flash.
+- **US-67** — With the setting ON, saving a closed entry that overlaps an existing closed entry opens a preview dialog listing the candidate's final placement and every cascaded shift. The dialog offers **Posunout vpřed a uložit**, **Posunout zpět a uložit**, **Uložit bez posunu**, **Zrušit**.
+- **US-68** — Confirming the preview (either direction) shifts every affected entry preserving its duration, places the candidate at its final position, and writes one audit row per shifted entry (`action = 'time_entry.shifted_by_auto_stack'`, `meta.direction` is `'forward'` or `'backward'`) plus the audit row for the candidate write.
+- **US-69** — "Uložit bez posunu" saves the candidate using the existing save path; no shifts; behaves identically to setting OFF for that one save.
+- **US-70** — Stopping a running timer triggers auto-stack on the resulting closed entry when the setting is ON.
+- **US-71** — Editing an existing closed entry's times (US-54 path) triggers auto-stack; the entry being edited is excluded from the timeline used for planning.
+- **US-72** — A cross-company entry id returns MCP-style `not_found` on both the preview endpoint and the save endpoint. No existence leak.
+- **US-73** — Two concurrent saves on the same user's day serialize via `SELECT ... FOR UPDATE`; both succeed; no residual overlap.
+- **US-74** — When the forward cascade pushes the final entry's `endedAt` past now, the save still succeeds. The entry is stored with `endedAt > now` and appears in the UI as a normal closed entry. The candidate itself must still satisfy `endedAt ≤ now`.
+- **US-75** — Choosing **Posunout zpět a uložit** shifts the candidate so its `endedAt` equals the existing overlapping entry's `startedAt`, preserving the candidate's duration; entries earlier than the candidate's new position are cascaded backward by the same rule. The candidate's resulting `startedAt` may land in an earlier calendar day.
+- **US-76** — Starting a timer while another is running never triggers auto-stack (both are `endedAt IS NULL`, excluded). Auto-stack fires when the **second** of two parallel timers is stopped, because that stop is when the second timer becomes a closed entry that overlaps the now-closed first timer. The user is offered the preview dialog at that moment.
+
 ## Coverage check
 
 ```bash
 pnpm test:trace
 ```
 
-Walks every test file (`*.test.{ts,tsx}`, `*.spec.{ts,tsx}`, `tests/**`) and looks for `\bUS-N\b`. Exits non-zero if any of US-1..US-63 has zero matches.
+Walks every test file (`*.test.{ts,tsx}`, `*.spec.{ts,tsx}`, `tests/**`) and looks for `\bUS-N\b`. Exits non-zero if any of US-1..US-76 has zero matches.
