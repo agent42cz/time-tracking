@@ -175,7 +175,16 @@ export function EditEntryDialog({
           candidate={pendingCandidate}
           onClose={() => setAutoStackOpen(false)}
           onSaveWithoutShift={async () => {
-            await updateEntryAction(entryId, pendingPatch);
+            const r = await updateEntryAction(entryId, pendingPatch);
+            if (r.ok) {
+              onSaved({
+                startedAt: pendingPatch.startedAt,
+                endedAt: pendingPatch.endedAt ?? null,
+              });
+              onClose();
+            } else {
+              setError(r.error);
+            }
           }}
           onShifted={() => {
             onSaved({

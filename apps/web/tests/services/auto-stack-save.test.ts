@@ -125,6 +125,7 @@ describe('saveEntryWithAutoStack', () => {
     const after = await prisma.timeEntry.findUniqueOrThrow({ where: { id: running.id } });
     expect(after.startedAt.toISOString()).toBe(t('10:00').toISOString());
     expect(after.endedAt?.toISOString()).toBe(t('11:00').toISOString());
+    expect(await auditCount()).toBe(1);
   });
 
   it('US-71: edit kind excludes the edited entry from existing', async () => {
@@ -141,6 +142,7 @@ describe('saveEntryWithAutoStack', () => {
     const after = await prisma.timeEntry.findUniqueOrThrow({ where: { id: b.id } });
     expect(after.startedAt.toISOString()).toBe(t('10:00').toISOString());
     expect(after.endedAt?.toISOString()).toBe(t('11:00').toISOString());
+    expect(await auditCount()).toBe(1);
     void a;
   });
 
@@ -176,6 +178,7 @@ describe('saveEntryWithAutoStack', () => {
     ]);
     expect(r1.ok).toBe(true);
     expect(r2.ok).toBe(true);
+    expect(await auditCount()).toBeGreaterThanOrEqual(2);
 
     const all = await prisma.timeEntry.findMany({
       where: { userId, companyId, deletedAt: null },
@@ -201,6 +204,7 @@ describe('saveEntryWithAutoStack', () => {
     expect(result.ok).toBe(true);
     const after = await prisma.timeEntry.findUniqueOrThrow({ where: { id: b.id } });
     expect(after.endedAt!.getTime()).toBeGreaterThan(fixedNow.getTime());
+    expect(await auditCount()).toBe(2);
   });
 
   it('US-75: backward direction shifts candidate earlier and writes direction=backward audit', async () => {
@@ -217,6 +221,7 @@ describe('saveEntryWithAutoStack', () => {
     const created = await prisma.timeEntry.findUniqueOrThrow({ where: { id: result.candidateId } });
     expect(created.startedAt.toISOString()).toBe(t('08:00').toISOString());
     expect(created.endedAt?.toISOString()).toBe(t('09:00').toISOString());
+    expect(await auditCount()).toBe(1);
     void a;
   });
 
@@ -234,6 +239,7 @@ describe('saveEntryWithAutoStack', () => {
     const after = await prisma.timeEntry.findUniqueOrThrow({ where: { id: t2.id } });
     expect(after.startedAt.toISOString()).toBe(t('11:00').toISOString());
     expect(after.endedAt?.toISOString()).toBe(t('12:30').toISOString());
+    expect(await auditCount()).toBe(1);
   });
 
   it('soft-deleted entries are excluded from existing', async () => {
