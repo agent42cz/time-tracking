@@ -7,6 +7,9 @@ import { formatDurationHMS } from '@tt/shared';
 import { stopTimerAction } from '@/lib/actions/time';
 import { notifyTimerChanged } from '@/lib/timer-events';
 import { EditEntryButton } from '@/components/time/EditEntryButton';
+import { checkOverlap } from '@/components/time/save-with-overlap-check';
+import { AutoStackPreviewDialog } from '@/components/time/AutoStackPreviewDialog';
+import type { AutoStackActionInput } from '@/lib/actions/auto-stack';
 
 interface Entry {
   id: string;
@@ -60,58 +63,105 @@ function RunningRow({
   autoStackOverlaps?: boolean;
 }): ReactElement {
   const [pending, setPending] = useState(false);
+  const [autoStackOpen, setAutoStackOpen] = useState(false);
+  const [pendingCandidate, setPendingCandidate] = useState<
+    AutoStackActionInput['candidate'] | null
+  >(null);
   const elapsed = now == null ? 0 : now - new Date(entry.startedAt).getTime();
   async function handleStop(): Promise<void> {
     setPending(true);
     try {
+      if (!autoStackOverlaps) {
+        const r = await stopTimerAction(entry.id);
+        if (r.ok) onStopped(entry.id);
+        notifyTimerChanged();
+        setPending(false);
+        return;
+      }
+      const nowIso = new Date().toISOString();
+      const candidate: AutoStackActionInput['candidate'] = {
+        kind: 'stop',
+        id: entry.id,
+        startedAt: entry.startedAt,
+        endedAt: nowIso,
+      };
+      const probe = await checkOverlap(candidate);
+      if (probe.kind === 'overlap') {
+        setPendingCandidate(candidate);
+        setAutoStackOpen(true);
+        setPending(false);
+        return;
+      }
       const r = await stopTimerAction(entry.id);
       if (r.ok) onStopped(entry.id);
-    } finally {
+      notifyTimerChanged();
+      setPending(false);
+    } catch {
       setPending(false);
     }
-    notifyTimerChanged();
   }
   return (
-    <div className="flex items-center justify-between gap-4 rounded-md border border-zinc-100 dark:border-zinc-700/60 px-3 py-2">
-      <div className="min-w-0">
-        <p className="truncate font-medium text-zinc-900 dark:text-zinc-100">
-          {entry.description || (
-            <span className="text-zinc-400 dark:text-zinc-500">(bez popisu)</span>
-          )}
-        </p>
-        <div className="mt-0.5 flex flex-wrap items-center gap-1.5 text-xs text-zinc-500 dark:text-zinc-400">
-          {entry.clientName ? <span>{entry.clientName}</span> : null}
-          {entry.projectName ? <span>· {entry.projectName}</span> : null}
-          {entry.tags.map((t, i) => (
-            <span
-              key={i}
-              className="rounded-full px-2 py-0.5 text-[10px] font-medium text-white"
-              style={{ backgroundColor: t.color }}
-            >
-              {t.name}
-            </span>
-          ))}
+    <>
+      <div className="flex items-center justify-between gap-4 rounded-md border border-zinc-100 dark:border-zinc-700/60 px-3 py-2">
+        <div className="min-w-0">
+          <p className="truncate font-medium text-zinc-900 dark:text-zinc-100">
+            {entry.description || (
+              <span className="text-zinc-400 dark:text-zinc-500">(bez popisu)</span>
+            )}
+          </p>
+          <div className="mt-0.5 flex flex-wrap items-center gap-1.5 text-xs text-zinc-500 dark:text-zinc-400">
+            {entry.clientName ? <span>{entry.clientName}</span> : null}
+            {entry.projectName ? <span>· {entry.projectName}</span> : null}
+            {entry.tags.map((t, i) => (
+              <span
+                key={i}
+                className="rounded-full px-2 py-0.5 text-[10px] font-medium text-white"
+                style={{ backgroundColor: t.color }}
+              >
+                {t.name}
+              </span>
+            ))}
+          </div>
+        </div>
+        <div className="flex shrink-0 items-center gap-3">
+          <span
+            suppressHydrationWarning
+            className="font-mono text-base font-semibold text-zinc-900 dark:text-zinc-100 tabular-nums"
+          >
+            {formatDurationHMS(elapsed)}
+          </span>
+          <EditEntryButton
+            entryId={entry.id}
+            startedAt={entry.startedAt}
+            endedAt={null}
+            autoStackOverlaps={autoStackOverlaps}
+            onSaved={() => notifyTimerChanged()}
+          />
+          <Button variant="danger" size="sm" loading={pending} onClick={() => void handleStop()}>
+            ■ Stop
+          </Button>
         </div>
       </div>
-      <div className="flex shrink-0 items-center gap-3">
-        <span
-          suppressHydrationWarning
-          className="font-mono text-base font-semibold text-zinc-900 dark:text-zinc-100 tabular-nums"
-        >
-          {formatDurationHMS(elapsed)}
-        </span>
-        <EditEntryButton
-          entryId={entry.id}
-          startedAt={entry.startedAt}
-          endedAt={null}
-          autoStackOverlaps={autoStackOverlaps}
-          onSaved={() => notifyTimerChanged()}
+      {autoStackOpen && pendingCandidate ? (
+        <AutoStackPreviewDialog
+          open
+          candidate={pendingCandidate}
+          onClose={() => {
+            setAutoStackOpen(false);
+            setPendingCandidate(null);
+          }}
+          onSaveWithoutShift={async () => {
+            const r = await stopTimerAction(entry.id);
+            if (r.ok) onStopped(entry.id);
+            notifyTimerChanged();
+          }}
+          onShifted={() => {
+            onStopped(entry.id);
+            notifyTimerChanged();
+          }}
         />
-        <Button variant="danger" size="sm" loading={pending} onClick={() => void handleStop()}>
-          ■ Stop
-        </Button>
-      </div>
-    </div>
+      ) : null}
+    </>
   );
 }
 
