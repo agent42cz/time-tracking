@@ -159,3 +159,100 @@ describe('planAutoStack — forward', () => {
     expect(plan.shifts).toEqual([]);
   });
 });
+
+describe('planAutoStack — backward', () => {
+  const now = t('23:59');
+
+  it('US-75: single backward overlap shifts candidate so endedAt = A.startedAt', () => {
+    const existing: ClosedEntry[] = [{ id: 'A', startedAt: t('09:00'), endedAt: t('10:00') }];
+    const plan = planAutoStack({
+      candidate: { kind: 'create', startedAt: t('09:30'), endedAt: t('10:30') },
+      existing,
+      now,
+      direction: 'backward',
+    });
+    // A.startedAt 09:00 <= candidate.startedAt 09:30; overlap exists.
+    // candidateAfter.endedAt = 09:00, duration 60min → 08:00-09:00.
+    expect(plan.candidateAfter).toEqual({ startedAt: t('08:00'), endedAt: t('09:00') });
+    expect(plan.shifts).toEqual([]);
+    expect(plan.direction).toBe('backward');
+  });
+
+  it('US-75: backward cascade through two earlier entries', () => {
+    const existing: ClosedEntry[] = [
+      { id: 'C', startedAt: t('07:00'), endedAt: t('08:00') },
+      { id: 'B', startedAt: t('07:30'), endedAt: t('08:30') },
+      { id: 'A', startedAt: t('09:00'), endedAt: t('10:00') },
+    ];
+    const plan = planAutoStack({
+      candidate: { kind: 'create', startedAt: t('09:30'), endedAt: t('10:30') },
+      existing,
+      now,
+      direction: 'backward',
+    });
+    // Dock = A (the only entry with startedAt <= candidate.startedAt AND overlapping).
+    // candidateAfter: endedAt = A.startedAt = 09:00, duration 60min → 08:00–09:00.
+    // Walk backward from candidate:
+    //   B 07:30-08:30 vs candidate 08:00-09:00 → B.endedAt 08:30 > candidate.startedAt 08:00
+    //     → B shifts to 07:00-08:00 (duration 60min, endedAt = 08:00)
+    //   C 07:00-08:00 vs B 07:00-08:00 → C.endedAt 08:00 > B.startedAt 07:00
+    //     → C shifts to 06:00-07:00 (duration 60min, endedAt = 07:00)
+    expect(plan.candidateAfter).toEqual({ startedAt: t('08:00'), endedAt: t('09:00') });
+    expect(plan.shifts).toEqual([
+      {
+        entryId: 'B',
+        before: { startedAt: t('07:30'), endedAt: t('08:30') },
+        after: { startedAt: t('07:00'), endedAt: t('08:00') },
+      },
+      {
+        entryId: 'C',
+        before: { startedAt: t('07:00'), endedAt: t('08:00') },
+        after: { startedAt: t('06:00'), endedAt: t('07:00') },
+      },
+    ]);
+  });
+
+  it('backward degeneracy: no earlier-overlapping entry → no shifts, candidate stays', () => {
+    const existing: ClosedEntry[] = [{ id: 'A', startedAt: t('10:00'), endedAt: t('11:00') }];
+    // Candidate 09:30-10:30 overlaps A, but A.startedAt 10:00 > candidate.startedAt 09:30
+    // → no earlier dock. Backward degenerates to no shifts; candidate stays.
+    const plan = planAutoStack({
+      candidate: { kind: 'create', startedAt: t('09:30'), endedAt: t('10:30') },
+      existing,
+      now,
+      direction: 'backward',
+    });
+    expect(plan.candidateAfter).toEqual({ startedAt: t('09:30'), endedAt: t('10:30') });
+    expect(plan.shifts).toEqual([]);
+    expect(plan.direction).toBe('backward');
+  });
+
+  it('US-71: edit case removes the edited entry from existing in backward mode too', () => {
+    const existing: ClosedEntry[] = [
+      { id: 'A', startedAt: t('09:00'), endedAt: t('10:00') },
+      { id: 'B', startedAt: t('10:00'), endedAt: t('11:00') }, // being edited
+    ];
+    const plan = planAutoStack({
+      candidate: { kind: 'edit', id: 'B', startedAt: t('09:30'), endedAt: t('10:30') },
+      existing,
+      now,
+      direction: 'backward',
+    });
+    // After removing B: [A 09-10]. Candidate 09:30-10:30 overlaps A.
+    // Dock = A (A.startedAt 09:00 <= candidate.startedAt 09:30 AND overlaps).
+    // candidateAfter.endedAt = A.startedAt = 09:00, duration 60min → 08:00-09:00.
+    expect(plan.candidateAfter).toEqual({ startedAt: t('08:00'), endedAt: t('09:00') });
+    expect(plan.shifts).toEqual([]);
+  });
+
+  it('throws CandidateEndsInFutureError regardless of direction', () => {
+    expect(() =>
+      planAutoStack({
+        candidate: { kind: 'create', startedAt: t('09:00'), endedAt: t('23:00') },
+        existing: [],
+        now: t('10:00'),
+        direction: 'backward',
+      }),
+    ).toThrow(CandidateEndsInFutureError);
+  });
+});

@@ -93,8 +93,52 @@ export function planAutoStack(input: {
       }
     }
   } else {
-    // backward — implemented in Task 5
-    throw new Error('backward not yet implemented');
+    // backward — find first earlier-overlapping entry with startedAt <= candidate.startedAt
+    const candidateIdx = working.findIndex((e) => e.id === candidateId);
+    let dockEntry: WorkingEntry | null = null;
+    for (let i = candidateIdx - 1; i >= 0; i--) {
+      const earlier = working[i]!;
+      const overlaps =
+        earlier.endedAt.getTime() > candidateEntry.startedAt.getTime() &&
+        earlier.startedAt.getTime() < candidateEntry.endedAt.getTime();
+      if (earlier.startedAt.getTime() <= candidateEntry.startedAt.getTime() && overlaps) {
+        dockEntry = earlier;
+        break;
+      }
+    }
+
+    if (dockEntry !== null) {
+      const candidateDuration =
+        candidateEntry.endedAt.getTime() - candidateEntry.startedAt.getTime();
+      const newCandidateEnd = new Date(dockEntry.startedAt);
+      const newCandidateStart = new Date(dockEntry.startedAt.getTime() - candidateDuration);
+      working[candidateIdx] = {
+        id: candidateId,
+        startedAt: newCandidateStart,
+        endedAt: newCandidateEnd,
+      };
+      working.sort((a, b) => {
+        const cmp = a.startedAt.getTime() - b.startedAt.getTime();
+        if (cmp !== 0) return cmp;
+        return a.id < b.id ? -1 : a.id > b.id ? 1 : 0;
+      });
+
+      // Walk backward from new candidate position; cascade earlier entries.
+      const newCandidateIdx = working.findIndex((e) => e.id === candidateId);
+      for (let i = newCandidateIdx - 1; i >= 0; i--) {
+        const curr = working[i]!;
+        const succ = working[i + 1]!;
+        if (curr.endedAt.getTime() > succ.startedAt.getTime()) {
+          const duration = curr.endedAt.getTime() - curr.startedAt.getTime();
+          working[i] = {
+            id: curr.id,
+            startedAt: new Date(succ.startedAt.getTime() - duration),
+            endedAt: new Date(succ.startedAt),
+          };
+        }
+      }
+    }
+    // If no dockEntry: candidate stays, no shifts. (backward degeneracy.)
   }
 
   const finalCandidate = working.find((e) => e.id === candidateId)!;
@@ -113,7 +157,13 @@ export function planAutoStack(input: {
       });
     }
   }
-  shifts.sort((a, b) => a.after.startedAt.getTime() - b.after.startedAt.getTime());
+  // Forward: ascending by after.startedAt (shifts push entries later).
+  // Backward: descending by after.startedAt (shifts pull entries earlier, cascade order).
+  if (direction === 'forward') {
+    shifts.sort((a, b) => a.after.startedAt.getTime() - b.after.startedAt.getTime());
+  } else {
+    shifts.sort((a, b) => b.after.startedAt.getTime() - a.after.startedAt.getTime());
+  }
 
   return {
     direction,
