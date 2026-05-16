@@ -184,5 +184,21 @@
       "totp_enable": "2FA zapnuto",
       "totp_disable": "2FA vypnuto"
     }
+  },
+  "autoStack": {
+    "settingLabel": "Automaticky řadit překrývající se záznamy za sebou",
+    "settingHelper": "Při ukládání záznamu, který se překrývá s jiným, nabídnu jejich přerovnání.",
+    "dialogTitle": "Tento záznam se překrývá s ostatními.",
+    "dialogSubtitle": "Posunout záznamy, aby šly za sebou?",
+    "directionForward": "Vpřed",
+    "directionBackward": "Zpět",
+    "candidateRowLabel": "Tento záznam",
+    "futureEndNote": "Poslední záznam končí v {time} (za {duration}).",
+    "crossDayNote": "Posun zasahuje do dne {date}.",
+    "degeneracyNote": "Zpětný posun zde nemá efekt — záznam zůstává na svém čase.",
+    "cancel": "Zrušit",
+    "saveWithoutShift": "Uložit bez posunu",
+    "saveWithShift": "Posunout a uložit",
+    "errorCascadeWindow": "Tento posun by zasáhl příliš mnoho dní. Uložte bez posunu."
   }
 }
