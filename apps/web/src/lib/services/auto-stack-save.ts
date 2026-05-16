@@ -270,6 +270,16 @@ export async function previewAutoStack(
     throw err;
   }
 
+  // Cascade-window check: bail if any shift lands within 1 hour of either edge.
+  for (const s of plan.shifts) {
+    if (
+      s.after.startedAt.getTime() < windowStart.getTime() + CASCADE_EDGE_BUFFER_MS ||
+      s.after.endedAt.getTime() > windowEnd.getTime() - CASCADE_EDGE_BUFFER_MS
+    ) {
+      return { ok: false, reason: 'cascade_window_exceeded' };
+    }
+  }
+
   return {
     ok: true,
     candidateId: candidate.kind === 'create' ? '' : candidate.id,
