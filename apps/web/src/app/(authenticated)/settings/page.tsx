@@ -1,14 +1,19 @@
 import type { ReactElement } from 'react';
 import Link from 'next/link';
 import { Card, CardBody, CardHeader, CardTitle } from '@tt/ui';
-import { requireUser } from '@/lib/session';
+import { requireUser, prisma } from '@/lib/session';
 import { PageHeader } from '@/components/PageHeader';
 import { ChangePasswordForm } from './ChangePasswordForm';
 import { TotpManager } from './TotpManager';
 import { ThemeToggle } from '@/components/ThemeToggle';
+import { AutoStackToggle } from '@/components/settings/AutoStackToggle';
 
 export default async function SettingsPage(): Promise<ReactElement> {
   const session = await requireUser();
+  const user = await prisma().user.findUniqueOrThrow({
+    where: { id: session.userId },
+    select: { autoStackOverlaps: true },
+  });
   return (
     <div className="space-y-6">
       <PageHeader title="Nastavení" />
@@ -38,6 +43,14 @@ export default async function SettingsPage(): Promise<ReactElement> {
           <p className="text-xs text-zinc-500 dark:text-zinc-400">
             Vyberte vzhled aplikace. „Systémový“ se přizpůsobí nastavení vašeho zařízení.
           </p>
+        </CardBody>
+      </Card>
+      <Card>
+        <CardHeader>
+          <CardTitle>Záznamy</CardTitle>
+        </CardHeader>
+        <CardBody>
+          <AutoStackToggle initialValue={user.autoStackOverlaps} />
         </CardBody>
       </Card>
       <Card>
