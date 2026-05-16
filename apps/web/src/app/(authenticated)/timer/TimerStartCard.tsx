@@ -17,6 +17,9 @@ import {
 } from '@tt/ui';
 import { startTimerAction, createManualAction } from '@/lib/actions/time';
 import { notifyTimerChanged } from '@/lib/timer-events';
+import { checkOverlap } from '@/components/time/save-with-overlap-check';
+import { AutoStackPreviewDialog } from '@/components/time/AutoStackPreviewDialog';
+import type { AutoStackActionInput } from '@/lib/actions/auto-stack';
 
 interface ClientWithProjects {
   id: string;
@@ -32,15 +35,22 @@ interface Tag {
 export function TimerStartCard({
   clients,
   tags,
+  autoStackOverlaps = false,
 }: {
   clients: ClientWithProjects[];
   tags: Tag[];
+  autoStackOverlaps?: boolean;
 }): ReactElement {
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
   const [showManual, setShowManual] = useState(false);
   const [clientId, setClientId] = useState('');
   const [tagIds, setTagIds] = useState<string[]>([]);
+  const [autoStackOpen, setAutoStackOpen] = useState(false);
+  const [pendingCandidate, setPendingCandidate] = useState<
+    AutoStackActionInput['candidate'] | null
+  >(null);
+  const [pendingFormData, setPendingFormData] = useState<FormData | null>(null);
   const router = useRouter();
 
   const projects = useMemo(
@@ -53,136 +63,201 @@ export function TimerStartCard({
   }
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Nové měření</CardTitle>
-        <button
-          type="button"
-          className="text-sm text-zinc-600 dark:text-zinc-400 underline"
-          onClick={() => setShowManual((s) => !s)}
-        >
-          {showManual ? 'Zavřít ruční zápis' : 'Přidat ručně'}
-        </button>
-      </CardHeader>
-      <CardBody>
-        {error ? (
-          <Alert tone="danger" className="mb-4">
-            {error}
-          </Alert>
-        ) : null}
-        {showManual ? (
-          <form
-            onSubmit={async (e) => {
-              e.preventDefault();
-              const form = e.currentTarget;
-              const fd = new FormData(form);
-              for (const id of tagIds) fd.append('tagIds', id);
-              setError(null);
-              setPending(true);
-              try {
-                const r = await createManualAction(fd);
-                if (!r.ok) {
-                  setError(r.error);
-                  return;
-                }
-                form.reset();
-                setTagIds([]);
-                setShowManual(false);
-                notifyTimerChanged();
-                startTransition(() => {
-                  router.refresh();
-                });
-              } finally {
-                setPending(false);
-              }
-            }}
+    <>
+      <Card>
+        <CardHeader>
+          <CardTitle>Nové měření</CardTitle>
+          <button
+            type="button"
+            className="text-sm text-zinc-600 dark:text-zinc-400 underline"
+            onClick={() => setShowManual((s) => !s)}
           >
-            <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
-              <Field label="Datum" htmlFor="date">
+            {showManual ? 'Zavřít ruční zápis' : 'Přidat ručně'}
+          </button>
+        </CardHeader>
+        <CardBody>
+          {error ? (
+            <Alert tone="danger" className="mb-4">
+              {error}
+            </Alert>
+          ) : null}
+          {showManual ? (
+            <form
+              onSubmit={async (e) => {
+                e.preventDefault();
+                const form = e.currentTarget;
+                const fd = new FormData(form);
+                for (const id of tagIds) fd.append('tagIds', id);
+                setError(null);
+                setPending(true);
+                try {
+                  const date = String(fd.get('date') ?? '');
+                  const from = String(fd.get('from') ?? '');
+                  const to = String(fd.get('to') ?? '');
+                  const startDate = new Date(`${date}T${from}:00`);
+                  const endDate = new Date(`${date}T${to}:00`);
+
+                  const doSubmit = async (): Promise<void> => {
+                    const r = await createManualAction(fd);
+                    if (!r.ok) {
+                      setError(r.error);
+                      return;
+                    }
+                    form.reset();
+                    setTagIds([]);
+                    setShowManual(false);
+                    notifyTimerChanged();
+                    startTransition(() => {
+                      router.refresh();
+                    });
+                  };
+
+                  if (
+                    !autoStackOverlaps ||
+                    Number.isNaN(startDate.getTime()) ||
+                    Number.isNaN(endDate.getTime())
+                  ) {
+                    await doSubmit();
+                    return;
+                  }
+
+                  const candidate: AutoStackActionInput['candidate'] = {
+                    kind: 'create',
+                    startedAt: startDate.toISOString(),
+                    endedAt: endDate.toISOString(),
+                  };
+                  const probe = await checkOverlap(candidate);
+                  if (probe.kind === 'overlap') {
+                    setPendingCandidate(candidate);
+                    setPendingFormData(fd);
+                    setAutoStackOpen(true);
+                    return; // dialog continues the flow
+                  }
+                  await doSubmit();
+                } finally {
+                  setPending(false);
+                }
+              }}
+            >
+              <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+                <Field label="Datum" htmlFor="date">
+                  <Input
+                    id="date"
+                    name="date"
+                    type="date"
+                    required
+                    defaultValue={new Date().toISOString().slice(0, 10)}
+                  />
+                </Field>
+                <Field label="Od" htmlFor="from">
+                  <Input id="from" name="from" type="time" required />
+                </Field>
+                <Field label="Do" htmlFor="to">
+                  <Input id="to" name="to" type="time" required />
+                </Field>
+              </div>
+              <div className="mt-3">
+                <Field label="Popis" htmlFor="description">
+                  <Input id="description" name="description" placeholder="Co jste dělali?" />
+                </Field>
+              </div>
+              <PickerRow
+                clients={clients}
+                projects={projects}
+                clientId={clientId}
+                setClientId={setClientId}
+              />
+              <TagPicker tags={tags} selected={tagIds} onToggle={toggleTag} />
+              <div className="mt-4 flex justify-end">
+                <Button type="submit" loading={pending}>
+                  Uložit záznam
+                </Button>
+              </div>
+            </form>
+          ) : (
+            <form
+              onSubmit={async (e) => {
+                e.preventDefault();
+                const form = e.currentTarget;
+                const fd = new FormData(form);
+                for (const id of tagIds) fd.append('tagIds', id);
+                setError(null);
+                setPending(true);
+                try {
+                  const r = await startTimerAction(fd);
+                  if (!r.ok) {
+                    setError(r.error);
+                    return;
+                  }
+                  form.reset();
+                  setTagIds([]);
+                  setClientId('');
+                  notifyTimerChanged();
+                  startTransition(() => {
+                    router.refresh();
+                  });
+                } finally {
+                  setPending(false);
+                }
+              }}
+            >
+              <Field label="Co děláte?" htmlFor="description">
                 <Input
-                  id="date"
-                  name="date"
-                  type="date"
-                  required
-                  defaultValue={new Date().toISOString().slice(0, 10)}
+                  id="description"
+                  name="description"
+                  placeholder="Např. Code review, schůzka s klientem…"
+                  autoFocus
                 />
               </Field>
-              <Field label="Od" htmlFor="from">
-                <Input id="from" name="from" type="time" required />
-              </Field>
-              <Field label="Do" htmlFor="to">
-                <Input id="to" name="to" type="time" required />
-              </Field>
-            </div>
-            <div className="mt-3">
-              <Field label="Popis" htmlFor="description">
-                <Input id="description" name="description" placeholder="Co jste dělali?" />
-              </Field>
-            </div>
-            <PickerRow
-              clients={clients}
-              projects={projects}
-              clientId={clientId}
-              setClientId={setClientId}
-            />
-            <TagPicker tags={tags} selected={tagIds} onToggle={toggleTag} />
-            <div className="mt-4 flex justify-end">
-              <Button type="submit" loading={pending}>
-                Uložit záznam
-              </Button>
-            </div>
-          </form>
-        ) : (
-          <form
-            onSubmit={async (e) => {
-              e.preventDefault();
-              const form = e.currentTarget;
-              const fd = new FormData(form);
-              for (const id of tagIds) fd.append('tagIds', id);
-              setError(null);
-              setPending(true);
-              try {
-                const r = await startTimerAction(fd);
-                if (!r.ok) {
-                  setError(r.error);
-                  return;
-                }
-                form.reset();
-                setTagIds([]);
-                setClientId('');
-                notifyTimerChanged();
-                startTransition(() => {
-                  router.refresh();
-                });
-              } finally {
-                setPending(false);
-              }
-            }}
-          >
-            <Field label="Co děláte?" htmlFor="description">
-              <Input
-                id="description"
-                name="description"
-                placeholder="Např. Code review, schůzka s klientem…"
-                autoFocus
+              <PickerRow
+                clients={clients}
+                projects={projects}
+                clientId={clientId}
+                setClientId={setClientId}
               />
-            </Field>
-            <PickerRow
-              clients={clients}
-              projects={projects}
-              clientId={clientId}
-              setClientId={setClientId}
-            />
-            <TagPicker tags={tags} selected={tagIds} onToggle={toggleTag} />
-            <div className="mt-4 flex justify-end">
-              <Button type="submit" size="lg" loading={pending}>
-                ▶ Spustit
-              </Button>
-            </div>
-          </form>
-        )}
-      </CardBody>
-    </Card>
+              <TagPicker tags={tags} selected={tagIds} onToggle={toggleTag} />
+              <div className="mt-4 flex justify-end">
+                <Button type="submit" size="lg" loading={pending}>
+                  ▶ Spustit
+                </Button>
+              </div>
+            </form>
+          )}
+        </CardBody>
+      </Card>
+      {autoStackOpen && pendingCandidate && pendingFormData ? (
+        <AutoStackPreviewDialog
+          open
+          candidate={pendingCandidate}
+          onClose={() => {
+            setAutoStackOpen(false);
+            setPendingCandidate(null);
+            setPendingFormData(null);
+          }}
+          onSaveWithoutShift={async () => {
+            const r = await createManualAction(pendingFormData);
+            if (!r.ok) {
+              setError(r.error);
+              return;
+            }
+            setTagIds([]);
+            setShowManual(false);
+            notifyTimerChanged();
+            startTransition(() => {
+              router.refresh();
+            });
+          }}
+          onShifted={() => {
+            setTagIds([]);
+            setShowManual(false);
+            notifyTimerChanged();
+            startTransition(() => {
+              router.refresh();
+            });
+          }}
+        />
+      ) : null}
+    </>
   );
 }
 

@@ -68,6 +68,7 @@ export default async function TimerPage(): Promise<ReactElement> {
             projects: c.projects.map((p) => ({ id: p.id, name: p.name })),
           }))}
           tags={tags.map((t) => ({ id: t.id, name: t.name, color: t.color }))}
+          autoStackOverlaps={autoStackUser.autoStackOverlaps}
         />
         <TimerLists
           autoStackOverlaps={autoStackUser.autoStackOverlaps}
