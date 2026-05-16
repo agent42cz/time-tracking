@@ -114,7 +114,7 @@ export function AutoStackPreviewDialog(props: AutoStackPreviewDialogProps): Reac
       {plan && (
         <ul className="space-y-1 text-sm">
           <li>
-            <span className="inline-block w-5">&#x270F;</span>
+            <span className="inline-block w-5">✏</span>
             {t('candidateRowLabel')}{' '}
             <code className="text-xs">
               {formatRange(candidate.startedAt, candidate.endedAt)} →{' '}
