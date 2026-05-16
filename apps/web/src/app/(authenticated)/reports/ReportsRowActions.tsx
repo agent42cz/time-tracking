@@ -8,12 +8,14 @@ export interface ReportsRowActionsProps {
   entryId: string;
   startedAt: string;
   endedAt: string | null;
+  autoStackOverlaps?: boolean;
 }
 
 export function ReportsRowActions({
   entryId,
   startedAt,
   endedAt,
+  autoStackOverlaps = false,
 }: ReportsRowActionsProps): ReactElement {
   const router = useRouter();
   return (
@@ -21,6 +23,7 @@ export function ReportsRowActions({
       entryId={entryId}
       startedAt={startedAt}
       endedAt={endedAt}
+      autoStackOverlaps={autoStackOverlaps}
       onSaved={() => router.refresh()}
     />
   );

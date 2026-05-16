@@ -12,7 +12,11 @@ export default async function TimerPage(): Promise<ReactElement> {
   const dayEnd = new Date(dayStart);
   dayEnd.setDate(dayEnd.getDate() + 1);
 
-  const [running, today, clients, tags] = await Promise.all([
+  const [autoStackUser, running, today, clients, tags] = await Promise.all([
+    prisma().user.findUniqueOrThrow({
+      where: { id: s.userId },
+      select: { autoStackOverlaps: true },
+    }),
     prisma().timeEntry.findMany({
       where: {
         userId: s.userId,
@@ -66,6 +70,7 @@ export default async function TimerPage(): Promise<ReactElement> {
           tags={tags.map((t) => ({ id: t.id, name: t.name, color: t.color }))}
         />
         <TimerLists
+          autoStackOverlaps={autoStackUser.autoStackOverlaps}
           initialRunning={running.map((r) => ({
             id: r.id,
             description: r.description,

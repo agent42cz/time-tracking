@@ -18,7 +18,13 @@ export default async function TimesheetPage({
   const ref = week ? new Date(week) : new Date();
   const range = getPeriodRange('week', ref);
 
-  const result = await listMyWeek(prisma(), s.userId, s.activeCompanyId, range);
+  const [autoStackUser, result] = await Promise.all([
+    prisma().user.findUniqueOrThrow({
+      where: { id: s.userId },
+      select: { autoStackOverlaps: true },
+    }),
+    listMyWeek(prisma(), s.userId, s.activeCompanyId, range),
+  ]);
   if (!result.ok) {
     return (
       <div>
@@ -129,6 +135,7 @@ export default async function TimesheetPage({
                           name: tt.tag.name,
                           color: tt.tag.color,
                         }))}
+                        autoStackOverlaps={autoStackUser.autoStackOverlaps}
                       />
                     ))}
                   </ul>

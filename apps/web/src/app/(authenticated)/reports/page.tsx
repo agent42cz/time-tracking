@@ -47,7 +47,11 @@ export default async function ReportsPage({
   const sp = await searchParams;
   const isAdmin = s.activeRole === 'admin';
 
-  const [clients, projects, members, tags] = await Promise.all([
+  const [autoStackUser, clients, projects, members, tags] = await Promise.all([
+    prisma().user.findUniqueOrThrow({
+      where: { id: s.userId },
+      select: { autoStackOverlaps: true },
+    }),
     prisma().client.findMany({
       where: { companyId: s.activeCompanyId },
       orderBy: { name: 'asc' },
@@ -192,6 +196,7 @@ export default async function ReportsPage({
                           entryId={r.id}
                           startedAt={r.startedAt.toISOString()}
                           endedAt={r.endedAt ? r.endedAt.toISOString() : null}
+                          autoStackOverlaps={autoStackUser.autoStackOverlaps}
                         />
                       </Td>
                     </Tr>

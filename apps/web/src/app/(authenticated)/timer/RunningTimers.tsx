@@ -21,10 +21,12 @@ export function RunningTimers({
   entries,
   now,
   onStopped,
+  autoStackOverlaps = false,
 }: {
   entries: Entry[];
   now: number | null;
   onStopped: (id: string) => void;
+  autoStackOverlaps?: boolean;
 }): ReactElement {
   return (
     <Card>
@@ -33,7 +35,13 @@ export function RunningTimers({
       </CardHeader>
       <CardBody className="space-y-3">
         {entries.map((e) => (
-          <RunningRow key={e.id} entry={e} now={now} onStopped={onStopped} />
+          <RunningRow
+            key={e.id}
+            entry={e}
+            now={now}
+            onStopped={onStopped}
+            autoStackOverlaps={autoStackOverlaps}
+          />
         ))}
       </CardBody>
     </Card>
@@ -44,10 +52,12 @@ function RunningRow({
   entry,
   now,
   onStopped,
+  autoStackOverlaps = false,
 }: {
   entry: Entry;
   now: number | null;
   onStopped: (id: string) => void;
+  autoStackOverlaps?: boolean;
 }): ReactElement {
   const [pending, setPending] = useState(false);
   const elapsed = now == null ? 0 : now - new Date(entry.startedAt).getTime();
@@ -94,6 +104,7 @@ function RunningRow({
           entryId={entry.id}
           startedAt={entry.startedAt}
           endedAt={null}
+          autoStackOverlaps={autoStackOverlaps}
           onSaved={() => notifyTimerChanged()}
         />
         <Button variant="danger" size="sm" loading={pending} onClick={() => void handleStop()}>

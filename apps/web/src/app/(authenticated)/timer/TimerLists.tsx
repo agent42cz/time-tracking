@@ -38,9 +38,11 @@ function toToday(e: TimerEntry): TodayEntry | null {
 export function TimerLists({
   initialRunning,
   initialToday,
+  autoStackOverlaps = false,
 }: {
   initialRunning: RunningEntry[];
   initialToday: TodayEntry[];
+  autoStackOverlaps?: boolean;
 }): ReactElement {
   const [running, setRunning] = useState<RunningEntry[]>(initialRunning);
   const [today, setToday] = useState<TodayEntry[]>(initialToday);
@@ -98,9 +100,14 @@ export function TimerLists({
   return (
     <>
       {running.length > 0 ? (
-        <RunningTimers entries={running} now={now} onStopped={handleStopped} />
+        <RunningTimers
+          entries={running}
+          now={now}
+          onStopped={handleStopped}
+          autoStackOverlaps={autoStackOverlaps}
+        />
       ) : null}
-      <TodayList entries={today} onDeleted={handleDeleted} />
+      <TodayList entries={today} onDeleted={handleDeleted} autoStackOverlaps={autoStackOverlaps} />
     </>
   );
 }

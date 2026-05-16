@@ -15,6 +15,7 @@ export interface TimesheetEntryRowProps {
   endLabel: string;
   durationLabel: string;
   tags: { id: string; name: string; color: string }[];
+  autoStackOverlaps?: boolean;
 }
 
 export function TimesheetEntryRow({
@@ -28,6 +29,7 @@ export function TimesheetEntryRow({
   endLabel,
   durationLabel,
   tags,
+  autoStackOverlaps = false,
 }: TimesheetEntryRowProps): ReactElement {
   const router = useRouter();
   return (
@@ -61,6 +63,7 @@ export function TimesheetEntryRow({
           entryId={entryId}
           startedAt={startedAt}
           endedAt={endedAt}
+          autoStackOverlaps={autoStackOverlaps}
           onSaved={() => router.refresh()}
         />
       </div>

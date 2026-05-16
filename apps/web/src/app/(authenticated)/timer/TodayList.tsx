@@ -21,9 +21,11 @@ interface Entry {
 export function TodayList({
   entries,
   onDeleted,
+  autoStackOverlaps = false,
 }: {
   entries: Entry[];
   onDeleted: (id: string) => void;
+  autoStackOverlaps?: boolean;
 }): ReactElement {
   const total = entries.reduce(
     (acc, e) => acc + (new Date(e.endedAt).getTime() - new Date(e.startedAt).getTime()),
@@ -49,7 +51,12 @@ export function TodayList({
         ) : (
           <ul className="divide-y divide-zinc-100 dark:divide-zinc-700/60">
             {entries.map((e) => (
-              <Row key={e.id} entry={e} onDeleted={onDeleted} />
+              <Row
+                key={e.id}
+                entry={e}
+                onDeleted={onDeleted}
+                autoStackOverlaps={autoStackOverlaps}
+              />
             ))}
           </ul>
         )}
@@ -61,9 +68,11 @@ export function TodayList({
 function Row({
   entry,
   onDeleted,
+  autoStackOverlaps = false,
 }: {
   entry: Entry;
   onDeleted: (id: string) => void;
+  autoStackOverlaps?: boolean;
 }): ReactElement {
   const [deletePending, setDeletePending] = useState(false);
   const [playPending, setPlayPending] = useState(false);
@@ -121,6 +130,7 @@ function Row({
           entryId={entry.id}
           startedAt={entry.startedAt}
           endedAt={entry.endedAt}
+          autoStackOverlaps={autoStackOverlaps}
           onSaved={() => notifyTimerChanged()}
         />
         <Button

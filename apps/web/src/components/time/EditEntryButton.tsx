@@ -9,6 +9,7 @@ export interface EditEntryButtonProps {
   entryId: string;
   startedAt: string;
   endedAt: string | null;
+  autoStackOverlaps?: boolean;
   onSaved?(updated: { startedAt: string; endedAt: string | null }): void;
   className?: string;
 }
@@ -17,6 +18,7 @@ export function EditEntryButton({
   entryId,
   startedAt,
   endedAt,
+  autoStackOverlaps = false,
   onSaved,
   className,
 }: EditEntryButtonProps): ReactElement {
@@ -38,6 +40,7 @@ export function EditEntryButton({
           initial={{ startedAt, endedAt }}
           open={open}
           onClose={() => setOpen(false)}
+          autoStackOverlaps={autoStackOverlaps}
           onSaved={(u) => {
             onSaved?.(u);
           }}
