@@ -225,6 +225,40 @@ describe('saveEntryWithAutoStack', () => {
     void a;
   });
 
+  it('US-75: backward cascade is bounded to the candidate day; prior-day entries are not touched', async () => {
+    // Entry from yesterday spanning into today (22:00 yesterday → 01:00 today).
+    const yesterdayLate = new Date('2026-05-15T22:00:00.000Z');
+    const earlyToday = new Date('2026-05-16T01:00:00.000Z');
+    const prior = await prisma.timeEntry.create({
+      data: { userId, companyId, description: '', startedAt: yesterdayLate, endedAt: earlyToday },
+      select: { id: true, startedAt: true, endedAt: true },
+    });
+    // Today's earlier entry that overlaps the candidate.
+    const todayA = await makeEntry(t('09:00'), t('10:00'));
+    const result = await saveEntryWithAutoStack(prisma, {
+      actorUserId: userId,
+      companyId,
+      candidate: { kind: 'create', startedAt: t('09:30'), endedAt: t('10:30') },
+      direction: 'backward',
+      now: t('23:59'),
+    });
+    expect(result.ok).toBe(true);
+    if (!result.ok) throw new Error('expected ok');
+    // Yesterday's entry must not move.
+    const priorAfter = await prisma.timeEntry.findUniqueOrThrow({ where: { id: prior.id } });
+    expect(priorAfter.startedAt.toISOString()).toBe(prior.startedAt.toISOString());
+    expect(priorAfter.endedAt?.toISOString()).toBe(prior.endedAt?.toISOString());
+    // Candidate docks to today's A (startedAt 09:00) → 08:00–09:00.
+    const created = await prisma.timeEntry.findUniqueOrThrow({
+      where: { id: result.candidateId },
+    });
+    expect(created.startedAt.toISOString()).toBe(t('08:00').toISOString());
+    expect(created.endedAt?.toISOString()).toBe(t('09:00').toISOString());
+    // Only one audit row — the candidate create. No shifts on prior-day entry.
+    expect(await auditCount()).toBe(1);
+    void todayA;
+  });
+
   it('US-76: parallel timers — stopping the second triggers auto-stack', async () => {
     await makeEntry(t('10:00'), t('11:00'));
     const t2 = await makeEntry(t('10:30'), null);

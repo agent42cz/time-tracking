@@ -7,6 +7,7 @@
  * publishes a time_entry event per changed entry.
  */
 import type { Prisma, PrismaClient } from '@prisma/client';
+import { getPeriodRange } from '@tt/shared/time';
 import { writeAudit } from './audit.js';
 import { publishTimeEntry } from '../realtime.js';
 import {
@@ -20,6 +21,26 @@ import {
 const WINDOW_DAYS = 7;
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 const CASCADE_EDGE_BUFFER_MS = 60 * 60 * 1000;
+
+// Backward cascade is constrained to the candidate's calendar day so it
+// can't reach into previous days and rewrite history. Forward keeps the
+// 7-day window since pushing into the next day is the intended overflow.
+function computeWindow(
+  direction: Direction,
+  candidateStartedAt: Date,
+): {
+  windowStart: Date;
+  windowEnd: Date;
+} {
+  if (direction === 'backward') {
+    const today = getPeriodRange('today', candidateStartedAt);
+    return { windowStart: today.start, windowEnd: today.end };
+  }
+  return {
+    windowStart: new Date(candidateStartedAt.getTime() - WINDOW_DAYS * MS_PER_DAY),
+    windowEnd: new Date(candidateStartedAt.getTime() + WINDOW_DAYS * MS_PER_DAY),
+  };
+}
 
 export type SaveAutoStackResult =
   | { ok: true; candidateId: string; plan: Plan }
@@ -51,8 +72,7 @@ async function runInTx(
 ): Promise<SaveAutoStackResult> {
   const { actorUserId, companyId, candidate, direction, now } = input;
 
-  const windowStart = new Date(candidate.startedAt.getTime() - WINDOW_DAYS * MS_PER_DAY);
-  const windowEnd = new Date(candidate.startedAt.getTime() + WINDOW_DAYS * MS_PER_DAY);
+  const { windowStart, windowEnd } = computeWindow(direction, candidate.startedAt);
 
   // Cross-company / not-found check for edit/stop kinds.
   if (candidate.kind !== 'create') {
@@ -228,8 +248,7 @@ export async function previewAutoStack(
   input: SaveAutoStackInput,
 ): Promise<SaveAutoStackResult> {
   const { actorUserId, companyId, candidate, direction, now } = input;
-  const windowStart = new Date(candidate.startedAt.getTime() - WINDOW_DAYS * MS_PER_DAY);
-  const windowEnd = new Date(candidate.startedAt.getTime() + WINDOW_DAYS * MS_PER_DAY);
+  const { windowStart, windowEnd } = computeWindow(direction, candidate.startedAt);
 
   if (candidate.kind !== 'create') {
     const existing = await prisma.timeEntry.findFirst({
