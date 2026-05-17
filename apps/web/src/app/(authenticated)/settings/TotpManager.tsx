@@ -2,12 +2,15 @@
 
 import type { ReactElement } from 'react';
 import { useState, useTransition } from 'react';
-import { Alert, Badge, Button, Field, Input } from '@tt/ui';
+import { Alert, Badge, Button, Field, Input, useConfirm } from '@tt/ui';
+import { useTranslations } from 'next-intl';
 import { totpBeginAction, totpConfirmAction, totpDisableAction } from '@/lib/actions/auth';
 
 export function TotpManager({ enabled }: { enabled: boolean }): ReactElement {
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
+  const confirm = useConfirm();
+  const t = useTranslations('settings.totp');
   const [enrollment, setEnrollment] = useState<{
     secret: string;
     otpauthUrl: string;
@@ -108,12 +111,19 @@ export function TotpManager({ enabled }: { enabled: boolean }): ReactElement {
         <Button
           variant="danger"
           loading={pending}
-          onClick={() =>
-            startTransition(async () => {
-              await totpDisableAction();
-              window.location.reload();
-            })
-          }
+          onClick={() => {
+            void (async () => {
+              const ok = await confirm({
+                title: t('disableTitle'),
+                description: t('disableDescription'),
+              });
+              if (!ok) return;
+              startTransition(async () => {
+                await totpDisableAction();
+                window.location.reload();
+              });
+            })();
+          }}
         >
           Vypnout 2FA
         </Button>

@@ -2,7 +2,21 @@
 
 import type { ReactElement } from 'react';
 import { useState, useTransition } from 'react';
-import { Alert, Badge, Button, Field, FieldGroup, Input, Table, THead, Th, Tr, Td } from '@tt/ui';
+import {
+  Alert,
+  Badge,
+  Button,
+  Field,
+  FieldGroup,
+  Input,
+  Table,
+  THead,
+  Th,
+  Tr,
+  Td,
+  useConfirm,
+} from '@tt/ui';
+import { useTranslations } from 'next-intl';
 import {
   createCompanyAction,
   deleteCompanyAction,
@@ -53,6 +67,8 @@ interface ManagerProps {
 export function CompaniesManager({ activeCompanyId, memberships }: ManagerProps): ReactElement {
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
+  const confirm = useConfirm();
+  const t = useTranslations('companies.confirm');
   return (
     <div>
       {error ? (
@@ -102,11 +118,17 @@ export function CompaniesManager({ activeCompanyId, memberships }: ManagerProps)
                     variant="ghost"
                     loading={pending}
                     onClick={() => {
-                      if (!confirm(`Opustit firmu „${m.companyName}"?`)) return;
-                      startTransition(async () => {
-                        const r = await leaveCompanyAction(m.companyId);
-                        if (!r.ok) setError(r.error);
-                      });
+                      void (async () => {
+                        const ok = await confirm({
+                          title: t('leaveTitle', { name: m.companyName }),
+                          description: t('leaveDescription'),
+                        });
+                        if (!ok) return;
+                        startTransition(async () => {
+                          const r = await leaveCompanyAction(m.companyId);
+                          if (!r.ok) setError(r.error);
+                        });
+                      })();
                     }}
                   >
                     Opustit
@@ -117,16 +139,17 @@ export function CompaniesManager({ activeCompanyId, memberships }: ManagerProps)
                       variant="danger"
                       loading={pending}
                       onClick={() => {
-                        if (
-                          !confirm(
-                            `Smazat firmu „${m.companyName}" včetně všech dat? Akce je nevratná.`,
-                          )
-                        )
-                          return;
-                        startTransition(async () => {
-                          const r = await deleteCompanyAction(m.companyId);
-                          if (r && !r.ok) setError(r.error);
-                        });
+                        void (async () => {
+                          const ok = await confirm({
+                            title: t('deleteTitle', { name: m.companyName }),
+                            description: t('deleteDescription'),
+                          });
+                          if (!ok) return;
+                          startTransition(async () => {
+                            const r = await deleteCompanyAction(m.companyId);
+                            if (r && !r.ok) setError(r.error);
+                          });
+                        })();
                       }}
                     >
                       Smazat

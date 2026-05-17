@@ -2,7 +2,8 @@
 
 import type { ReactElement } from 'react';
 import { useState } from 'react';
-import { Button, Card, CardBody, CardHeader, CardTitle, EmptyState } from '@tt/ui';
+import { Button, Card, CardBody, CardHeader, CardTitle, EmptyState, useConfirm } from '@tt/ui';
+import { useTranslations } from 'next-intl';
 import { deleteEntryAction, playAgainAction } from '@/lib/actions/time';
 import { notifyTimerChanged } from '@/lib/timer-events';
 import { EditEntryButton } from '@/components/time/EditEntryButton';
@@ -76,7 +77,14 @@ function Row({
 }): ReactElement {
   const [deletePending, setDeletePending] = useState(false);
   const [playPending, setPlayPending] = useState(false);
+  const confirm = useConfirm();
+  const t = useTranslations('timer.confirm');
   async function runDelete(): Promise<void> {
+    const ok = await confirm({
+      title: t('deleteEntryTitle'),
+      description: t('deleteEntryDescription'),
+    });
+    if (!ok) return;
     setDeletePending(true);
     try {
       const r = await deleteEntryAction(entry.id);

@@ -4,6 +4,7 @@ import { requireUser } from '@/lib/session';
 import { CompanySwitcher } from '@/components/CompanySwitcher';
 import { FaviconSwitcher } from '@/components/FaviconSwitcher';
 import { LogoutButton } from '@/components/LogoutButton';
+import { AuthShell } from './AuthShell';
 import { filterVisibleGroups, navGroups } from './nav';
 
 export default async function AuthLayout({
@@ -77,7 +78,9 @@ export default async function AuthLayout({
           </Link>
           <LogoutButton />
         </header>
-        <main className="flex-1 px-6 py-8">{children}</main>
+        <main className="flex-1 px-6 py-8">
+          <AuthShell>{children}</AuthShell>
+        </main>
       </div>
     </div>
   );

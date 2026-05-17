@@ -2,7 +2,8 @@
 
 import type { ReactElement } from 'react';
 import { useState, useTransition } from 'react';
-import { Alert, Badge, Button, EmptyState, Table, THead, Th, Tr, Td } from '@tt/ui';
+import { Alert, Badge, Button, EmptyState, Table, THead, Th, Tr, Td, useConfirm } from '@tt/ui';
+import { useTranslations } from 'next-intl';
 import {
   changeRoleAction,
   removeMemberAction,
@@ -27,6 +28,8 @@ interface Invite {
 export function PendingInvites({ invites }: { invites: Invite[] }): ReactElement {
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
+  const confirm = useConfirm();
+  const t = useTranslations('members.confirm');
   if (invites.length === 0) {
     return <EmptyState title="Žádné čekající pozvánky" />;
   }
@@ -75,12 +78,19 @@ export function PendingInvites({ invites }: { invites: Invite[] }): ReactElement
                     size="sm"
                     variant="ghost"
                     loading={pending}
-                    onClick={() =>
-                      startTransition(async () => {
-                        const r = await revokeInviteAction(i.id);
-                        if (!r.ok) setError(r.error);
-                      })
-                    }
+                    onClick={() => {
+                      void (async () => {
+                        const ok = await confirm({
+                          title: t('revokeInviteTitle'),
+                          description: t('revokeInviteDescription', { email: i.email }),
+                        });
+                        if (!ok) return;
+                        startTransition(async () => {
+                          const r = await revokeInviteAction(i.id);
+                          if (!r.ok) setError(r.error);
+                        });
+                      })();
+                    }}
                   >
                     Zrušit
                   </Button>
@@ -102,6 +112,8 @@ interface MembersManagerProps {
 export function MembersManager({ currentUserId, memberships }: MembersManagerProps): ReactElement {
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
+  const confirm = useConfirm();
+  const t = useTranslations('members.confirm');
 
   return (
     <div>
@@ -163,12 +175,17 @@ export function MembersManager({ currentUserId, memberships }: MembersManagerPro
                     loading={pending}
                     disabled={m.userId === currentUserId}
                     onClick={() => {
-                      if (!confirm(`Odebrat ${m.fullName}? Záznamy zůstanou pod jejich jménem.`))
-                        return;
-                      startTransition(async () => {
-                        const r = await removeMemberAction(m.userId);
-                        if (!r.ok) setError(r.error);
-                      });
+                      void (async () => {
+                        const ok = await confirm({
+                          title: t('removeTitle'),
+                          description: t('removeDescription', { name: m.fullName }),
+                        });
+                        if (!ok) return;
+                        startTransition(async () => {
+                          const r = await removeMemberAction(m.userId);
+                          if (!r.ok) setError(r.error);
+                        });
+                      })();
                     }}
                   >
                     Odebrat

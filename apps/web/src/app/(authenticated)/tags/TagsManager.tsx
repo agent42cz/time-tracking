@@ -2,7 +2,8 @@
 
 import type { ReactElement } from 'react';
 import { useState, useTransition } from 'react';
-import { Alert, Button, Field, FieldGroup, Input } from '@tt/ui';
+import { Alert, Button, Field, FieldGroup, Input, useConfirm } from '@tt/ui';
+import { useTranslations } from 'next-intl';
 import { createTagAction, deleteTagAction, updateTagAction } from '@/lib/actions/catalog';
 
 interface Tag {
@@ -26,6 +27,8 @@ export function TagsManager({ tags, isAdmin }: { tags: Tag[]; isAdmin: boolean }
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
   const [color, setColor] = useState(PALETTE[0]!);
+  const confirm = useConfirm();
+  const t = useTranslations('tags.confirm');
 
   return (
     <div className="space-y-6">
@@ -72,22 +75,29 @@ export function TagsManager({ tags, isAdmin }: { tags: Tag[]; isAdmin: boolean }
         {tags.length === 0 ? (
           <li className="text-sm text-zinc-500 dark:text-zinc-400">Žádné štítky</li>
         ) : null}
-        {tags.map((t) => (
+        {tags.map((tag) => (
           <TagChip
-            key={t.id}
-            tag={t}
+            key={tag.id}
+            tag={tag}
             canEdit={isAdmin}
             onUpdate={(patch) => {
               startTransition(async () => {
-                const r = await updateTagAction(t.id, patch);
+                const r = await updateTagAction(tag.id, patch);
                 if (!r.ok) setError(r.error);
               });
             }}
             onDelete={() => {
-              startTransition(async () => {
-                const r = await deleteTagAction(t.id);
-                if (!r.ok) setError(r.error);
-              });
+              void (async () => {
+                const ok = await confirm({
+                  title: t('deleteTitle', { name: tag.name }),
+                  description: t('deleteDescription'),
+                });
+                if (!ok) return;
+                startTransition(async () => {
+                  const r = await deleteTagAction(tag.id);
+                  if (!r.ok) setError(r.error);
+                });
+              })();
             }}
           />
         ))}

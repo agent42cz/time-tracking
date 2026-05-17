@@ -49,7 +49,11 @@
     "today": "Dnes",
     "yesterday": "Včera",
     "addManual": "Přidat ručně",
-    "playAgain": "Spustit znovu"
+    "playAgain": "Spustit znovu",
+    "confirm": {
+      "deleteEntryTitle": "Smazat záznam?",
+      "deleteEntryDescription": "Záznam přesuneme do koše. Můžeš jej do 30 dní obnovit."
+    }
   },
   "timeEntry": {
     "edit": {
@@ -111,7 +115,13 @@
     "admin": "Správce",
     "user": "Člen",
     "remove": "Odebrat",
-    "lastAdminBlocked": "Nelze odebrat posledního správce"
+    "lastAdminBlocked": "Nelze odebrat posledního správce",
+    "confirm": {
+      "removeTitle": "Odebrat člena?",
+      "removeDescription": "{name} ztratí přístup k této firmě. Záznamy zůstanou pod jejich jménem.",
+      "revokeInviteTitle": "Zrušit pozvánku?",
+      "revokeInviteDescription": "Příjemce {email} už pozvánku nebude moci přijmout."
+    }
   },
   "trash": {
     "title": "Koš",
@@ -127,6 +137,10 @@
     "twoFaDisable": "Vypnout 2FA",
     "recoveryCodes": "Záložní kódy",
     "leaveCompany": "Opustit firmu",
+    "totp": {
+      "disableTitle": "Vypnout dvoufaktorové ověření?",
+      "disableDescription": "Účet bude chráněn pouze heslem."
+    },
     "apiTokens": {
       "title": "API tokeny",
       "subtitle": "Osobní tokeny pro připojení Claude Code (MCP).",
@@ -139,7 +153,8 @@
       "active": "Aktivní",
       "revoked": "Zrušený",
       "revoke": "Zrušit",
-      "revokeConfirm": "Token nelze obnovit. Chcete jej opravdu zrušit?",
+      "revokeTitle": "Zrušit API token?",
+      "revokeDescription": "Token přestane okamžitě fungovat a nelze ho obnovit.",
       "createdOnce": "Token zkopírujte teď. Po zavření jej už neuvidíme.",
       "copy": "Zkopírovat",
       "downloadConfig": "Stáhnout JSON pro Claude Code",
@@ -151,6 +166,20 @@
     "notFound": "Nenalezeno",
     "forbidden": "Přístup zamítnut",
     "tryAgain": "Zkusit znovu"
+  },
+  "tags": {
+    "confirm": {
+      "deleteTitle": "Smazat štítek „{name}\"?",
+      "deleteDescription": "Štítek bude odstraněn ze všech záznamů, kde je použit."
+    }
+  },
+  "companies": {
+    "confirm": {
+      "leaveTitle": "Opustit firmu „{name}\"?",
+      "leaveDescription": "Ztratíš přístup k záznamům této firmy.",
+      "deleteTitle": "Smazat firmu „{name}\"?",
+      "deleteDescription": "Tato akce je nevratná. Smažou se VŠECHNY záznamy, projekty, klienti a členství."
+    }
   },
   "clients": {
     "title": "Seznam",
