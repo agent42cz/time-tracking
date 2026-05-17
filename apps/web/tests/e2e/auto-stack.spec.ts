@@ -10,6 +10,12 @@ test.beforeAll(async () => {
 });
 
 test.afterAll(async () => {
+  // Reset state so downstream test files (time-entry-edit, destructive-confirm,
+  // mcp-skill-flow) inherit a clean admin user. Without this, autoStackOverlaps
+  // stays true and the stop-timer flow goes through checkOverlap, breaking
+  // start→stop→row-visible tests.
+  await clearTimeEntries();
+  await setAutoStackOverlaps(false);
   await prisma.$disconnect();
 });
 

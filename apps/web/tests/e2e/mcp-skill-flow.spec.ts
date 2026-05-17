@@ -103,11 +103,10 @@ test.describe('MCP server (US-55, US-57)', () => {
     await page.reload();
     await expect(page.getByRole('heading', { name: 'API tokeny', level: 1 })).toBeVisible();
 
-    // Revoke via the table row's "Zrušit" button. The dialog cancel "Zrušit"
-    // is no longer in the DOM (dialog closed). Scope to the table to be safe.
-    // The RevokeTokenButton component calls confirm() before revoking.
-    page.once('dialog', (d) => void d.accept());
+    // Revoke via the table row's "Zrušit" button — opens a ConfirmModal
+    // whose default danger-tone confirm label is "Smazat".
     await page.locator('table').getByRole('button', { name: 'Zrušit' }).first().click();
+    await page.getByRole('dialog').getByRole('button', { name: 'Smazat' }).click();
 
     // Wait for the badge to switch to "Zrušený" to confirm the revocation took effect.
     await expect(page.getByText('Zrušený')).toBeVisible();
