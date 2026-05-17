@@ -133,6 +133,10 @@ export function TimerStartCard({
                     setAutoStackOpen(true);
                     return; // dialog continues the flow
                   }
+                  if (probe.kind === 'error') {
+                    setError('Nepodařilo se ověřit překryvy. Zkuste to znovu.');
+                    return;
+                  }
                   await doSubmit();
                 } finally {
                   setPending(false);

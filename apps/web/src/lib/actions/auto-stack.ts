@@ -42,6 +42,13 @@ export type AutoStackActionResult =
 const VALID_KINDS = ['create', 'edit', 'stop'] as const;
 type ValidKind = (typeof VALID_KINDS)[number];
 
+const VALID_DIRECTIONS = ['forward', 'backward'] as const;
+type ValidDirection = (typeof VALID_DIRECTIONS)[number];
+
+function isValidDirection(value: unknown): value is Direction {
+  return VALID_DIRECTIONS.includes(value as ValidDirection);
+}
+
 type ParseResult = { ok: true; candidate: Candidate } | { ok: false; error: 'invalid_input' };
 
 function parseInput(input: AutoStackActionInput): ParseResult {
@@ -94,6 +101,9 @@ export async function previewAutoStackAction(
   input: AutoStackActionInput,
 ): Promise<AutoStackActionResult> {
   const session = await requireActiveCompany();
+  if (!isValidDirection(input.direction)) {
+    return { ok: false, error: 'invalid_input' };
+  }
   const parsed = parseInput(input);
   if (!parsed.ok) return { ok: false, error: parsed.error };
   const candidate = parsed.candidate;
@@ -112,6 +122,9 @@ export async function saveEntryWithAutoStackAction(
   input: AutoStackActionInput,
 ): Promise<AutoStackActionResult> {
   const session = await requireActiveCompany();
+  if (!isValidDirection(input.direction)) {
+    return { ok: false, error: 'invalid_input' };
+  }
   const parsed = parseInput(input);
   if (!parsed.ok) return { ok: false, error: parsed.error };
   const candidate = parsed.candidate;

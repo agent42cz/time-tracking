@@ -119,7 +119,11 @@ export function EditEntryDialog({
         setAutoStackOpen(true);
         return;
       }
-      // no-overlap or error → direct save
+      if (probe.kind === 'error') {
+        setError('Nepodařilo se ověřit překryvy. Zkuste to znovu.');
+        return;
+      }
+      // no-overlap → direct save
       await doDirectSave(patch, startIso, endIso);
     } finally {
       setPending(false);

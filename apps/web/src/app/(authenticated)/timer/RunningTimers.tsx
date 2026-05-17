@@ -92,6 +92,11 @@ function RunningRow({
         setPending(false);
         return;
       }
+      if (probe.kind === 'error') {
+        window.alert('Nepodařilo se ověřit překryvy. Zkuste to znovu.');
+        setPending(false);
+        return;
+      }
       const r = await stopTimerAction(entry.id);
       if (r.ok) onStopped(entry.id);
       notifyTimerChanged();
