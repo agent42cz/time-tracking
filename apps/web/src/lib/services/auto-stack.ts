@@ -93,17 +93,20 @@ export function planAutoStack(input: {
       }
     }
   } else {
-    // backward — find first earlier-overlapping entry with startedAt <= candidate.startedAt
-    const candidateIdx = working.findIndex((e) => e.id === candidateId);
+    // backward — dock to the earliest-startedAt entry that overlaps the
+    // candidate (no requirement that it start before the candidate). The
+    // candidate then ends at the dock's startedAt, and every other entry
+    // chronologically before that point gets compacted backward against
+    // the candidate's new left edge.
     let dockEntry: WorkingEntry | null = null;
-    for (let i = candidateIdx - 1; i >= 0; i--) {
-      const earlier = working[i]!;
+    for (const e of working) {
+      if (e.id === candidateId) continue;
       const overlaps =
-        earlier.endedAt.getTime() > candidateEntry.startedAt.getTime() &&
-        earlier.startedAt.getTime() < candidateEntry.endedAt.getTime();
-      if (earlier.startedAt.getTime() <= candidateEntry.startedAt.getTime() && overlaps) {
-        dockEntry = earlier;
-        break;
+        e.endedAt.getTime() > candidateEntry.startedAt.getTime() &&
+        e.startedAt.getTime() < candidateEntry.endedAt.getTime();
+      if (!overlaps) continue;
+      if (dockEntry === null || e.startedAt.getTime() < dockEntry.startedAt.getTime()) {
+        dockEntry = e;
       }
     }
 
@@ -112,33 +115,51 @@ export function planAutoStack(input: {
         candidateEntry.endedAt.getTime() - candidateEntry.startedAt.getTime();
       const newCandidateEnd = new Date(dockEntry.startedAt);
       const newCandidateStart = new Date(dockEntry.startedAt.getTime() - candidateDuration);
+      const candidateIdx = working.findIndex((e) => e.id === candidateId);
       working[candidateIdx] = {
         id: candidateId,
         startedAt: newCandidateStart,
         endedAt: newCandidateEnd,
       };
+
+      // Compact every other entry whose startedAt is before the candidate's
+      // new endedAt — i.e., the chain that must fit before the candidate.
+      // Process them in descending startedAt order, anchoring each one
+      // against the previous (closer-to-candidate) entry.
+      const chain = working
+        .filter(
+          (e) =>
+            e.id !== candidateId &&
+            e.id !== dockEntry!.id &&
+            e.startedAt.getTime() < newCandidateEnd.getTime(),
+        )
+        .sort((a, b) => {
+          const cmp = b.startedAt.getTime() - a.startedAt.getTime();
+          if (cmp !== 0) return cmp;
+          return a.id < b.id ? 1 : a.id > b.id ? -1 : 0;
+        });
+
+      let anchor = newCandidateStart;
+      for (const entry of chain) {
+        if (entry.endedAt.getTime() > anchor.getTime()) {
+          const duration = entry.endedAt.getTime() - entry.startedAt.getTime();
+          const newEnd = new Date(anchor);
+          const newStart = new Date(anchor.getTime() - duration);
+          const idx = working.findIndex((e) => e.id === entry.id);
+          working[idx] = { id: entry.id, startedAt: newStart, endedAt: newEnd };
+          anchor = newStart;
+        } else {
+          anchor = entry.startedAt;
+        }
+      }
+
       working.sort((a, b) => {
         const cmp = a.startedAt.getTime() - b.startedAt.getTime();
         if (cmp !== 0) return cmp;
         return a.id < b.id ? -1 : a.id > b.id ? 1 : 0;
       });
-
-      // Walk backward from new candidate position; cascade earlier entries.
-      const newCandidateIdx = working.findIndex((e) => e.id === candidateId);
-      for (let i = newCandidateIdx - 1; i >= 0; i--) {
-        const curr = working[i]!;
-        const succ = working[i + 1]!;
-        if (curr.endedAt.getTime() > succ.startedAt.getTime()) {
-          const duration = curr.endedAt.getTime() - curr.startedAt.getTime();
-          working[i] = {
-            id: curr.id,
-            startedAt: new Date(succ.startedAt.getTime() - duration),
-            endedAt: new Date(succ.startedAt),
-          };
-        }
-      }
     }
-    // If no dockEntry: candidate stays, no shifts. (backward degeneracy.)
+    // If no dockEntry: candidate stays, no shifts. (Truly no overlap.)
   }
 
   const finalCandidate = working.find((e) => e.id === candidateId)!;

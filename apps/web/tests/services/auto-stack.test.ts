@@ -212,19 +212,47 @@ describe('planAutoStack — backward', () => {
     ]);
   });
 
-  it('backward degeneracy: no earlier-overlapping entry → no shifts, candidate stays', () => {
+  it('US-75: dock can start AFTER candidate as long as it overlaps', () => {
+    // Candidate 09:30-10:30 overlaps A but A starts later than the candidate.
+    // Earlier rule required dock.startedAt <= candidate.startedAt; new rule
+    // picks A regardless. Candidate docks to A's start.
     const existing: ClosedEntry[] = [{ id: 'A', startedAt: t('10:00'), endedAt: t('11:00') }];
-    // Candidate 09:30-10:30 overlaps A, but A.startedAt 10:00 > candidate.startedAt 09:30
-    // → no earlier dock. Backward degenerates to no shifts; candidate stays.
     const plan = planAutoStack({
       candidate: { kind: 'create', startedAt: t('09:30'), endedAt: t('10:30') },
       existing,
       now,
       direction: 'backward',
     });
-    expect(plan.candidateAfter).toEqual({ startedAt: t('09:30'), endedAt: t('10:30') });
+    expect(plan.candidateAfter).toEqual({ startedAt: t('09:00'), endedAt: t('10:00') });
     expect(plan.shifts).toEqual([]);
     expect(plan.direction).toBe('backward');
+  });
+
+  it('US-75: chain entries that fall inside candidate after move are cascaded backward too', () => {
+    // Edit Test5 (10:03-10:12). Test6 (10:04-10:12) overlaps. Test4
+    // (09:56-09:58) and Test3 (09:54-09:56) end up inside candidate's new
+    // range after the dock move and must be compacted backward.
+    const existing: ClosedEntry[] = [
+      { id: 'T1', startedAt: t('09:50'), endedAt: t('09:53') },
+      { id: 'T2', startedAt: t('09:51'), endedAt: t('09:53') },
+      { id: 'T3', startedAt: t('09:54'), endedAt: t('09:56') },
+      { id: 'T4', startedAt: t('09:56'), endedAt: t('09:58') },
+      { id: 'T5', startedAt: t('10:03'), endedAt: t('10:12') }, // being edited
+      { id: 'T6', startedAt: t('10:04'), endedAt: t('10:12') },
+    ];
+    const plan = planAutoStack({
+      candidate: { kind: 'edit', id: 'T5', startedAt: t('10:03'), endedAt: t('10:12') },
+      existing,
+      now,
+      direction: 'backward',
+    });
+    expect(plan.candidateAfter).toEqual({ startedAt: t('09:55'), endedAt: t('10:04') });
+    const shiftById = new Map(plan.shifts.map((s) => [s.entryId, s]));
+    expect(shiftById.get('T4')!.after).toEqual({ startedAt: t('09:53'), endedAt: t('09:55') });
+    expect(shiftById.get('T3')!.after).toEqual({ startedAt: t('09:51'), endedAt: t('09:53') });
+    expect(shiftById.get('T2')!.after).toEqual({ startedAt: t('09:49'), endedAt: t('09:51') });
+    expect(shiftById.get('T1')!.after).toEqual({ startedAt: t('09:46'), endedAt: t('09:49') });
+    expect(shiftById.has('T6')).toBe(false); // dock stays put
   });
 
   it('US-71: edit case removes the edited entry from existing in backward mode too', () => {

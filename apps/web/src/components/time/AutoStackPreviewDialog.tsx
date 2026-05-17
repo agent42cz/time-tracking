@@ -113,17 +113,15 @@ export function AutoStackPreviewDialog(props: AutoStackPreviewDialogProps): Reac
 
       {plan && (
         <ul className="space-y-1 text-sm">
-          <li>
-            <span className="inline-block w-5">✏</span>
+          <li className="font-medium">
             {t('candidateRowLabel')}{' '}
-            <code className="text-xs">
+            <code className="text-xs font-normal">
               {formatRange(candidate.startedAt, candidate.endedAt)} →{' '}
               {formatRange(plan.candidateAfter.startedAt, plan.candidateAfter.endedAt)}
             </code>
           </li>
           {plan.shifts.map((s) => (
-            <li key={s.entryId}>
-              <span className="inline-block w-5">{direction === 'forward' ? '↪' : '↩'}</span>
+            <li key={s.entryId} className="text-zinc-600 dark:text-zinc-400">
               <code className="text-xs">
                 {formatRange(s.before.startedAt, s.before.endedAt)} →{' '}
                 {formatRange(s.after.startedAt, s.after.endedAt)}
