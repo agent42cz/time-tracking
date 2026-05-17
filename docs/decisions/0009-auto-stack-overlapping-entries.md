@@ -64,6 +64,10 @@ We implement auto-stack as a pure planning function (`auto-stack.ts`) that compu
 - The `shift` audit action is new, but follows the existing audit-action enum pattern.
 - Transaction overhead is minimal for typical overlaps (2–5 entries); high-overlap scenarios (50+ entries) are rare and acceptable.
 
+## Rollback
+
+Postgres 16 supports `ALTER TYPE ... ADD VALUE` natively but does not support `DROP VALUE`. Rolling back the `shift` audit action requires either renaming the enum (drop + recreate with the remaining values + cast existing rows) or filtering it out at the application layer. The `auto_stack_overlaps` column can be dropped with a plain `ALTER TABLE ... DROP COLUMN`.
+
 ## Follow-ups
 
 - [ ] Implement `auto-stack.ts` planning logic with unit tests covering all shift algorithms.

@@ -175,17 +175,18 @@ async function runInTx(
     });
   } else {
     candidateId = candidate.id;
-    const before = await tx.timeEntry.findUniqueOrThrow({
-      where: { id: candidateId },
+    const before = await tx.timeEntry.findFirstOrThrow({
+      where: { id: candidateId, userId: actorUserId, companyId },
       select: { startedAt: true, endedAt: true },
     });
-    await tx.timeEntry.update({
-      where: { id: candidateId },
+    const updated = await tx.timeEntry.updateMany({
+      where: { id: candidateId, userId: actorUserId, companyId },
       data: {
         startedAt: plan.candidateAfter.startedAt,
         endedAt: plan.candidateAfter.endedAt,
       },
     });
+    if (updated.count !== 1) throw new Error('candidate update affected wrong row count');
     await writeAudit(tx, {
       companyId,
       actorUserId,
@@ -209,10 +210,11 @@ async function runInTx(
   }
 
   for (const s of plan.shifts) {
-    await tx.timeEntry.update({
-      where: { id: s.entryId },
+    const shifted = await tx.timeEntry.updateMany({
+      where: { id: s.entryId, userId: actorUserId, companyId },
       data: { startedAt: s.after.startedAt, endedAt: s.after.endedAt },
     });
+    if (shifted.count !== 1) throw new Error('shift update affected wrong row count');
     await writeAudit(tx, {
       companyId,
       actorUserId,

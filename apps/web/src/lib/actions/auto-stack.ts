@@ -20,7 +20,6 @@ export type AutoStackActionInput = {
 export type WirePlan = {
   direction: Direction;
   shifts: Array<{
-    entryId: string;
     before: { startedAt: string; endedAt: string };
     after: { startedAt: string; endedAt: string };
   }>;
@@ -34,28 +33,47 @@ export type AutoStackActionResult =
       error:
         | 'unauthorized'
         | 'not_found'
+        | 'invalid_input'
         | 'invalid_window'
         | 'future_timestamp'
         | 'cascade_window_exceeded';
     };
 
-function parseInput(input: AutoStackActionInput): Candidate {
+const VALID_KINDS = ['create', 'edit', 'stop'] as const;
+type ValidKind = (typeof VALID_KINDS)[number];
+
+type ParseResult = { ok: true; candidate: Candidate } | { ok: false; error: 'invalid_input' };
+
+function parseInput(input: AutoStackActionInput): ParseResult {
+  if (!VALID_KINDS.includes(input.candidate.kind as ValidKind)) {
+    return { ok: false, error: 'invalid_input' };
+  }
   const startedAt = new Date(input.candidate.startedAt);
   const endedAt = new Date(input.candidate.endedAt);
+  if (Number.isNaN(startedAt.getTime()) || Number.isNaN(endedAt.getTime())) {
+    return { ok: false, error: 'invalid_input' };
+  }
   if (input.candidate.kind === 'create') {
-    return { kind: 'create', startedAt, endedAt };
+    return { ok: true, candidate: { kind: 'create', startedAt, endedAt } };
   }
-  if (input.candidate.id === undefined) {
-    throw new Error('id required for edit/stop');
+  if (typeof input.candidate.id !== 'string' || input.candidate.id.length === 0) {
+    return { ok: false, error: 'invalid_input' };
   }
-  return { kind: input.candidate.kind, id: input.candidate.id, startedAt, endedAt };
+  return {
+    ok: true,
+    candidate: {
+      kind: input.candidate.kind as 'edit' | 'stop',
+      id: input.candidate.id,
+      startedAt,
+      endedAt,
+    },
+  };
 }
 
 function planToWire(plan: Plan): WirePlan {
   return {
     direction: plan.direction,
     shifts: plan.shifts.map((s) => ({
-      entryId: s.entryId,
       before: {
         startedAt: s.before.startedAt.toISOString(),
         endedAt: s.before.endedAt.toISOString(),
@@ -76,7 +94,9 @@ export async function previewAutoStackAction(
   input: AutoStackActionInput,
 ): Promise<AutoStackActionResult> {
   const session = await requireActiveCompany();
-  const candidate = parseInput(input);
+  const parsed = parseInput(input);
+  if (!parsed.ok) return { ok: false, error: parsed.error };
+  const candidate = parsed.candidate;
   const result = await previewAutoStack(prisma(), {
     actorUserId: session.userId,
     companyId: session.activeCompanyId,
@@ -92,7 +112,9 @@ export async function saveEntryWithAutoStackAction(
   input: AutoStackActionInput,
 ): Promise<AutoStackActionResult> {
   const session = await requireActiveCompany();
-  const candidate = parseInput(input);
+  const parsed = parseInput(input);
+  if (!parsed.ok) return { ok: false, error: parsed.error };
+  const candidate = parsed.candidate;
   const result = await saveEntryWithAutoStack(prisma(), {
     actorUserId: session.userId,
     companyId: session.activeCompanyId,

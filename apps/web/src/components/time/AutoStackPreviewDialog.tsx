@@ -39,14 +39,17 @@ export function AutoStackPreviewDialog(props: AutoStackPreviewDialogProps): Reac
     if (!open) return;
     setError(null);
     setPlan(null);
-    startTransition(async () => {
-      const result = await previewAutoStackAction({ candidate, direction });
-      if (result.ok) {
-        setPlan(result.plan);
-      } else {
-        setError(result.error);
-      }
-    });
+    const timer = setTimeout(() => {
+      startTransition(async () => {
+        const result = await previewAutoStackAction({ candidate, direction });
+        if (result.ok) {
+          setPlan(result.plan);
+        } else {
+          setError(result.error);
+        }
+      });
+    }, 200);
+    return () => clearTimeout(timer);
   }, [open, direction, candidate]);
 
   if (!open) return null;
@@ -120,8 +123,8 @@ export function AutoStackPreviewDialog(props: AutoStackPreviewDialogProps): Reac
               {formatRange(plan.candidateAfter.startedAt, plan.candidateAfter.endedAt)}
             </code>
           </li>
-          {plan.shifts.map((s) => (
-            <li key={s.entryId} className="text-zinc-600 dark:text-zinc-400">
+          {plan.shifts.map((s, i) => (
+            <li key={i} className="text-zinc-600 dark:text-zinc-400">
               <code className="text-xs">
                 {formatRange(s.before.startedAt, s.before.endedAt)} →{' '}
                 {formatRange(s.after.startedAt, s.after.endedAt)}
