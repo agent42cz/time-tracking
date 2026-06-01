@@ -296,6 +296,18 @@ describe('reports', () => {
       if (mine.ok) expect(mine.value.every((r) => r.userId === w.user)).toBe(true);
     });
   });
+
+  it('US-77: runReport rows carry clientId and projectId for grouping', async () => {
+    await withTx(async (tx) => {
+      const w = await buildWorld(tx, 'us77ids');
+      const r = await runReport(tx, w.admin, { companyId: w.company });
+      expect(r.ok).toBe(true);
+      if (!r.ok) return;
+      const acme = r.value.find((row) => row.clientName === 'Acme');
+      expect(acme?.clientId).toBe(w.clientA);
+      expect(acme?.projectId).toBe(w.projectA);
+    });
+  });
 });
 
 describe('settings', () => {

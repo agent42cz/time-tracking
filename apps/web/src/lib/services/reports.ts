@@ -24,7 +24,9 @@ export interface ReportRow {
   id: string;
   userId: string;
   userName: string;
+  clientId: string | null;
   clientName: string | null;
+  projectId: string | null;
   projectName: string | null;
   description: string;
   startedAt: Date;
@@ -89,7 +91,9 @@ export async function runReport(
       id: r.id,
       userId: r.userId,
       userName: r.user.fullName,
+      clientId: r.clientId,
       clientName: r.client?.name ?? null,
+      projectId: r.projectId,
       projectName: r.project?.name ?? null,
       description: r.description,
       startedAt: r.startedAt,
