@@ -4,6 +4,7 @@ import type { ReactElement } from 'react';
 import { useState } from 'react';
 import Link from 'next/link';
 import { Button, Field } from '@tt/ui';
+import { useTranslations } from 'next-intl';
 import { MultiSelect } from '@/components/MultiSelect';
 
 interface Option {
@@ -20,6 +21,7 @@ interface Initial {
   tagIds: string[];
   tagsMode: 'and' | 'or';
   search: string;
+  groupBy: 'project' | 'member' | 'day';
 }
 
 function ymdLocal(d: Date): string {
@@ -77,6 +79,7 @@ const PRESETS: { key: PresetKey; label: string }[] = [
 
 interface Props {
   isAdmin: boolean;
+  meId: string;
   clients: Option[];
   projects: Option[];
   members: Option[];
@@ -86,6 +89,7 @@ interface Props {
 
 export function ReportFiltersForm({
   isAdmin,
+  meId,
   clients,
   projects,
   members,
@@ -96,6 +100,17 @@ export function ReportFiltersForm({
   const [to, setTo] = useState(initial.to);
   const [tagsMode, setTagsMode] = useState<'and' | 'or'>(initial.tagsMode);
   const [search, setSearch] = useState(initial.search);
+  const t = useTranslations('reports');
+  const [groupBy, setGroupBy] = useState(initial.groupBy);
+  const [onlyMine, setOnlyMine] = useState(
+    initial.memberIds.length === 1 && initial.memberIds[0] === meId,
+  );
+
+  const GROUP_OPTIONS: { key: 'project' | 'member' | 'day'; label: string }[] = [
+    { key: 'project', label: t('groupBy.project') },
+    { key: 'member', label: t('groupBy.member') },
+    { key: 'day', label: t('groupBy.day') },
+  ];
 
   const activePreset = ((): string | null => {
     if (!from || !to) return null;
@@ -162,6 +177,46 @@ export function ReportFiltersForm({
         </div>
       </div>
 
+      {/* Group-by + scope */}
+      <div className="flex flex-wrap items-center gap-4">
+        <div className="space-y-2">
+          <p className="text-xs font-medium uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
+            {t('groupBy.label')}
+          </p>
+          <div className="flex flex-wrap items-center gap-2">
+            {GROUP_OPTIONS.map((o) => {
+              const active = groupBy === o.key;
+              return (
+                <button
+                  key={o.key}
+                  type="button"
+                  onClick={() => setGroupBy(o.key)}
+                  className={`rounded-full border px-3 py-1 text-xs font-medium transition-colors ${
+                    active
+                      ? 'border-zinc-900 dark:border-zinc-100 bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900'
+                      : 'border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-700'
+                  }`}
+                >
+                  {o.label}
+                </button>
+              );
+            })}
+          </div>
+          <input type="hidden" name="groupBy" value={groupBy} />
+        </div>
+        {isAdmin ? (
+          <label className="flex items-center gap-2 self-end pb-1 text-sm text-zinc-700 dark:text-zinc-300">
+            <input
+              type="checkbox"
+              checked={onlyMine}
+              onChange={(e) => setOnlyMine(e.target.checked)}
+            />
+            {t('onlyMine')}
+            {onlyMine ? <input type="hidden" name="member" value={meId} /> : null}
+          </label>
+        ) : null}
+      </div>
+
       {/* Multi-selects */}
       <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
         <Field label="Klienti">
@@ -180,7 +235,7 @@ export function ReportFiltersForm({
             placeholder="Všechny projekty"
           />
         </Field>
-        {isAdmin ? (
+        {isAdmin && !onlyMine ? (
           <Field label="Členové">
             <MultiSelect
               name="member"

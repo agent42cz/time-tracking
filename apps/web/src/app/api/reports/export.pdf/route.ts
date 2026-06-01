@@ -102,7 +102,7 @@ export async function GET(req: NextRequest): Promise<Response> {
     t: strings,
   });
 
-  return new Response(pdf, {
+  return new Response(new Uint8Array(pdf), {
     status: 200,
     headers: {
       'Content-Type': 'application/pdf',

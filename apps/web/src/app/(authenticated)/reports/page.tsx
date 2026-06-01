@@ -1,26 +1,11 @@
 import type { ReactElement } from 'react';
-import {
-  Card,
-  CardBody,
-  CardHeader,
-  CardTitle,
-  EmptyState,
-  Table,
-  THead,
-  Th,
-  Tr,
-  Td,
-} from '@tt/ui';
+import { Card, CardBody, CardHeader, CardTitle } from '@tt/ui';
+import { getTranslations } from 'next-intl/server';
 import { prisma, requireActiveCompany } from '@/lib/session';
 import { PageHeader } from '@/components/PageHeader';
-import { runReport } from '@/lib/services/reports';
+import { buildGroupedReport, runReport, type GroupBy } from '@/lib/services/reports';
 import { ReportFiltersForm } from './ReportFiltersForm';
-import { ReportsRowActions } from './ReportsRowActions';
-
-function fmtDur(ms: number): string {
-  const total = Math.max(0, Math.floor(ms / 60000));
-  return `${Math.floor(total / 60)}h ${total % 60}m`;
-}
+import { ReportGrouped } from './ReportGrouped';
 
 interface SP {
   from?: string;
@@ -31,11 +16,16 @@ interface SP {
   tag?: string | string[];
   tagsMode?: string;
   search?: string;
+  groupBy?: string;
 }
 
 function asArray(v: string | string[] | undefined): string[] {
   if (!v) return [];
   return Array.isArray(v) ? v : [v];
+}
+
+function parseGroupBy(v: string | undefined): GroupBy {
+  return v === 'member' || v === 'day' ? v : 'project';
 }
 
 export default async function ReportsPage({
@@ -86,45 +76,62 @@ export default async function ReportsPage({
     search: sp.search || undefined,
   };
 
+  const groupBy = parseGroupBy(sp.groupBy);
   const result = await runReport(prisma(), s.userId, filters);
+  const report = buildGroupedReport(result.ok ? result.value : [], {
+    groupBy,
+    clampEnd: filters.to,
+  });
+  const t = await getTranslations('reports');
 
   const exportQS = new URLSearchParams();
   for (const [k, v] of Object.entries(sp)) {
     if (Array.isArray(v)) v.forEach((x) => exportQS.append(k, x));
     else if (typeof v === 'string') exportQS.append(k, v);
   }
-
-  const total = result.ok ? result.value.reduce((a, r) => a + r.durationMs, 0) : 0;
+  if (!exportQS.get('groupBy')) exportQS.set('groupBy', groupBy);
 
   return (
     <div>
       <PageHeader
-        title="Reporty"
-        description="Filtrovaný přehled záznamů s exportem do CSV."
+        title={t('title')}
+        description="Seskupený přehled záznamů se součty a exportem."
         actions={
-          <a
-            href={`/api/reports/export.csv?${exportQS.toString()}`}
-            className="rounded-md bg-zinc-900 dark:bg-zinc-100 px-4 py-2 text-sm font-medium text-white dark:text-zinc-900 hover:bg-zinc-800 dark:hover:bg-zinc-200"
-          >
-            Stáhnout CSV
-          </a>
+          <div className="flex flex-wrap items-center gap-2">
+            <a
+              href="/api/reports/export.pdf?preset=lastMonth&groupBy=project"
+              className="rounded-md border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-4 py-2 text-sm font-medium text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-700"
+            >
+              {t('export.lastMonth')}
+            </a>
+            <a
+              href={`/api/reports/export.csv?${exportQS.toString()}`}
+              className="rounded-md border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-4 py-2 text-sm font-medium text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-700"
+            >
+              {t('export.csv')}
+            </a>
+            <a
+              href={`/api/reports/export.pdf?${exportQS.toString()}`}
+              className="rounded-md bg-zinc-900 dark:bg-zinc-100 px-4 py-2 text-sm font-medium text-white dark:text-zinc-900 hover:bg-zinc-800 dark:hover:bg-zinc-200"
+            >
+              {t('export.pdf')}
+            </a>
+          </div>
         }
       />
       <div className="space-y-4">
         <Card>
           <CardHeader>
-            <CardTitle>Filtry</CardTitle>
+            <CardTitle>{t('filters')}</CardTitle>
           </CardHeader>
           <CardBody>
             <ReportFiltersForm
               isAdmin={isAdmin}
+              meId={s.userId}
               clients={clients.map((c) => ({ id: c.id, name: c.name }))}
-              projects={projects.map((p) => ({
-                id: p.id,
-                name: `${p.client.name} → ${p.name}`,
-              }))}
+              projects={projects.map((p) => ({ id: p.id, name: `${p.client.name} → ${p.name}` }))}
               members={members.map((m) => ({ id: m.userId, name: m.user.fullName }))}
-              tags={tags.map((t) => ({ id: t.id, name: t.name, color: t.color }))}
+              tags={tags.map((tag) => ({ id: tag.id, name: tag.name, color: tag.color }))}
               initial={{
                 from: sp.from ?? '',
                 to: sp.to ?? '',
@@ -134,78 +141,17 @@ export default async function ReportsPage({
                 tagIds: asArray(sp.tag),
                 tagsMode: filters.tagsMode,
                 search: sp.search ?? '',
+                groupBy,
               }}
             />
           </CardBody>
         </Card>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Záznamy ({result.ok ? result.value.length : 0})</CardTitle>
-            <span className="font-mono text-sm text-zinc-700 dark:text-zinc-300">
-              {fmtDur(total)}
-            </span>
-          </CardHeader>
-          <CardBody>
-            {!result.ok || result.value.length === 0 ? (
-              <EmptyState title="Žádné záznamy odpovídající filtru" />
-            ) : (
-              <Table>
-                <THead>
-                  <tr>
-                    <Th>Datum</Th>
-                    <Th>Uživatel</Th>
-                    <Th>Klient</Th>
-                    <Th>Projekt</Th>
-                    <Th>Popis</Th>
-                    <Th>Štítky</Th>
-                    <Th className="text-right">Čas</Th>
-                    <Th>Akce</Th>
-                  </tr>
-                </THead>
-                <tbody>
-                  {result.value.map((r) => (
-                    <Tr key={r.id}>
-                      <Td className="whitespace-nowrap font-mono text-xs">
-                        {r.startedAt.toLocaleString('cs-CZ', {
-                          dateStyle: 'short',
-                          timeStyle: 'short',
-                        })}
-                      </Td>
-                      <Td>{r.userName}</Td>
-                      <Td className="text-zinc-700 dark:text-zinc-300">{r.clientName ?? '—'}</Td>
-                      <Td className="text-zinc-700 dark:text-zinc-300">{r.projectName ?? '—'}</Td>
-                      <Td className="max-w-xs truncate" title={r.description}>
-                        {r.description}
-                      </Td>
-                      <Td>
-                        <div className="flex flex-wrap gap-1">
-                          {r.tags.map((t) => (
-                            <span
-                              key={t.id}
-                              className="rounded-full bg-zinc-100 dark:bg-zinc-700 px-1.5 py-0.5 text-[10px] text-zinc-700 dark:text-zinc-300"
-                            >
-                              {t.name}
-                            </span>
-                          ))}
-                        </div>
-                      </Td>
-                      <Td className="text-right font-mono">{fmtDur(r.durationMs)}</Td>
-                      <Td>
-                        <ReportsRowActions
-                          entryId={r.id}
-                          startedAt={r.startedAt.toISOString()}
-                          endedAt={r.endedAt ? r.endedAt.toISOString() : null}
-                          autoStackOverlaps={autoStackUser.autoStackOverlaps}
-                        />
-                      </Td>
-                    </Tr>
-                  ))}
-                </tbody>
-              </Table>
-            )}
-          </CardBody>
-        </Card>
+        <ReportGrouped
+          report={report}
+          autoStackOverlaps={autoStackUser.autoStackOverlaps}
+          labels={{ grandTotal: t('grandTotal'), subtotal: t('subtotal') }}
+        />
       </div>
     </div>
   );
