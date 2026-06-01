@@ -5,10 +5,14 @@ const withNextIntl = createNextIntlPlugin('./src/i18n.ts');
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
-  serverExternalPackages: ['@prisma/client', 'argon2'],
+  serverExternalPackages: ['@prisma/client', 'argon2', 'pdfmake'],
   poweredByHeader: false,
   experimental: {
     typedRoutes: false,
+  },
+  // Ship the embedded PDF fonts into the standalone build for the PDF route.
+  outputFileTracingIncludes: {
+    '/api/reports/export.pdf': ['./src/assets/fonts/**/*'],
   },
   // Tell webpack to resolve `.js` imports against `.ts/.tsx` source files —
   // matches Vitest/Vite behavior so the same code compiles in both.
