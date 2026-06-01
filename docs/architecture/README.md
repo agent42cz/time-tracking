@@ -80,9 +80,27 @@ A mutation flows like this:
 
 The chronological v1 build is recorded in [`build-log.md`](build-log.md) — useful as archaeological context but not load-bearing for present-day work.
 
+## Reporty (grouped report + CSV/PDF export)
+
+`/reports` (**Reporty**) is the admin-facing grouped report surface (US-77, US-78). It is distinct from two neighbouring surfaces:
+
+- **Výkaz** (`/timesheet`) — personal current-week day-cards, no grouping, no export.
+- **Dashboard** (`/dashboard`) — fixed KPI widgets (totals, member table, daily breakdown) for the active company.
+
+Reporty's data flow is:
+
+1. `runReport(db, actorUserId, filters)` — single Prisma query; returns `ReportRow[]` with IDs, names, durations, tags.
+2. `buildGroupedReport(rows, { groupBy, clampEnd })` — pure function; groups by project / member / day, computes per-group `subtotalMs` and `grandTotalMs`. Consumed by both the page component and the PDF builder.
+3. `buildReportPdf(report, meta)` — pure async function (pdfmake `PdfPrinter`, ADR-0010); receives all translated strings via `meta.t`, so it is unit-testable without next-intl. Embeds DejaVu Sans for Czech diacritics.
+
+Two export routes hang off `/api/reports/`:
+
+- `export.csv` — thin wrapper over `rowsToCsv(rows)`.
+- `export.pdf` — calls `runReport → buildGroupedReport → buildReportPdf`; supports `preset=lastMonth` for a one-click previous-calendar-month PDF.
+
 ## See also
 
 - [`../reference/data-model.md`](../reference/data-model.md) — Prisma entities and relations.
-- [`../reference/features.md`](../reference/features.md) — feature catalogue, US-1..US-50.
+- [`../reference/features.md`](../reference/features.md) — feature catalogue, US-1..US-78.
 - [`../operations/coolify-deploy.md`](../operations/coolify-deploy.md) — production stack and env vars.
 - [`../decisions/`](../decisions/) — ADRs explaining _why_ the stack is what it is.

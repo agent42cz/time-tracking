@@ -60,7 +60,7 @@ Feature catalogue keyed by user-story IDs from PRD §13. Test names embed the US
 - **US-39** — Members with **zero entries** in the selected period are highlighted.
 - **US-40** — Daily breakdown stacked by client (or by user — toggle).
 - **US-41** — Reports filter matrix: date / client / project / member / tag / description text.
-- **US-42** — Filtered view exports to CSV, XLSX, PDF.
+- **US-42** — Filtered view exports to CSV, XLSX, PDF. _(CSV done; PDF done via pdfmake/ADR-0010; XLSX still pending.)_
 - **US-43** — User filters and exports their own entries.
 
 ## Audit & trash
@@ -111,10 +111,15 @@ Feature catalogue keyed by user-story IDs from PRD §13. Test names embed the US
 - **US-75** — Choosing **Posunout zpět a uložit** shifts the candidate so its `endedAt` equals the existing overlapping entry's `startedAt`, preserving the candidate's duration; entries earlier than the candidate's new position are cascaded backward by the same rule. The candidate's resulting `startedAt` may land in an earlier calendar day.
 - **US-76** — Starting a timer while another is running never triggers auto-stack (both are `endedAt IS NULL`, excluded). Auto-stack fires when the **second** of two parallel timers is stopped, because that stop is when the second timer becomes a closed entry that overlaps the now-closed first timer. The user is offered the preview dialog at that moment.
 
+## Reports — grouped view + PDF export
+
+- **US-77** — Reports group time entries by project / member / day, with per-group subtotals and a grand total.
+- **US-78** — Reports export to PDF (filter-respecting + one-click previous calendar month), Europe/Prague.
+
 ## Coverage check
 
 ```bash
 pnpm test:trace
 ```
 
-Walks every test file (`*.test.{ts,tsx}`, `*.spec.{ts,tsx}`, `tests/**`) and looks for `\bUS-N\b`. Exits non-zero if any of US-1..US-76 has zero matches.
+Walks every test file (`*.test.{ts,tsx}`, `*.spec.{ts,tsx}`, `tests/**`) and looks for `\bUS-N\b`. Exits non-zero if any of US-1..US-78 has zero matches.

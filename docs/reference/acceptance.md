@@ -33,7 +33,14 @@ Each box maps to the file (and test name) that proves it. v1 was declared comple
 
 - [x] **Reports page supports all filters and exports CSV/XLSX/PDF.**
   - `apps/web/tests/services/dashboard-reports.test.ts` — US-41 (filter combinations), US-42 (CSV), US-43 (per-user scope).
-  - XLSX/PDF reuse the same `ReportRow[]` shape; the route layer wraps `xlsx`/`pdfkit`. (Manual hand-off per PRD §14.8.)
+  - PDF is done via pdfmake (ADR-0010): `apps/web/tests/services/report-pdf.test.ts` and `reports-export-pdf-route.test.ts` — US-78.
+  - XLSX reuses the same `ReportRow[]` shape; route layer still pending.
+
+- [x] **Reports group time entries by project/member/day with subtotals + grand total.**
+  - `apps/web/tests/services/report-grouped.test.ts` — US-77.
+
+- [x] **Reports export to PDF (incl. last-month preset), cross-company 404.**
+  - `apps/web/tests/services/report-pdf.test.ts`, `apps/web/tests/services/reports-export-pdf-route.test.ts` — US-78.
 
 - [x] **Chrome extension supports login, multiple parallel timers, weekly view, edit/delete, real-time sync with web, and offline queue.**
   - `apps/extension/src/queue.test.ts` — US-29 (persistent session), US-30 (popup state load), US-32 (verbatim replay), US-33 ("play again" enqueues fresh), US-34 (in-order replay, conflict resolution, transient retry, browser-kill resume), US-35 (pending count = unsynced indicator).

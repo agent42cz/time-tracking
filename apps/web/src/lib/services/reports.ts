@@ -192,8 +192,8 @@ export function buildGroupedReport(
   };
 }
 
-// CSV export (PRD §8.2). XLSX/PDF use the same row shape via dedicated
-// libraries (xlsx / pdfkit) at the route layer.
+// CSV export (PRD §8.2). PDF export reuses ReportRow[] via buildGroupedReport +
+// buildReportPdf (pdfmake) at the route layer — see ADR-0010. XLSX is not built.
 export function rowsToCsv(rows: ReportRow[]): string {
   const header = [
     'id',

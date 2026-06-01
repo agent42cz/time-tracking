@@ -1,7 +1,7 @@
 # Reports overhaul: grouped report + PDF export
 
 - **Date:** 2026-06-01
-- **Status:** Approved design, pending implementation plan
+- **Status:** Implemented
 - **New user stories:** US-77 (grouped report view), US-78 (PDF export incl. "last month")
 - **Completes:** US-42's PDF leg (CSV already done; XLSX still out of scope)
 - **New ADR:** 0010 — pdfmake for server-side PDF export
