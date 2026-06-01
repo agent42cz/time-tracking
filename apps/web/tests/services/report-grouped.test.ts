@@ -87,4 +87,19 @@ describe('buildGroupedReport', () => {
     );
     expect(g.grandTotalMs).toBe(2 * H); // 22:00 -> 24:00 = 2h
   });
+
+  it('US-77: a completed entry ending after clampEnd is clamped to the in-period portion', () => {
+    const clampEnd = new Date('2026-06-01T00:00:00Z');
+    const g = buildGroupedReport(
+      [
+        row({
+          startedAt: new Date('2026-05-31T23:00:00Z'),
+          endedAt: new Date('2026-06-01T02:00:00Z'),
+          durationMs: 3 * H, // 3h recorded; only the first 1h falls inside the period
+        }),
+      ],
+      { groupBy: 'project', clampEnd },
+    );
+    expect(g.grandTotalMs).toBe(1 * H); // 23:00 -> 24:00 = 1h; the 2h June tail is excluded
+  });
 });

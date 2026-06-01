@@ -130,14 +130,14 @@ function pragueDayKey(d: Date): string {
   return `${z.getFullYear()}-${pad2(z.getMonth() + 1)}-${pad2(z.getDate())}`;
 }
 
+// Effective duration for totals. Base is the row's recorded durationMs (which
+// runReport sets to (endedAt ?? now) - startedAt), so this equals durationMs for
+// in-period entries. clampEnd caps the tail of entries that run past the period
+// end (a still-running timer, or a completed entry that crosses the boundary).
 function effectiveMs(r: ReportRow, clampEnd?: Date): number {
-  if (r.endedAt !== null) {
-    // Completed entry — use stored duration (avoids re-deriving from timestamps).
-    return r.durationMs;
-  }
-  // Still-running: clamp at clampEnd, or fall back to now.
-  const end = clampEnd ?? new Date();
-  return Math.max(0, end.getTime() - r.startedAt.getTime());
+  const endMs = r.startedAt.getTime() + r.durationMs;
+  const cappedEndMs = clampEnd ? Math.min(endMs, clampEnd.getTime()) : endMs;
+  return Math.max(0, cappedEndMs - r.startedAt.getTime());
 }
 
 export function buildGroupedReport(
