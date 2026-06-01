@@ -95,7 +95,7 @@ export default async function ReportsPage({
     <div>
       <PageHeader
         title={t('title')}
-        description="Seskupený přehled záznamů se součty a exportem."
+        description={t('pageDescription')}
         actions={
           <div className="flex flex-wrap items-center gap-2">
             <a

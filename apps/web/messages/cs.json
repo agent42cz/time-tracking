@@ -102,6 +102,7 @@
   "reports": {
     "title": "Reporty",
     "filters": "Filtry",
+    "pageDescription": "Seskupený přehled záznamů se součty a exportem.",
     "groupBy": {
       "label": "Seskupit podle",
       "project": "Projektu",
