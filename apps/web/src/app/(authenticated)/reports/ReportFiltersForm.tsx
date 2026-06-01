@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { Button, Field } from '@tt/ui';
 import { useTranslations } from 'next-intl';
 import { MultiSelect } from '@/components/MultiSelect';
+import type { GroupBy } from '@/lib/services/reports';
 
 interface Option {
   id: string;
@@ -21,7 +22,7 @@ interface Initial {
   tagIds: string[];
   tagsMode: 'and' | 'or';
   search: string;
-  groupBy: 'project' | 'member' | 'day';
+  groupBy: GroupBy;
 }
 
 function ymdLocal(d: Date): string {
@@ -68,6 +69,8 @@ function preset(kind: PresetKey): { from: string; to: string } {
   return { from: ymdLocal(start), to: ymdLocal(end) };
 }
 
+const GROUP_KEYS = ['project', 'member', 'day'] as const;
+
 const PRESETS: { key: PresetKey; label: string }[] = [
   { key: 'today', label: 'Dnes' },
   { key: 'yesterday', label: 'Včera' },
@@ -105,12 +108,6 @@ export function ReportFiltersForm({
   const [onlyMine, setOnlyMine] = useState(
     initial.memberIds.length === 1 && initial.memberIds[0] === meId,
   );
-
-  const GROUP_OPTIONS: { key: 'project' | 'member' | 'day'; label: string }[] = [
-    { key: 'project', label: t('groupBy.project') },
-    { key: 'member', label: t('groupBy.member') },
-    { key: 'day', label: t('groupBy.day') },
-  ];
 
   const activePreset = ((): string | null => {
     if (!from || !to) return null;
@@ -184,20 +181,20 @@ export function ReportFiltersForm({
             {t('groupBy.label')}
           </p>
           <div className="flex flex-wrap items-center gap-2">
-            {GROUP_OPTIONS.map((o) => {
-              const active = groupBy === o.key;
+            {GROUP_KEYS.map((key) => {
+              const active = groupBy === key;
               return (
                 <button
-                  key={o.key}
+                  key={key}
                   type="button"
-                  onClick={() => setGroupBy(o.key)}
+                  onClick={() => setGroupBy(key)}
                   className={`rounded-full border px-3 py-1 text-xs font-medium transition-colors ${
                     active
                       ? 'border-zinc-900 dark:border-zinc-100 bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900'
                       : 'border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-700'
                   }`}
                 >
-                  {o.label}
+                  {t(`groupBy.${key}`)}
                 </button>
               );
             })}

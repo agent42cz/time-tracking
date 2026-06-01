@@ -24,6 +24,11 @@ export function ymd(d: Date): string {
   return `${pad(z.getDate())}.${pad(z.getMonth() + 1)}.${z.getFullYear()}`;
 }
 
+export function formatDayKey(key: string): string {
+  const [y, m, d] = key.split('-');
+  return `${d}.${m}.${y}`;
+}
+
 export function fmtDur(ms: number): string {
   const total = Math.max(0, Math.floor(ms / 60000));
   return `${Math.floor(total / 60)}h ${total % 60}m`;

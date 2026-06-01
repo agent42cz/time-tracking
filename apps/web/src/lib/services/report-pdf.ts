@@ -8,8 +8,8 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import pdfmakePkg from 'pdfmake';
 import type { TDocumentDefinitions, TableCell, Content } from 'pdfmake/interfaces';
-import { toAppZone } from '@tt/shared/time';
 import type { GroupedReport, GroupBy } from './reports.js';
+import { ymd, fmtTime, formatDayKey } from '@/lib/time-format';
 
 // CJS→ESM default-import interop: PdfPrinter may be the module itself or its .default
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -32,6 +32,7 @@ const printer = new PdfPrinter({
 });
 
 export interface ReportPdfStrings {
+  date: string;
   user: string;
   description: string;
   tags: string;
@@ -53,16 +54,9 @@ export interface ReportPdfMeta {
   t: ReportPdfStrings;
 }
 
-const pad2 = (n: number): string => String(n).padStart(2, '0');
-
 function hm(ms: number): string {
   const m = Math.max(0, Math.floor(ms / 60000));
   return `${Math.floor(m / 60)} h ${m % 60} min`;
-}
-
-function dateTime(d: Date): string {
-  const z = toAppZone(d);
-  return `${pad2(z.getDate())}.${pad2(z.getMonth() + 1)}.${z.getFullYear()} ${pad2(z.getHours())}:${pad2(z.getMinutes())}`;
 }
 
 export function buildReportPdf(report: GroupedReport, meta: ReportPdfMeta): Promise<Buffer> {
@@ -74,7 +68,7 @@ export function buildReportPdf(report: GroupedReport, meta: ReportPdfMeta): Prom
     { text: meta.periodLabel, style: 'period' },
     { text: `${t.groupedBy}: ${t.groupLabel}`, style: 'metaLine' },
     {
-      text: `${t.generatedAt}: ${dateTime(meta.generatedAt)}`,
+      text: `${t.generatedAt}: ${ymd(meta.generatedAt)} ${fmtTime(meta.generatedAt)}`,
       style: 'metaLine',
       margin: [0, 0, 0, 12],
     },
@@ -84,11 +78,17 @@ export function buildReportPdf(report: GroupedReport, meta: ReportPdfMeta): Prom
     content.push({ text: t.noEntries, italics: true, margin: [0, 12, 0, 0] });
   } else {
     for (const g of report.groups) {
-      const heading =
-        meta.groupBy === 'project' && g.clientName ? `${g.clientName} → ${g.label}` : g.label;
+      let heading: string;
+      if (meta.groupBy === 'project' && g.clientName) {
+        heading = `${g.clientName} → ${g.label}`;
+      } else if (meta.groupBy === 'day') {
+        heading = formatDayKey(g.label);
+      } else {
+        heading = g.label;
+      }
       content.push({ text: heading, style: 'group', margin: [0, 10, 0, 4] });
 
-      const header: TableCell[] = [{ text: 'Datum', style: 'th' }];
+      const header: TableCell[] = [{ text: t.date, style: 'th' }];
       if (showUser) header.push({ text: t.user, style: 'th' });
       header.push({ text: t.description, style: 'th' });
       header.push({ text: t.tags, style: 'th' });
@@ -96,7 +96,7 @@ export function buildReportPdf(report: GroupedReport, meta: ReportPdfMeta): Prom
       const body: TableCell[][] = [header];
 
       for (const r of g.rows) {
-        const cells: TableCell[] = [{ text: dateTime(r.startedAt) }];
+        const cells: TableCell[] = [{ text: `${ymd(r.startedAt)} ${fmtTime(r.startedAt)}` }];
         if (showUser) cells.push({ text: r.userName });
         cells.push({ text: r.description });
         cells.push({ text: r.tags.map((x) => x.name).join(', ') });
@@ -107,9 +107,9 @@ export function buildReportPdf(report: GroupedReport, meta: ReportPdfMeta): Prom
       const span = showUser ? 4 : 3;
       const subtotal: TableCell[] = [
         { text: t.subtotal, colSpan: span, bold: true, alignment: 'right' },
+        ...Array.from({ length: span - 1 }, () => ({ text: '' })),
+        { text: hm(g.subtotalMs), bold: true, alignment: 'right' },
       ];
-      for (let i = 1; i < span; i++) subtotal.push({ text: '' });
-      subtotal.push({ text: hm(g.subtotalMs), bold: true, alignment: 'right' });
       body.push(subtotal);
 
       content.push({

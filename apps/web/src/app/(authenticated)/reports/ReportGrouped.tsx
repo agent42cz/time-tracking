@@ -12,7 +12,7 @@ import {
   EmptyState,
 } from '@tt/ui';
 import type { GroupedReport } from '@/lib/services/reports';
-import { fmtDur, ymd } from '@/lib/time-format';
+import { fmtDur, fmtTime, formatDayKey, ymd } from '@/lib/time-format';
 import { ReportsRowActions } from './ReportsRowActions';
 
 interface Props {
@@ -26,6 +26,7 @@ export function ReportGrouped({ report, autoStackOverlaps, labels }: Props): Rea
     return <EmptyState title="Žádné záznamy odpovídající filtru" />;
   }
   const showUser = report.groupBy !== 'member';
+  const showClientProject = report.groupBy !== 'project';
   return (
     <div className="space-y-4">
       {report.groups.map((g) => {
@@ -33,7 +34,7 @@ export function ReportGrouped({ report, autoStackOverlaps, labels }: Props): Rea
           report.groupBy === 'project' && g.clientName
             ? `${g.clientName} → ${g.label}`
             : report.groupBy === 'day'
-              ? ymd(g.rows[0]!.startedAt)
+              ? formatDayKey(g.label)
               : g.label;
         return (
           <Card key={g.key}>
@@ -49,8 +50,8 @@ export function ReportGrouped({ report, autoStackOverlaps, labels }: Props): Rea
                   <tr>
                     <Th>Datum</Th>
                     {showUser ? <Th>Uživatel</Th> : null}
-                    {report.groupBy !== 'project' ? <Th>Klient</Th> : null}
-                    {report.groupBy !== 'project' ? <Th>Projekt</Th> : null}
+                    {showClientProject ? <Th>Klient</Th> : null}
+                    {showClientProject ? <Th>Projekt</Th> : null}
                     <Th>Popis</Th>
                     <Th>Štítky</Th>
                     <Th className="text-right">Čas</Th>
@@ -61,16 +62,13 @@ export function ReportGrouped({ report, autoStackOverlaps, labels }: Props): Rea
                   {g.rows.map((r) => (
                     <Tr key={r.id}>
                       <Td className="whitespace-nowrap font-mono text-xs">
-                        {r.startedAt.toLocaleString('cs-CZ', {
-                          dateStyle: 'short',
-                          timeStyle: 'short',
-                        })}
+                        {`${ymd(r.startedAt)} ${fmtTime(r.startedAt)}`}
                       </Td>
                       {showUser ? <Td>{r.userName}</Td> : null}
-                      {report.groupBy !== 'project' ? (
+                      {showClientProject ? (
                         <Td className="text-zinc-700 dark:text-zinc-300">{r.clientName ?? '—'}</Td>
                       ) : null}
-                      {report.groupBy !== 'project' ? (
+                      {showClientProject ? (
                         <Td className="text-zinc-700 dark:text-zinc-300">{r.projectName ?? '—'}</Td>
                       ) : null}
                       <Td className="max-w-xs truncate" title={r.description}>

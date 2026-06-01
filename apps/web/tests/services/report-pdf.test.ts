@@ -5,6 +5,7 @@ import { buildGroupedReport, type ReportRow } from '../../src/lib/services/repor
 
 const H = 60 * 60 * 1000;
 const STR: ReportPdfStrings = {
+  date: 'Datum',
   user: 'Uživatel',
   description: 'Popis',
   tags: 'Štítky',

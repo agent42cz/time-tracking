@@ -120,6 +120,7 @@
     },
     "pdf": {
       "title": "Výkaz práce",
+      "date": "Datum",
       "user": "Uživatel",
       "description": "Popis",
       "tags": "Štítky",
@@ -128,7 +129,8 @@
       "grandTotal": "Celkem",
       "generatedAt": "Vygenerováno",
       "groupedBy": "Seskupeno podle",
-      "noEntries": "Žádné záznamy"
+      "noEntries": "Žádné záznamy",
+      "allPeriod": "Vše"
     }
   },
   "members": {

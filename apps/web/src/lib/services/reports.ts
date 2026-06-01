@@ -5,7 +5,7 @@
  * description text. Admin-only sees all members; users only see their own.
  */
 import type { Prisma, PrismaClient } from '@prisma/client';
-import { toAppZone } from '@tt/shared/time';
+import { dayKey } from '@/lib/time-format';
 
 type Db = PrismaClient | Prisma.TransactionClient;
 
@@ -107,6 +107,10 @@ export async function runReport(
 
 export type GroupBy = 'project' | 'member' | 'day';
 
+export function parseGroupBy(v: string | null | undefined): GroupBy {
+  return v === 'member' || v === 'day' ? v : 'project';
+}
+
 export interface ReportGroup {
   key: string;
   label: string;
@@ -122,22 +126,13 @@ export interface GroupedReport {
   rowCount: number;
 }
 
-const pad2 = (n: number): string => String(n).padStart(2, '0');
-
-// Prague-local YYYY-MM-DD bucket (Coolify runs UTC; bucket by the day the user lived).
-function pragueDayKey(d: Date): string {
-  const z = toAppZone(d);
-  return `${z.getFullYear()}-${pad2(z.getMonth() + 1)}-${pad2(z.getDate())}`;
-}
-
 // Effective duration for totals. Base is the row's recorded durationMs (which
 // runReport sets to (endedAt ?? now) - startedAt), so this equals durationMs for
 // in-period entries. clampEnd caps the tail of entries that run past the period
 // end (a still-running timer, or a completed entry that crosses the boundary).
 function effectiveMs(r: ReportRow, clampEnd?: Date): number {
-  const endMs = r.startedAt.getTime() + r.durationMs;
-  const cappedEndMs = clampEnd ? Math.min(endMs, clampEnd.getTime()) : endMs;
-  return Math.max(0, cappedEndMs - r.startedAt.getTime());
+  if (!clampEnd) return r.durationMs;
+  return Math.max(0, Math.min(r.durationMs, clampEnd.getTime() - r.startedAt.getTime()));
 }
 
 export function buildGroupedReport(
@@ -146,6 +141,7 @@ export function buildGroupedReport(
 ): GroupedReport {
   const { groupBy, clampEnd } = opts;
   const map = new Map<string, ReportGroup>();
+  let grandTotalMs = 0;
 
   for (const r of rows) {
     let key: string;
@@ -160,7 +156,7 @@ export function buildGroupedReport(
       label = r.userName;
       clientName = null;
     } else {
-      key = pragueDayKey(r.startedAt);
+      key = dayKey(r.startedAt);
       label = key;
       clientName = null;
     }
@@ -169,7 +165,9 @@ export function buildGroupedReport(
       g = { key, label, clientName, subtotalMs: 0, rows: [] };
       map.set(key, g);
     }
-    g.subtotalMs += effectiveMs(r, clampEnd);
+    const ms = effectiveMs(r, clampEnd);
+    g.subtotalMs += ms;
+    grandTotalMs += ms;
     g.rows.push(r);
   }
 
@@ -187,7 +185,7 @@ export function buildGroupedReport(
   return {
     groupBy,
     groups,
-    grandTotalMs: groups.reduce((s, g) => s + g.subtotalMs, 0),
+    grandTotalMs,
     rowCount: rows.length,
   };
 }

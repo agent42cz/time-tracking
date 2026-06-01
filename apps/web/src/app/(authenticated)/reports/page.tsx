@@ -3,7 +3,7 @@ import { Card, CardBody, CardHeader, CardTitle } from '@tt/ui';
 import { getTranslations } from 'next-intl/server';
 import { prisma, requireActiveCompany } from '@/lib/session';
 import { PageHeader } from '@/components/PageHeader';
-import { buildGroupedReport, runReport, type GroupBy } from '@/lib/services/reports';
+import { buildGroupedReport, parseGroupBy, runReport } from '@/lib/services/reports';
 import { ReportFiltersForm } from './ReportFiltersForm';
 import { ReportGrouped } from './ReportGrouped';
 
@@ -22,10 +22,6 @@ interface SP {
 function asArray(v: string | string[] | undefined): string[] {
   if (!v) return [];
   return Array.isArray(v) ? v : [v];
-}
-
-function parseGroupBy(v: string | undefined): GroupBy {
-  return v === 'member' || v === 'day' ? v : 'project';
 }
 
 export default async function ReportsPage({
@@ -77,19 +73,21 @@ export default async function ReportsPage({
   };
 
   const groupBy = parseGroupBy(sp.groupBy);
-  const result = await runReport(prisma(), s.userId, filters);
+  const [result, t] = await Promise.all([
+    runReport(prisma(), s.userId, filters),
+    getTranslations('reports'),
+  ]);
   const report = buildGroupedReport(result.ok ? result.value : [], {
     groupBy,
     clampEnd: filters.to,
   });
-  const t = await getTranslations('reports');
 
   const exportQS = new URLSearchParams();
   for (const [k, v] of Object.entries(sp)) {
     if (Array.isArray(v)) v.forEach((x) => exportQS.append(k, x));
     else if (typeof v === 'string') exportQS.append(k, v);
   }
-  if (!exportQS.get('groupBy')) exportQS.set('groupBy', groupBy);
+  exportQS.set('groupBy', groupBy);
 
   return (
     <div>
