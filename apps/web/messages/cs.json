@@ -102,10 +102,32 @@
   "reports": {
     "title": "Reporty",
     "filters": "Filtry",
+    "groupBy": {
+      "label": "Seskupit podle",
+      "project": "Projektu",
+      "member": "Člena",
+      "day": "Dne"
+    },
+    "onlyMine": "Jen moje záznamy",
+    "subtotal": "Mezisoučet",
+    "grandTotal": "Celkem",
     "export": {
-      "csv": "Export CSV",
+      "csv": "Stáhnout CSV",
       "xlsx": "Export XLSX",
-      "pdf": "Export PDF"
+      "pdf": "Stáhnout PDF",
+      "lastMonth": "Výkaz za minulý měsíc (PDF)"
+    },
+    "pdf": {
+      "title": "Výkaz práce",
+      "user": "Uživatel",
+      "description": "Popis",
+      "tags": "Štítky",
+      "duration": "Trvání",
+      "subtotal": "Mezisoučet",
+      "grandTotal": "Celkem",
+      "generatedAt": "Vygenerováno",
+      "groupedBy": "Seskupeno podle",
+      "noEntries": "Žádné záznamy"
     }
   },
   "members": {
