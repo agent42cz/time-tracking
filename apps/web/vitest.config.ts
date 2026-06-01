@@ -8,6 +8,7 @@ export default defineConfig({
     // must be testable with vitest.
     alias: {
       'server-only': path.resolve(__dirname, 'src/__stubs__/server-only.ts'),
+      '@': path.resolve(__dirname, 'src'),
     },
   },
   test: {
