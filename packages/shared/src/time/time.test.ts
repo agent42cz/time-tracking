@@ -5,6 +5,7 @@ import {
   getPeriodRange,
   formatDurationHMS,
   parseAppZoneInput,
+  getPreviousMonthRange,
 } from './index.js';
 
 describe('time helpers', () => {
@@ -34,5 +35,15 @@ describe('time helpers', () => {
     expect(parseAppZoneInput('2026-05-08', '15:00').toISOString()).toBe('2026-05-08T13:00:00.000Z');
     // Winter date (CET = UTC+1).
     expect(parseAppZoneInput('2026-01-15', '09:30').toISOString()).toBe('2026-01-15T08:30:00.000Z');
+  });
+
+  it('getPreviousMonthRange returns the previous full calendar month as a half-open Prague range', () => {
+    setNowProvider(() => new Date('2026-06-01T10:00:00Z'));
+    const r = getPreviousMonthRange();
+    // 1 May 2026 00:00 Prague (CEST = UTC+2) === 2026-04-30T22:00:00Z
+    expect(r.start.toISOString()).toBe('2026-04-30T22:00:00.000Z');
+    // exclusive end = 1 Jun 2026 00:00 Prague === 2026-05-31T22:00:00Z
+    expect(r.end.toISOString()).toBe('2026-05-31T22:00:00.000Z');
+    setNowProvider(null);
   });
 });
