@@ -62,7 +62,6 @@ export async function deleteClientAction(
   const r = await deleteClient(prisma(), s.userId, clientId, { cascade });
   if (!r.ok) return { ok: false, error: 'Nelze smazat' };
   revalidatePath('/clients');
-  revalidatePath('/timesheet');
   return { ok: true };
 }
 

@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { filterVisibleGroups, navGroups, type NavGroup } from './nav.js';
 
 describe('navGroups', () => {
-  it('contains all 12 nav items across 5 groups in expected order', () => {
+  it('contains all 11 nav items across 5 groups in expected order', () => {
     expect(navGroups.map((g) => g.label)).toEqual([
       'Sledování',
       'Přehledy',
@@ -11,12 +11,12 @@ describe('navGroups', () => {
       'Účet',
     ]);
     const total = navGroups.reduce((sum, g) => sum + g.items.length, 0);
-    expect(total).toBe(12);
+    expect(total).toBe(11);
   });
 
   it('lists items in the spec-defined order within each group', () => {
     const byLabel = Object.fromEntries(navGroups.map((g) => [g.label, g.items.map((i) => i.href)]));
-    expect(byLabel['Sledování']).toEqual(['/timer', '/timesheet']);
+    expect(byLabel['Sledování']).toEqual(['/timer']);
     expect(byLabel['Přehledy']).toEqual(['/dashboard', '/reports']);
     expect(byLabel['Správa dat']).toEqual(['/clients', '/tags', '/members']);
     expect(byLabel['Systém']).toEqual(['/audit', '/trash']);
@@ -35,7 +35,7 @@ describe('filterVisibleGroups', () => {
       'Účet',
     ]);
     const total = result.reduce((sum, g) => sum + g.items.length, 0);
-    expect(total).toBe(12);
+    expect(total).toBe(11);
   });
 
   it('drops Přehledy and Systém for non-admin (all-admin groups)', () => {
@@ -53,7 +53,6 @@ describe('filterVisibleGroups', () => {
     const result = filterVisibleGroups(navGroups, false);
     expect(result.find((g) => g.label === 'Sledování')?.items.map((i) => i.href)).toEqual([
       '/timer',
-      '/timesheet',
     ]);
     expect(result.find((g) => g.label === 'Účet')?.items.map((i) => i.href)).toEqual([
       '/extension',

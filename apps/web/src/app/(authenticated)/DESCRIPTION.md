@@ -8,20 +8,19 @@ This route group hosts the entire authenticated UI for the web app — every pag
 
 ## Public surface
 
-| Route        | Folder       | Audience                                                       |
-| ------------ | ------------ | -------------------------------------------------------------- |
-| `/timer`     | `timer/`     | All members — running timers, today's entries, quick-start row |
-| `/timesheet` | `timesheet/` | All members — week list grouped by day                         |
-| `/dashboard` | `dashboard/` | Admin — six KPI widgets, period selector                       |
-| `/reports`   | `reports/`   | Admin — filter matrix, CSV/XLSX/PDF exports                    |
-| `/clients`   | `clients/`   | Admin — client + project CRUD                                  |
-| `/tags`      | `tags/`      | Admin (manage), User (view + inline create)                    |
-| `/members`   | `members/`   | Admin — invite, role change, remove                            |
-| `/audit`     | `audit/`     | Admin — firm-wide audit log with filters                       |
-| `/trash`     | `trash/`     | Admin — soft-deleted entries, restore/purge                    |
-| `/settings`  | `settings/`  | All — profile, password, 2FA, magic link                       |
-| `/companies` | `companies/` | All — list, create, switch active                              |
-| `/extension` | `extension/` | All — Chrome extension landing/instructions                    |
+| Route        | Folder       | Audience                                                                     |
+| ------------ | ------------ | ---------------------------------------------------------------------------- |
+| `/timer`     | `timer/`     | All members — running timers, recent history grouped by day, quick-start row |
+| `/dashboard` | `dashboard/` | Admin — six KPI widgets, period selector                                     |
+| `/reports`   | `reports/`   | Admin — filter matrix, CSV/XLSX/PDF exports                                  |
+| `/clients`   | `clients/`   | Admin — client + project CRUD                                                |
+| `/tags`      | `tags/`      | Admin (manage), User (view + inline create)                                  |
+| `/members`   | `members/`   | Admin — invite, role change, remove                                          |
+| `/audit`     | `audit/`     | Admin — firm-wide audit log with filters                                     |
+| `/trash`     | `trash/`     | Admin — soft-deleted entries, restore/purge                                  |
+| `/settings`  | `settings/`  | All — profile, password, 2FA, magic link                                     |
+| `/companies` | `companies/` | All — list, create, switch active                                            |
+| `/extension` | `extension/` | All — Chrome extension landing/instructions                                  |
 
 ## Dependencies
 

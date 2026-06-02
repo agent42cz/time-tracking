@@ -354,50 +354,6 @@ export async function purgeOldDeleted(db: Db, now: Date = new Date()): Promise<{
 }
 
 // --- Reads ---
-export async function listMyWeek(
-  db: Db,
-  actorUserId: string,
-  companyId: string,
-  range: { start: Date; end: Date },
-): Promise<
-  Result<
-    {
-      id: string;
-      description: string;
-      startedAt: Date;
-      endedAt: Date | null;
-      clientId: string | null;
-      projectId: string | null;
-      tagIds: string[];
-    }[]
-  >
-> {
-  const role = await getMembership(db, actorUserId, companyId);
-  if (!role) return { ok: false, reason: 'not_found' };
-  const rows = await db.timeEntry.findMany({
-    where: {
-      userId: actorUserId,
-      companyId,
-      deletedAt: null,
-      startedAt: { gte: range.start, lt: range.end },
-    },
-    orderBy: { startedAt: 'asc' },
-    include: { tags: true },
-  });
-  return {
-    ok: true,
-    value: rows.map((r) => ({
-      id: r.id,
-      description: r.description,
-      startedAt: r.startedAt,
-      endedAt: r.endedAt,
-      clientId: r.clientId,
-      projectId: r.projectId,
-      tagIds: r.tags.map((t) => t.tagId),
-    })),
-  };
-}
-
 export async function listTrash(
   db: Db,
   actorUserId: string,

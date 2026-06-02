@@ -13,7 +13,6 @@ import { createClient, createTag } from '../../src/lib/services/catalog.js';
 import {
   createManualEntry,
   getEntryHistory,
-  listMyWeek,
   listRecentEntries,
   listRecentHistory,
   listRunningEntries,
@@ -130,10 +129,7 @@ describe('time entries', () => {
       const t1 = new Date(t0.getTime() + 5 * 60_000);
       const stop = await stopTimer(tx, w.user, a.value.id, t1);
       expect(stop.ok).toBe(true);
-      const list = await listMyWeek(tx, w.user, w.company, {
-        start: new Date('2026-05-03T00:00:00Z'),
-        end: new Date('2026-05-04T00:00:00Z'),
-      });
+      const list = await listRecentEntries(tx, w.user, w.company, 50);
       expect(list.ok).toBe(true);
       if (list.ok) {
         expect(list.value.find((e) => e.id === a.value.id)).toBeTruthy();
@@ -223,52 +219,9 @@ describe('time entries', () => {
       if (!a.ok) throw new Error('setup');
       const del = await softDeleteEntry(tx, w.user, a.value.id);
       expect(del.ok).toBe(true);
-      const list = await listMyWeek(tx, w.user, w.company, {
-        start: new Date(Date.now() - 7 * 86_400_000),
-        end: new Date(Date.now() + 7 * 86_400_000),
-      });
+      const list = await listRecentEntries(tx, w.user, w.company, 50);
       expect(list.ok).toBe(true);
       if (list.ok) expect(list.value.find((e) => e.id === a.value.id)).toBeUndefined();
-    });
-  });
-
-  it('US-26: lists my week grouped by day with daily totals (data shape)', async () => {
-    await withTx(async (tx) => {
-      const w = await bootstrap(tx, 'us26');
-      const now = new Date('2026-05-03T10:00:00Z');
-      await createManualEntry(
-        tx,
-        w.user,
-        {
-          companyId: w.company,
-          startedAt: new Date('2026-04-29T09:00:00Z'),
-          endedAt: new Date('2026-04-29T10:00:00Z'),
-        },
-        now,
-      );
-      await createManualEntry(
-        tx,
-        w.user,
-        {
-          companyId: w.company,
-          startedAt: new Date('2026-04-30T11:00:00Z'),
-          endedAt: new Date('2026-04-30T12:00:00Z'),
-        },
-        now,
-      );
-      const list = await listMyWeek(tx, w.user, w.company, {
-        start: new Date('2026-04-27T00:00:00Z'),
-        end: new Date('2026-05-04T00:00:00Z'),
-      });
-      expect(list.ok).toBe(true);
-      if (list.ok) {
-        expect(list.value).toHaveLength(2);
-        const totalMs = list.value.reduce(
-          (acc, e) => acc + ((e.endedAt?.getTime() ?? 0) - e.startedAt.getTime()),
-          0,
-        );
-        expect(totalMs).toBe(2 * 60 * 60 * 1000);
-      }
     });
   });
 

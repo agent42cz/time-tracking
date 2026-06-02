@@ -25,7 +25,6 @@ export async function startTimerAction(formData: FormData): Promise<ActionResult
   });
   if (!result.ok) return { ok: false, error: 'Nepodařilo se spustit měření' };
   revalidatePath('/timer');
-  revalidatePath('/timesheet');
   return { ok: true };
 }
 
@@ -34,7 +33,6 @@ export async function stopTimerAction(entryId: string): Promise<ActionResult> {
   const result = await stopTimer(prisma(), s.userId, entryId);
   if (!result.ok) return { ok: false, error: 'Měření nelze zastavit' };
   revalidatePath('/timer');
-  revalidatePath('/timesheet');
   return { ok: true };
 }
 
@@ -70,7 +68,6 @@ export async function createManualAction(formData: FormData): Promise<ActionResu
     return { ok: false, error: 'Nepodařilo se uložit' };
   }
   revalidatePath('/timer');
-  revalidatePath('/timesheet');
   return { ok: true };
 }
 
@@ -104,7 +101,6 @@ export async function updateEntryAction(
     return { ok: false, error: 'Nelze upravit' };
   }
   revalidatePath('/timer');
-  revalidatePath('/timesheet');
   revalidatePath('/reports');
   return { ok: true };
 }
@@ -114,7 +110,6 @@ export async function deleteEntryAction(entryId: string): Promise<ActionResult> 
   const result = await softDeleteEntry(prisma(), s.userId, entryId);
   if (!result.ok) return { ok: false, error: 'Nelze smazat' };
   revalidatePath('/timer');
-  revalidatePath('/timesheet');
   return { ok: true };
 }
 
@@ -143,6 +138,5 @@ export async function playAgainAction(entryId: string): Promise<ActionResult> {
     tagIds: original.tags.map((t) => t.tagId),
   });
   revalidatePath('/timer');
-  revalidatePath('/timesheet');
   return { ok: true };
 }

@@ -137,6 +137,5 @@ export async function saveEntryWithAutoStackAction(
   });
   if (!result.ok) return { ok: false, error: result.reason };
   revalidatePath('/timer');
-  revalidatePath('/timesheet');
   return { ok: true, candidateId: result.candidateId, plan: planToWire(result.plan) };
 }

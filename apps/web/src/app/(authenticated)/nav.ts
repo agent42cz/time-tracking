@@ -4,10 +4,7 @@ export type NavGroup = { label: string; items: NavItem[] };
 export const navGroups: NavGroup[] = [
   {
     label: 'Sledování',
-    items: [
-      { href: '/timer', label: 'Stopky' },
-      { href: '/timesheet', label: 'Výkaz' },
-    ],
+    items: [{ href: '/timer', label: 'Stopky' }],
   },
   {
     label: 'Přehledy',
