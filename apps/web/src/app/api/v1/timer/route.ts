@@ -1,9 +1,8 @@
 /**
  * GET  /api/v1/timer
  *   → running timers (`running`)
- *   → today's completed entries (`today`) — drives the web /timer page
  *   → completed entries from start-of-last-month..end-of-this-month (`history`)
- *     — drives the extension popup's day/month-grouped list
+ *     — drives both the web /timer page and the extension popup's grouped list
  *   → totals for this week / this month / last month (`summary`)
  *     — drives the extension popup's summary cards
  * POST /api/v1/timer  → start a timer in the active company
@@ -16,7 +15,7 @@ import type { NextRequest } from 'next/server';
 import { resolveApiSession, pickActiveCompany } from '@/lib/api/auth';
 import { corsPreflight, errorCors, jsonCors } from '@/lib/api/cors';
 import { prisma } from '@/lib/session';
-import { startTimer } from '@/lib/services/time-entries';
+import { listRecentHistory, startTimer } from '@/lib/services/time-entries';
 import { getPeriodRange } from '@tt/shared/time';
 
 export const dynamic = 'force-dynamic';
@@ -36,29 +35,18 @@ export async function GET(req: NextRequest): Promise<Response> {
     return jsonCors(req, {
       companyId: null,
       running: [],
-      today: [],
       history: [],
       summary: ZERO_SUMMARY,
     });
 
   const now = new Date();
-  const dayStart = new Date();
-  dayStart.setHours(0, 0, 0, 0);
-  const dayEnd = new Date(dayStart);
-  dayEnd.setDate(dayEnd.getDate() + 1);
-
   const weekRange = getPeriodRange('week', now);
   const monthRange = getPeriodRange('month', now);
   const lastMonthRef = new Date(now);
   lastMonthRef.setMonth(lastMonthRef.getMonth() - 1);
   const lastMonthRange = getPeriodRange('month', lastMonthRef);
-  // History window covers last + current month, extended to the end of the
-  // current ISO week — needed when the current week spills across the month
-  // boundary (e.g. Monday May 26 .. Sunday Jun 1).
-  const historyEnd =
-    weekRange.end.getTime() > monthRange.end.getTime() ? weekRange.end : monthRange.end;
 
-  const [running, today, history] = await Promise.all([
+  const [running, historyResult] = await Promise.all([
     prisma().timeEntry.findMany({
       where: {
         userId: session.userId,
@@ -69,40 +57,17 @@ export async function GET(req: NextRequest): Promise<Response> {
       include: { client: true, project: true, tags: { include: { tag: true } } },
       orderBy: { startedAt: 'desc' },
     }),
-    prisma().timeEntry.findMany({
-      where: {
-        userId: session.userId,
-        companyId: active.companyId,
-        deletedAt: null,
-        endedAt: { not: null },
-        startedAt: { gte: dayStart, lt: dayEnd },
-      },
-      include: { client: true, project: true, tags: { include: { tag: true } } },
-      orderBy: { startedAt: 'desc' },
-    }),
-    prisma().timeEntry.findMany({
-      where: {
-        userId: session.userId,
-        companyId: active.companyId,
-        deletedAt: null,
-        endedAt: { not: null },
-        startedAt: { gte: lastMonthRange.start, lt: historyEnd },
-      },
-      include: { client: true, project: true, tags: { include: { tag: true } } },
-      orderBy: { startedAt: 'desc' },
-    }),
+    listRecentHistory(prisma(), session.userId, active.companyId, now),
   ]);
+  const history = historyResult.ok ? historyResult.value : [];
 
-  // Summary totals derived from the same `history` rows so the three numbers
-  // and the list stay self-consistent (no second DB query).
   function sumIn(start: Date, end: Date): number {
     let total = 0;
     for (const e of history) {
       if (!e.endedAt) continue;
       const t = e.startedAt.getTime();
-      if (t >= start.getTime() && t < end.getTime()) {
+      if (t >= start.getTime() && t < end.getTime())
         total += e.endedAt.getTime() - e.startedAt.getTime();
-      }
     }
     return total;
   }
@@ -125,11 +90,23 @@ export async function GET(req: NextRequest): Promise<Response> {
       tags: e.tags.map((tt) => ({ id: tt.tag.id, name: tt.tag.name, color: tt.tag.color })),
     };
   }
+  function historyDto(e: (typeof history)[number]): unknown {
+    return {
+      id: e.id,
+      description: e.description,
+      clientId: e.clientId,
+      clientName: e.clientName,
+      projectId: e.projectId,
+      projectName: e.projectName,
+      startedAt: e.startedAt.toISOString(),
+      endedAt: e.endedAt ? e.endedAt.toISOString() : null,
+      tags: e.tags,
+    };
+  }
   return jsonCors(req, {
     companyId: active.companyId,
     running: running.map(dto),
-    today: today.map(dto),
-    history: history.map(dto),
+    history: history.map(historyDto),
     summary,
   });
 }

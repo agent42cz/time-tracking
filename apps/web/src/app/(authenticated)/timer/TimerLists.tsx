@@ -4,7 +4,7 @@ import type { ReactElement } from 'react';
 import { useEffect, useState } from 'react';
 import { TIMER_CHANGED_EVENT, TimerStateResponseSchema, type TimerEntry } from '@/lib/timer-events';
 import { RunningTimers } from './RunningTimers';
-import { TodayList } from './TodayList';
+import { TimerHistory, type HistoryEntryView } from './TimerHistory';
 
 interface RunningEntry {
   id: string;
@@ -13,10 +13,6 @@ interface RunningEntry {
   projectName: string | null;
   startedAt: string;
   tags: { name: string; color: string }[];
-}
-
-interface TodayEntry extends RunningEntry {
-  endedAt: string;
 }
 
 function toRunning(e: TimerEntry): RunningEntry {
@@ -30,22 +26,30 @@ function toRunning(e: TimerEntry): RunningEntry {
   };
 }
 
-function toToday(e: TimerEntry): TodayEntry | null {
+function toHistory(e: TimerEntry): HistoryEntryView | null {
   if (!e.endedAt) return null;
-  return { ...toRunning(e), endedAt: e.endedAt };
+  return {
+    id: e.id,
+    description: e.description,
+    clientName: e.clientName,
+    projectName: e.projectName,
+    startedAt: e.startedAt,
+    endedAt: e.endedAt,
+    tags: e.tags.map((t) => ({ name: t.name, color: t.color })),
+  };
 }
 
 export function TimerLists({
   initialRunning,
-  initialToday,
+  initialHistory,
   autoStackOverlaps = false,
 }: {
   initialRunning: RunningEntry[];
-  initialToday: TodayEntry[];
+  initialHistory: HistoryEntryView[];
   autoStackOverlaps?: boolean;
 }): ReactElement {
   const [running, setRunning] = useState<RunningEntry[]>(initialRunning);
-  const [today, setToday] = useState<TodayEntry[]>(initialToday);
+  const [history, setHistory] = useState<HistoryEntryView[]>(initialHistory);
   const [now, setNow] = useState<number | null>(null);
   const hasRunning = running.length > 0;
 
@@ -63,15 +67,16 @@ export function TimerLists({
     let cancelled = false;
     async function refetch(): Promise<void> {
       try {
-        const res = await fetch('/api/v1/timer', {
-          credentials: 'same-origin',
-          cache: 'no-store',
-        });
+        const res = await fetch('/api/v1/timer', { credentials: 'same-origin', cache: 'no-store' });
         if (!res.ok) return;
         const parsed = TimerStateResponseSchema.safeParse(await res.json());
         if (!parsed.success || cancelled) return;
         setRunning((parsed.data.running ?? []).map(toRunning));
-        setToday((parsed.data.today ?? []).map(toToday).filter((e): e is TodayEntry => e !== null));
+        setHistory(
+          (parsed.data.history ?? [])
+            .map(toHistory)
+            .filter((e): e is HistoryEntryView => e !== null),
+        );
       } catch {
         // ignore network/parse errors
       }
@@ -92,9 +97,8 @@ export function TimerLists({
   const handleStopped = (id: string): void => {
     setRunning((rs) => rs.filter((r) => r.id !== id));
   };
-
   const handleDeleted = (id: string): void => {
-    setToday((ts) => ts.filter((t) => t.id !== id));
+    setHistory((hs) => hs.filter((h) => h.id !== id));
   };
 
   return (
@@ -107,7 +111,11 @@ export function TimerLists({
           autoStackOverlaps={autoStackOverlaps}
         />
       ) : null}
-      <TodayList entries={today} onDeleted={handleDeleted} autoStackOverlaps={autoStackOverlaps} />
+      <TimerHistory
+        entries={history}
+        onDeleted={handleDeleted}
+        autoStackOverlaps={autoStackOverlaps}
+      />
     </>
   );
 }

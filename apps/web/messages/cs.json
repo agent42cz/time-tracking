@@ -50,6 +50,10 @@
     "yesterday": "Včera",
     "addManual": "Přidat ručně",
     "playAgain": "Spustit znovu",
+    "history": {
+      "empty": "Žádné dokončené záznamy",
+      "emptyHint": "Spusťte nahoře nové měření nebo přidejte ruční zápis."
+    },
     "confirm": {
       "deleteEntryTitle": "Smazat záznam?",
       "deleteEntryDescription": "Záznam přesuneme do koše. Můžeš jej do 30 dní obnovit."

@@ -25,7 +25,7 @@ const TimerEntrySchema = z.object({
 
 export const TimerStateResponseSchema = z.object({
   running: z.array(TimerEntrySchema).optional(),
-  today: z.array(TimerEntrySchema).optional(),
+  history: z.array(TimerEntrySchema).optional(),
 });
 
 export type TimerStateResponse = z.infer<typeof TimerStateResponseSchema>;
