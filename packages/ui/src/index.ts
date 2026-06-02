@@ -17,3 +17,4 @@ export {
   type ConfirmOptions,
 } from './confirm-provider.js';
 export { SearchInput, type SearchInputProps } from './search-input.js';
+export { DataCard, DataCardRow, DataCardActions } from './data-cards.js';
