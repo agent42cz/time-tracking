@@ -643,6 +643,7 @@ describe('time entries', () => {
       // Cross-company isolation: an outsider (no membership) gets not_found.
       const cross = await listRecentHistory(tx, w.outsider, w.company, now);
       expect(cross.ok).toBe(false);
+      if (!cross.ok) expect(cross.reason).toBe('not_found');
     });
   });
 });

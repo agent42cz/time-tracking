@@ -17,6 +17,7 @@
  *  - purgeOldDeleted: hard-deletes anything soft-deleted >30 days ago
  *    (called by the daily cron job).
  *  - getHistory: returns the audit rows for a single entry (US-27, US-45).
+ *  - listRecentHistory: completed entries in the ~2-month timer-history window (US-26).
  */
 import type { AuditSource, Prisma, PrismaClient, Role } from '@prisma/client';
 import { getPeriodRange } from '@tt/shared/time';
@@ -514,7 +515,7 @@ export async function listRecentHistory(
   db: Db,
   actorUserId: string,
   companyId: string,
-  now: Date,
+  now: Date = new Date(),
 ): Promise<Result<HistoryEntry[]>> {
   const role = await getMembership(db, actorUserId, companyId);
   if (!role) return { ok: false, reason: 'not_found' };
