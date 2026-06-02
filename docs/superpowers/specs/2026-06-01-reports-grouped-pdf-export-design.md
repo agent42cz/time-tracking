@@ -34,7 +34,7 @@ Both needs live in the reports area, so they are solved together.
 - XLSX export (the other half of US-42).
 - Nested two-level grouping (client → project → subtotals). v1 is single-level grouping.
 - Scheduled / emailed reports, logo upload, charts inside the PDF.
-- Any change to **Výkaz** or **Dashboard**.
+- Any change to **Výkaz** or **Dashboard**. _(Note: Výkaz (`/timesheet`) was subsequently removed and superseded by the day-grouped recent history on the timer page — see the 2026-06-02 timer-history plan.)_
 
 ## 3. Information architecture (the de-duplication)
 

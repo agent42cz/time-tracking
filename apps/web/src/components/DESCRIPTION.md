@@ -14,7 +14,7 @@ Components that are specific to the Next.js web app — they consume web concept
 | `FaviconSwitcher.tsx` | Swaps `<link rel="icon">` based on whether any timer is running. Pulls running-timer state from the server.                                      |
 | `LogoutButton.tsx`    | Button posting to the logout server action; invalidates the session server-side.                                                                 |
 | `MultiSelect.tsx`     | Multi-select input with Czech labels. Used by the reports filter matrix.                                                                         |
-| `PageHeader.tsx`      | Standard page heading + subtitle wrapper. Keeps spacing consistent across `/timer`, `/timesheet`, `/dashboard`, `/reports`, etc.                 |
+| `PageHeader.tsx`      | Standard page heading + subtitle wrapper. Keeps spacing consistent across `/timer`, `/dashboard`, `/reports`, etc.                               |
 | `ThemeToggle.tsx`     | Light/dark theme toggle persisted via cookie. Consumed by the sidebar header (compact variant) and (future) settings page.                       |
 
 ## Dependencies

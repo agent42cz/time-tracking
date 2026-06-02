@@ -27,11 +27,11 @@ Self-hosted multi-tenant time tracker. Three apps, three packages, deployed to C
 
 ## Apps
 
-| App           | Path                                     | Stack                                                  | Purpose                                                                                                                                                                                                                                                                |
-| ------------- | ---------------------------------------- | ------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **web**       | [`apps/web`](../../apps/web)             | Next.js 15 App Router, React 19, Tailwind, `next-intl` | Primary UI + tRPC API + route handlers + server actions. Hosts every page from PRD §6.1: `/timer`, `/timesheet`, `/dashboard`, `/reports`, `/clients`, `/tags`, `/members`, `/audit`, `/trash`, `/settings`, `/companies`, plus `/login`, `/invite/[token]`, `/reset`. |
-| **ws**        | [`apps/ws`](../../apps/ws)               | `ws` (Node WebSocket library) + `ioredis`              | Real-time fan-out. Authenticates via session cookie or `?token=`. Subscribes each socket to `user:{id}` and `company:{id}` channels via a single Redis `psubscribe`, filters per connection. Mutation routes in `web` publish to Redis; this service forwards.         |
-| **extension** | [`apps/extension`](../../apps/extension) | Vite + React 19, MV3 manifest                          | Chrome popup. Mirrors web in real time via `apps/ws`. Persistent FIFO offline queue in `chrome.storage.local` (commit-before-send so a browser kill mid-replay leaves a recoverable queue).                                                                            |
+| App           | Path                                     | Stack                                                  | Purpose                                                                                                                                                                                                                                                        |
+| ------------- | ---------------------------------------- | ------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **web**       | [`apps/web`](../../apps/web)             | Next.js 15 App Router, React 19, Tailwind, `next-intl` | Primary UI + tRPC API + route handlers + server actions. Hosts every page from PRD §6.1: `/timer`, `/dashboard`, `/reports`, `/clients`, `/tags`, `/members`, `/audit`, `/trash`, `/settings`, `/companies`, plus `/login`, `/invite/[token]`, `/reset`.       |
+| **ws**        | [`apps/ws`](../../apps/ws)               | `ws` (Node WebSocket library) + `ioredis`              | Real-time fan-out. Authenticates via session cookie or `?token=`. Subscribes each socket to `user:{id}` and `company:{id}` channels via a single Redis `psubscribe`, filters per connection. Mutation routes in `web` publish to Redis; this service forwards. |
+| **extension** | [`apps/extension`](../../apps/extension) | Vite + React 19, MV3 manifest                          | Chrome popup. Mirrors web in real time via `apps/ws`. Persistent FIFO offline queue in `chrome.storage.local` (commit-before-send so a browser kill mid-replay leaves a recoverable queue).                                                                    |
 
 ## Packages
 
@@ -84,7 +84,7 @@ The chronological v1 build is recorded in [`build-log.md`](build-log.md) — use
 
 `/reports` (**Reporty**) is the admin-facing grouped report surface (US-77, US-78). It is distinct from two neighbouring surfaces:
 
-- **Výkaz** (`/timesheet`) — personal current-week day-cards, no grouping, no export.
+- **Stopky** (`/timer`) — running timers plus a recent history (last ~2 months) grouped by day and month; quick-start row at the top.
 - **Dashboard** (`/dashboard`) — fixed KPI widgets (totals, member table, daily breakdown) for the active company.
 
 Reporty's data flow is:

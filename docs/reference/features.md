@@ -38,7 +38,7 @@ Feature catalogue keyed by user-story IDs from PRD §13. Test names embed the US
 - **US-23** — User adds a manual entry for any past date (not future; `end > start`).
 - **US-24** — User edits any of their own past entries.
 - **US-25** — User soft-deletes their own entries.
-- **US-26** — User views their week as a list grouped by day with daily totals.
+- **US-26** — User views their recent entries (last ~2 months) grouped by day with daily totals, on the timer page.
 - **US-27** — User sees the change history of any of their entries.
 - **US-28** — Admin edits or deletes any member's entry (with audit row).
 
