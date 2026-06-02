@@ -42,14 +42,17 @@ function toHistory(e: TimerEntry): HistoryEntryView | null {
 export function TimerLists({
   initialRunning,
   initialHistory,
+  initialNowMs,
   autoStackOverlaps = false,
 }: {
   initialRunning: RunningEntry[];
   initialHistory: HistoryEntryView[];
+  initialNowMs: number;
   autoStackOverlaps?: boolean;
 }): ReactElement {
   const [running, setRunning] = useState<RunningEntry[]>(initialRunning);
   const [history, setHistory] = useState<HistoryEntryView[]>(initialHistory);
+  const [historyNowMs, setHistoryNowMs] = useState(initialNowMs);
   const [now, setNow] = useState<number | null>(null);
   const hasRunning = running.length > 0;
 
@@ -77,6 +80,7 @@ export function TimerLists({
             .map(toHistory)
             .filter((e): e is HistoryEntryView => e !== null),
         );
+        setHistoryNowMs(Date.now());
       } catch {
         // ignore network/parse errors
       }
@@ -115,6 +119,7 @@ export function TimerLists({
         entries={history}
         onDeleted={handleDeleted}
         autoStackOverlaps={autoStackOverlaps}
+        nowMs={historyNowMs}
       />
     </>
   );

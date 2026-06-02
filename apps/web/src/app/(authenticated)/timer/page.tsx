@@ -49,6 +49,7 @@ export default async function TimerPage(): Promise<ReactElement> {
         />
         <TimerLists
           autoStackOverlaps={autoStackUser.autoStackOverlaps}
+          initialNowMs={now.getTime()}
           initialRunning={running.map((r) => ({
             id: r.id,
             description: r.description,

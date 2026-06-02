@@ -100,7 +100,7 @@ export async function GET(req: NextRequest): Promise<Response> {
       projectName: e.projectName,
       startedAt: e.startedAt.toISOString(),
       endedAt: e.endedAt ? e.endedAt.toISOString() : null,
-      tags: e.tags,
+      tags: e.tags.map((tt) => ({ id: tt.id, name: tt.name, color: tt.color })),
     };
   }
   return jsonCors(req, {

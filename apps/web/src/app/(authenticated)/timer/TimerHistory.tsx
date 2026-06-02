@@ -18,10 +18,12 @@ export function TimerHistory({
   entries,
   onDeleted,
   autoStackOverlaps = false,
+  nowMs,
 }: {
   entries: HistoryEntryView[];
   onDeleted: (id: string) => void;
   autoStackOverlaps?: boolean;
+  nowMs: number;
 }): ReactElement {
   const t = useTranslations('timer.history');
   if (entries.length === 0) {
@@ -33,7 +35,7 @@ export function TimerHistory({
       </Card>
     );
   }
-  const groups = groupRecentByDay(entries, new Date());
+  const groups = groupRecentByDay(entries, new Date(nowMs));
   let lastMonthKey = '';
   return (
     <div className="space-y-4">
