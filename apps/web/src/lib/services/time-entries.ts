@@ -19,6 +19,7 @@
  *  - getHistory: returns the audit rows for a single entry (US-27, US-45).
  */
 import type { AuditSource, Prisma, PrismaClient, Role } from '@prisma/client';
+import { getPeriodRange } from '@tt/shared/time';
 import { writeAudit } from './audit.js';
 import { publishTimeEntry } from '../realtime.js';
 
@@ -486,6 +487,70 @@ export async function listRecentEntries(
       clientId: r.clientId,
       projectId: r.projectId,
       tagIds: r.tags.map((t) => t.tagId),
+    })),
+  };
+}
+
+export interface HistoryEntry {
+  id: string;
+  description: string;
+  clientId: string | null;
+  clientName: string | null;
+  projectId: string | null;
+  projectName: string | null;
+  startedAt: Date;
+  endedAt: Date | null;
+  tags: { id: string; name: string; color: string }[];
+}
+
+/**
+ * Completed entries for the timer-page history window: start-of-last-month to
+ * max(end-of-this-week, end-of-this-month) — extended to the ISO week end so a
+ * week spanning the month boundary isn't cut off. Newest-first, with client /
+ * project names + tag colors for the rich rows. Backs both /api/v1/timer and
+ * the /timer page SSR.
+ */
+export async function listRecentHistory(
+  db: Db,
+  actorUserId: string,
+  companyId: string,
+  now: Date,
+): Promise<Result<HistoryEntry[]>> {
+  const role = await getMembership(db, actorUserId, companyId);
+  if (!role) return { ok: false, reason: 'not_found' };
+
+  const weekRange = getPeriodRange('week', now);
+  const monthRange = getPeriodRange('month', now);
+  const lastMonthRef = new Date(now);
+  lastMonthRef.setMonth(lastMonthRef.getMonth() - 1);
+  const lastMonthRange = getPeriodRange('month', lastMonthRef);
+  const historyEnd =
+    weekRange.end.getTime() > monthRange.end.getTime() ? weekRange.end : monthRange.end;
+
+  const rows = await db.timeEntry.findMany({
+    where: {
+      userId: actorUserId,
+      companyId,
+      deletedAt: null,
+      endedAt: { not: null },
+      startedAt: { gte: lastMonthRange.start, lt: historyEnd },
+    },
+    include: { client: true, project: true, tags: { include: { tag: true } } },
+    orderBy: { startedAt: 'desc' },
+  });
+
+  return {
+    ok: true,
+    value: rows.map((r) => ({
+      id: r.id,
+      description: r.description,
+      clientId: r.clientId,
+      clientName: r.client?.name ?? null,
+      projectId: r.projectId,
+      projectName: r.project?.name ?? null,
+      startedAt: r.startedAt,
+      endedAt: r.endedAt,
+      tags: r.tags.map((tt) => ({ id: tt.tag.id, name: tt.tag.name, color: tt.tag.color })),
     })),
   };
 }

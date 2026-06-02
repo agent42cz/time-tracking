@@ -15,6 +15,7 @@ import {
   getEntryHistory,
   listMyWeek,
   listRecentEntries,
+  listRecentHistory,
   listRunningEntries,
   listTrash,
   purgeOldDeleted,
@@ -587,6 +588,61 @@ describe('time entries', () => {
       const res = await listRunningEntries(tx, w.outsider, w.company);
       expect(res.ok).toBe(false);
       if (!res.ok) expect(res.reason).toBe('not_found');
+    });
+  });
+
+  it('US-26: listRecentHistory returns completed entries in the ~2-month window, newest-first, company-scoped', async () => {
+    await withTx(async (tx) => {
+      const w = await bootstrap(tx, 'us26hist');
+      const now = new Date('2026-06-02T09:00:00Z');
+      // In window (May), completed:
+      await createManualEntry(
+        tx,
+        w.user,
+        {
+          companyId: w.company,
+          startedAt: new Date('2026-05-10T08:00:00Z'),
+          endedAt: new Date('2026-05-10T10:00:00Z'),
+        },
+        now,
+      );
+      // In window (June), completed, newer:
+      await createManualEntry(
+        tx,
+        w.user,
+        {
+          companyId: w.company,
+          startedAt: new Date('2026-06-01T08:00:00Z'),
+          endedAt: new Date('2026-06-01T09:00:00Z'),
+        },
+        now,
+      );
+      // Out of window (March):
+      await createManualEntry(
+        tx,
+        w.user,
+        {
+          companyId: w.company,
+          startedAt: new Date('2026-03-01T08:00:00Z'),
+          endedAt: new Date('2026-03-01T09:00:00Z'),
+        },
+        now,
+      );
+      // Running (no endedAt) — must be excluded from history:
+      await startTimer(tx, w.user, { companyId: w.company });
+
+      const res = await listRecentHistory(tx, w.user, w.company, now);
+      expect(res.ok).toBe(true);
+      if (!res.ok) return;
+      expect(res.value.map((e) => e.startedAt.toISOString())).toEqual([
+        '2026-06-01T08:00:00.000Z',
+        '2026-05-10T08:00:00.000Z',
+      ]);
+      expect(res.value.every((e) => e.endedAt !== null)).toBe(true);
+
+      // Cross-company isolation: an outsider (no membership) gets not_found.
+      const cross = await listRecentHistory(tx, w.outsider, w.company, now);
+      expect(cross.ok).toBe(false);
     });
   });
 });
