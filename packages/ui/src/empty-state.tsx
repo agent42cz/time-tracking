@@ -10,7 +10,7 @@ export function EmptyState({
   action?: ReactNode;
 }): ReactElement {
   return (
-    <div className="flex flex-col items-center justify-center rounded-lg border border-dashed border-zinc-200 bg-zinc-50/40 px-6 py-12 text-center dark:border-zinc-600 dark:bg-zinc-800/40">
+    <div className="flex flex-col items-center justify-center rounded-lg border border-dashed border-zinc-200 bg-zinc-50/40 px-4 py-8 text-center sm:px-6 sm:py-12 dark:border-zinc-600 dark:bg-zinc-800/40">
       <p className="text-sm font-medium text-zinc-900 dark:text-zinc-100">{title}</p>
       {description ? (
         <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">{description}</p>
