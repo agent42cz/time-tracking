@@ -51,14 +51,14 @@ export function ConfirmModal({
       role="dialog"
       aria-modal="true"
       aria-labelledby="confirm-modal-title"
-      className="fixed inset-0 z-50 flex items-center justify-center bg-zinc-900/40 px-4 dark:bg-black/60"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-zinc-900/40 px-3 sm:px-4 dark:bg-black/60"
       onClick={(e) => {
         if (e.target === e.currentTarget) onCancel();
       }}
     >
       <div
         className={cn(
-          'w-full max-w-md overflow-hidden rounded-lg border border-zinc-200 bg-white shadow-lg dark:border-zinc-700 dark:bg-zinc-800',
+          'max-h-[90vh] w-full max-w-md overflow-y-auto rounded-lg border border-zinc-200 bg-white shadow-lg dark:border-zinc-700 dark:bg-zinc-800',
         )}
       >
         <div className="px-5 py-4">
@@ -75,7 +75,7 @@ export function ConfirmModal({
             <div className="mt-3 text-sm text-zinc-700 dark:text-zinc-300">{children}</div>
           ) : null}
         </div>
-        <div className="flex items-center justify-end gap-2 border-t border-zinc-100 bg-zinc-50/40 px-5 py-3 dark:border-zinc-700/60 dark:bg-zinc-900/40">
+        <div className="flex flex-col-reverse gap-2 border-t border-zinc-100 bg-zinc-50/40 px-5 py-3 sm:flex-row sm:items-center sm:justify-end dark:border-zinc-700/60 dark:bg-zinc-900/40">
           <Button
             autoFocus
             type="button"
@@ -83,6 +83,7 @@ export function ConfirmModal({
             variant="secondary"
             onClick={onCancel}
             disabled={loading}
+            className="w-full sm:w-auto"
           >
             {cancelLabel}
           </Button>
@@ -92,6 +93,7 @@ export function ConfirmModal({
             variant={tone === 'danger' ? 'danger' : 'primary'}
             loading={loading}
             onClick={onConfirm}
+            className="w-full sm:w-auto"
           >
             {confirmLabel}
           </Button>
