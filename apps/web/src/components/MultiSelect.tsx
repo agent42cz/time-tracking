@@ -134,7 +134,7 @@ export function MultiSelect({
 
       {/* Popover */}
       {open ? (
-        <div className="absolute z-20 mt-1 w-full overflow-hidden rounded-md border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 shadow-lg">
+        <div className="absolute z-40 mt-1 w-full overflow-hidden rounded-md border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 shadow-lg">
           <div className="flex items-center gap-2 border-b border-zinc-100 dark:border-zinc-700/60 px-2 py-1.5">
             <input
               ref={inputRef}
@@ -153,7 +153,7 @@ export function MultiSelect({
               </button>
             ) : null}
           </div>
-          <ul className="max-h-64 overflow-y-auto py-1">
+          <ul className="max-h-[min(16rem,60vh)] overflow-y-auto py-1">
             {filtered.length === 0 ? (
               <li className="px-3 py-2 text-sm text-zinc-400 dark:text-zinc-500">{emptyLabel}</li>
             ) : null}
@@ -175,7 +175,7 @@ export function MultiSelect({
                         aria-hidden
                       />
                     ) : null}
-                    <span className="text-zinc-900 dark:text-zinc-100">{o.label}</span>
+                    <span className="break-words text-zinc-900 dark:text-zinc-100">{o.label}</span>
                     {o.hint ? (
                       <span className="ml-auto text-xs text-zinc-500 dark:text-zinc-400">
                         {o.hint}
