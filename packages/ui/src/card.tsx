@@ -22,7 +22,7 @@ export function CardHeader({
     <div
       {...rest}
       className={cn(
-        'flex items-center justify-between border-b border-zinc-100 px-5 py-4 dark:border-zinc-700/60',
+        'flex flex-col items-start gap-3 border-b border-zinc-100 px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4 sm:px-5 sm:py-4 dark:border-zinc-700/60',
         className,
       )}
     >
@@ -51,7 +51,7 @@ export function CardTitle({
 }
 
 export function CardBody(props: HTMLAttributes<HTMLDivElement>): ReactElement {
-  return <div {...props} className={cn('px-5 py-4', props.className)} />;
+  return <div {...props} className={cn('px-4 py-3 sm:px-5 sm:py-4', props.className)} />;
 }
 
 export function CardFooter(props: HTMLAttributes<HTMLDivElement>): ReactElement {
@@ -59,7 +59,7 @@ export function CardFooter(props: HTMLAttributes<HTMLDivElement>): ReactElement 
     <div
       {...props}
       className={cn(
-        'flex items-center justify-end gap-2 border-t border-zinc-100 bg-zinc-50/40 px-5 py-3 dark:border-zinc-700/60 dark:bg-zinc-900/40',
+        'flex flex-col-reverse gap-2 border-t border-zinc-100 bg-zinc-50/40 px-4 py-3 sm:flex-row sm:items-center sm:justify-end sm:px-5 dark:border-zinc-700/60 dark:bg-zinc-900/40',
         props.className,
       )}
     />
