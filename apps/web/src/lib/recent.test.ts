@@ -50,4 +50,45 @@ describe('groupRecentByDay', () => {
     expect(groupRecentByDay([], NOW)).toEqual([]);
     expect(groupRecentByDay(null, NOW)).toEqual([]);
   });
+
+  it('US-26: clamps a still-running entry to `now` for the per-day total', () => {
+    const now = new Date('2026-06-02T11:00:00Z'); // Prague 13:00
+    const groups = groupRecentByDay(
+      [entry({ startedAt: '2026-06-02T08:00:00Z', endedAt: null })],
+      now,
+    );
+    expect(groups[0]!.total).toBe(3 * H); // 10:00 -> 13:00 Prague = 3h
+  });
+
+  it('US-26: keeps non-contiguous same-day entries as separate groups (server order preserved)', () => {
+    const NOW = new Date('2026-06-02T09:00:00Z');
+    const groups = groupRecentByDay(
+      [
+        entry({ startedAt: '2026-06-02T08:00:00Z', endedAt: '2026-06-02T09:00:00Z' }),
+        entry({ startedAt: '2026-06-01T08:00:00Z', endedAt: '2026-06-01T09:00:00Z' }),
+        entry({ startedAt: '2026-06-02T06:00:00Z', endedAt: '2026-06-02T07:00:00Z' }),
+      ],
+      NOW,
+    );
+    expect(groups.map((g) => g.key)).toEqual(['2026-06-02', '2026-06-01', '2026-06-02']);
+  });
+
+  it('US-26: labels older days with the Czech weekday + date', () => {
+    const NOW = new Date('2026-06-02T09:00:00Z');
+    const groups = groupRecentByDay(
+      [entry({ startedAt: '2026-05-28T08:00:00Z', endedAt: '2026-05-28T09:00:00Z' })],
+      NOW,
+    );
+    expect(groups[0]!.label).toBe('Čt 28.05.'); // Thu 28 May 2026
+  });
+
+  it('US-26: "Včera" is correct across the spring-forward DST boundary', () => {
+    // 2026 CET→CEST is 2026-03-29 (23h day). now = 2026-03-30 00:30 Prague (= 2026-03-29T22:30Z).
+    const now = new Date('2026-03-29T22:30:00Z');
+    const groups = groupRecentByDay(
+      [entry({ startedAt: '2026-03-29T10:00:00Z', endedAt: '2026-03-29T11:00:00Z' })],
+      now,
+    );
+    expect(groups[0]!.label).toBe('Včera'); // would FAIL with the old -24h logic (would label 'Ne 29.03.')
+  });
 });

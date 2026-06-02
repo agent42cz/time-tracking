@@ -70,7 +70,11 @@ export function groupRecentByDay(
   if (!entries || entries.length === 0) return [];
   const nowMs = now.getTime();
   const todayKey = dayKey(now);
-  const yesterdayKey = dayKey(new Date(nowMs - 86_400_000));
+  // Yesterday by Prague calendar date — NOT fixed -24h, which overshoots on the
+  // 23h spring-forward day and mislabels "Včera" for ~1h/year.
+  const tz = toAppZone(now);
+  const yp = new Date(tz.getFullYear(), tz.getMonth(), tz.getDate() - 1);
+  const yesterdayKey = `${yp.getFullYear()}-${pad(yp.getMonth() + 1)}-${pad(yp.getDate())}`;
   const groups: RecentDayGroup[] = [];
   for (const e of entries) {
     const started = new Date(e.startedAt);
