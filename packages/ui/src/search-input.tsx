@@ -6,7 +6,7 @@ import { cn } from './cn.js';
 const wrapper = 'relative w-full';
 
 const inputBase =
-  'block w-full rounded-md border border-zinc-200 bg-white pl-9 pr-9 py-2 text-sm text-zinc-900 placeholder:text-zinc-400 ' +
+  'block w-full rounded-md border border-zinc-200 bg-white pl-9 pr-10 py-2 text-sm text-zinc-900 placeholder:text-zinc-400 ' +
   'focus:border-zinc-900 focus:outline-none focus:ring-2 focus:ring-zinc-900/10 ' +
   'disabled:bg-zinc-50 disabled:text-zinc-500 disabled:cursor-not-allowed ' +
   'dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100 dark:placeholder:text-zinc-500 ' +
@@ -76,7 +76,7 @@ export function SearchInput({
           type="button"
           onClick={handleClear}
           aria-label={clearAriaLabel}
-          className="absolute right-2 top-1/2 -translate-y-1/2 inline-flex h-6 w-6 items-center justify-center rounded text-zinc-400 hover:text-zinc-700 hover:bg-zinc-100 dark:text-zinc-500 dark:hover:text-zinc-200 dark:hover:bg-zinc-700"
+          className="absolute right-1.5 top-1/2 -translate-y-1/2 inline-flex h-9 w-9 items-center justify-center rounded text-zinc-400 hover:text-zinc-700 hover:bg-zinc-100 dark:text-zinc-500 dark:hover:text-zinc-200 dark:hover:bg-zinc-700"
         >
           <svg
             viewBox="0 0 16 16"
