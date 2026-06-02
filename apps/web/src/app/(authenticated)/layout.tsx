@@ -5,6 +5,7 @@ import { CompanySwitcher } from '@/components/CompanySwitcher';
 import { FaviconSwitcher } from '@/components/FaviconSwitcher';
 import { LogoutButton } from '@/components/LogoutButton';
 import { AuthShell } from './AuthShell';
+import { BottomTabBar } from './BottomTabBar';
 import { filterVisibleGroups, navGroups } from './nav';
 
 export default async function AuthLayout({
@@ -14,6 +15,7 @@ export default async function AuthLayout({
 }): Promise<ReactElement> {
   const session = await requireUser();
   const isAdmin = session.activeRole === 'admin';
+  const roleLabel = isAdmin ? 'Správce' : 'Člen';
   const visibleGroups = filterVisibleGroups(navGroups, isAdmin);
 
   return (
@@ -50,7 +52,7 @@ export default async function AuthLayout({
                   <Link
                     key={item.href}
                     href={item.href}
-                    className="block rounded-md px-3 py-2 text-sm text-zinc-700 transition-colors hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-300 dark:hover:bg-zinc-700 dark:hover:text-zinc-100"
+                    className="block rounded-md px-3 py-2 text-sm text-zinc-700 transition-colors hover:bg-zinc-100 hover:text-zinc-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 dark:text-zinc-300 dark:hover:bg-zinc-700 dark:hover:text-zinc-100"
                   >
                     {item.label}
                   </Link>
@@ -72,16 +74,23 @@ export default async function AuthLayout({
         </div>
       </aside>
       <div className="flex min-h-screen flex-1 flex-col">
-        <header className="flex h-16 items-center justify-between border-b border-zinc-200 bg-white px-6 md:hidden dark:border-zinc-700 dark:bg-zinc-800">
+        <header className="sticky top-0 z-30 flex h-16 items-center border-b border-zinc-200 bg-white px-4 pt-[env(safe-area-inset-top)] md:hidden dark:border-zinc-700 dark:bg-zinc-800">
           <Link href="/timer" className="text-base font-semibold text-zinc-900 dark:text-zinc-100">
             Time Tracker
           </Link>
-          <LogoutButton />
         </header>
-        <main className="flex-1 px-6 py-8">
+        <main className="flex-1 px-4 py-6 pb-[calc(var(--tab-bar-height)+env(safe-area-inset-bottom))] sm:px-6 sm:py-8 md:pb-8">
           <AuthShell>{children}</AuthShell>
         </main>
       </div>
+      <BottomTabBar
+        isAdmin={isAdmin}
+        fullName={session.fullName}
+        email={session.email}
+        roleLabel={roleLabel}
+        activeCompanyId={session.activeCompanyId}
+        memberships={session.memberships}
+      />
     </div>
   );
 }
