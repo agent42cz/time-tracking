@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { filterVisibleGroups, navGroups, type NavGroup } from './nav.js';
+import {
+  filterVisibleGroups,
+  navGroups,
+  getBottomTabs,
+  getMoreGroups,
+  type NavGroup,
+} from './nav.js';
 
 describe('navGroups', () => {
   it('contains all 11 nav items across 5 groups in expected order', () => {
@@ -63,8 +69,8 @@ describe('filterVisibleGroups', () => {
 
   it('drops a group whose every item is admin-only when caller is not admin', () => {
     const groups: NavGroup[] = [
-      { label: 'AllAdmin', items: [{ href: '/x', label: 'X', admin: true }] },
-      { label: 'Mixed', items: [{ href: '/y', label: 'Y' }] },
+      { label: 'AllAdmin', items: [{ href: '/x', label: 'X', admin: true, icon: 'timer' }] },
+      { label: 'Mixed', items: [{ href: '/y', label: 'Y', icon: 'timer' }] },
     ];
     expect(filterVisibleGroups(groups, false).map((g) => g.label)).toEqual(['Mixed']);
   });
@@ -73,5 +79,50 @@ describe('filterVisibleGroups', () => {
     const before = JSON.stringify(navGroups);
     filterVisibleGroups(navGroups, false);
     expect(JSON.stringify(navGroups)).toBe(before);
+  });
+});
+
+describe('getBottomTabs', () => {
+  it('returns the first 4 visible items in BOTTOM_BAR_ORDER for admin', () => {
+    expect(getBottomTabs(true).map((i) => i.href)).toEqual([
+      '/timer',
+      '/reports',
+      '/clients',
+      '/members',
+    ]);
+  });
+
+  it('returns the first 4 visible items for non-admin (admin items filtered out)', () => {
+    expect(getBottomTabs(false).map((i) => i.href)).toEqual([
+      '/timer',
+      '/tags',
+      '/settings',
+      '/companies',
+    ]);
+  });
+
+  it('every bottom tab carries an icon', () => {
+    expect(getBottomTabs(true).every((i) => typeof i.icon === 'string' && i.icon.length > 0)).toBe(
+      true,
+    );
+  });
+});
+
+describe('getMoreGroups', () => {
+  it('excludes the 4 primary tabs for admin and keeps the rest', () => {
+    const hrefs = getMoreGroups(true).flatMap((g) => g.items.map((i) => i.href));
+    expect(hrefs).not.toContain('/timer');
+    expect(hrefs).not.toContain('/reports');
+    expect(hrefs).toContain('/dashboard');
+    expect(hrefs).toContain('/audit');
+    expect(hrefs).toContain('/settings');
+  });
+
+  it('for non-admin leaves only the Účet→Rozšíření overflow', () => {
+    expect(getMoreGroups(false).flatMap((g) => g.items.map((i) => i.href))).toEqual(['/extension']);
+  });
+
+  it('drops groups left empty after removing primary items', () => {
+    expect(getMoreGroups(false).every((g) => g.items.length > 0)).toBe(true);
   });
 });
