@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import type { Viewport } from 'next';
 import { cookies } from 'next/headers';
 import { NextIntlClientProvider } from 'next-intl';
 import { getLocale, getMessages } from 'next-intl/server';
@@ -18,6 +19,12 @@ export const metadata = {
     shortcut: '/icons/icon-32-idle.png',
     apple: '/icons/icon-128-idle.png',
   },
+};
+
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  viewportFit: 'cover', // enables env(safe-area-inset-*) on notched phones
 };
 
 const FOUC_SCRIPT = `(function(){try{var c=document.cookie.match(/(?:^|; )tt_theme=([^;]+)/);var t=c?c[1]:'system';var d=t==='dark'||(t==='system'&&matchMedia('(prefers-color-scheme: dark)').matches);document.documentElement.classList.toggle('dark',d);}catch(e){}})();`;

@@ -3,6 +3,25 @@
 @tailwind utilities;
 
 /*
+ * Z-INDEX SCALE — single source of truth (mirror of docs/architecture/mobile-layout.md):
+ *   z-10  desktop sticky sidebar
+ *   z-20  in-page sticky headers (table thead, day-group headers)
+ *   z-30  mobile bottom tab bar + mobile top header
+ *   z-40  open custom popovers (MultiSelect)
+ *   z-50  modals + the mobile More sheet (backdrop & panel)
+ */
+:root {
+  --tab-bar-height: 3.5rem; /* 56px — mobile bottom tab bar */
+}
+
+/* Long unbreakable tokens (otpauth URIs, chrome.storage.local) must never cause
+   horizontal overflow on phones. */
+code,
+pre {
+  overflow-wrap: anywhere;
+}
+
+/*
  * Dark-mode mapping convention (class strategy, toggled on <html>).
  * When you add a light token, pair it with the dark sibling below.
  *
