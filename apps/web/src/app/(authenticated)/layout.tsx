@@ -73,7 +73,7 @@ export default async function AuthLayout({
           </div>
         </div>
       </aside>
-      <div className="flex min-h-screen flex-1 flex-col">
+      <div className="flex min-h-screen min-w-0 flex-1 flex-col">
         <header className="sticky top-0 z-30 flex h-16 items-center border-b border-zinc-200 bg-white px-4 pt-[env(safe-area-inset-top)] md:hidden dark:border-zinc-700 dark:bg-zinc-800">
           <Link href="/timer" className="text-base font-semibold text-zinc-900 dark:text-zinc-100">
             Time Tracker

@@ -109,7 +109,9 @@ test.describe('MCP server (US-55, US-57)', () => {
     await page.getByRole('dialog').getByRole('button', { name: 'Smazat' }).click();
 
     // Wait for the badge to switch to "Zrušený" to confirm the revocation took effect.
-    await expect(page.getByText('Zrušený')).toBeVisible();
+    // Scope to the desktop table: the page now renders the token list twice
+    // (desktop table + mobile cards), so an unscoped getByText matches both.
+    await expect(page.locator('table').getByText('Zrušený')).toBeVisible();
 
     // POST to /api/mcp with the revoked token — must return 401.
     const r = await page.request.post(`${baseURL}/api/mcp`, {
