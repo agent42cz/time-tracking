@@ -88,7 +88,7 @@ export function AutoStackPreviewDialog(props: AutoStackPreviewDialogProps): Reac
           type="button"
           role="tab"
           aria-selected={direction === 'forward'}
-          className={`rounded px-3 py-1 text-sm ${
+          className={`rounded px-3 py-2 sm:py-1 text-sm ${
             direction === 'forward'
               ? 'bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900'
               : 'bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-200'
@@ -102,7 +102,7 @@ export function AutoStackPreviewDialog(props: AutoStackPreviewDialogProps): Reac
           type="button"
           role="tab"
           aria-selected={direction === 'backward'}
-          className={`rounded px-3 py-1 text-sm ${
+          className={`rounded px-3 py-2 sm:py-1 text-sm ${
             direction === 'backward'
               ? 'bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900'
               : 'bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-200'
@@ -118,14 +118,14 @@ export function AutoStackPreviewDialog(props: AutoStackPreviewDialogProps): Reac
         <ul className="space-y-1 text-sm">
           <li className="font-medium">
             {t('candidateRowLabel')}{' '}
-            <code className="text-xs font-normal">
+            <code className="text-[10px] sm:text-xs font-normal overflow-x-auto block">
               {formatRange(candidate.startedAt, candidate.endedAt)} →{' '}
               {formatRange(plan.candidateAfter.startedAt, plan.candidateAfter.endedAt)}
             </code>
           </li>
           {plan.shifts.map((s, i) => (
             <li key={i} className="text-zinc-600 dark:text-zinc-400">
-              <code className="text-xs">
+              <code className="text-[10px] sm:text-xs overflow-x-auto block">
                 {formatRange(s.before.startedAt, s.before.endedAt)} →{' '}
                 {formatRange(s.after.startedAt, s.after.endedAt)}
               </code>
