@@ -118,7 +118,7 @@ function Row({
   const startedAt = new Date(entry.startedAt);
   const endedAt = new Date(entry.endedAt);
   return (
-    <li className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between gap-4 py-2.5">
+    <li className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-4 py-2.5">
       <div className="min-w-0">
         <p className="truncate text-sm font-medium text-zinc-900 dark:text-zinc-100">
           {entry.description || (
