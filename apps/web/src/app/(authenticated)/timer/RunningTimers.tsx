@@ -107,7 +107,7 @@ function RunningRow({
   }
   return (
     <>
-      <div className="flex items-center justify-between gap-4 rounded-md border border-zinc-100 dark:border-zinc-700/60 px-3 py-2">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between gap-4 rounded-md border border-zinc-100 dark:border-zinc-700/60 px-3 py-2">
         <div className="min-w-0">
           <p className="truncate font-medium text-zinc-900 dark:text-zinc-100">
             {entry.description || (
@@ -128,7 +128,7 @@ function RunningRow({
             ))}
           </div>
         </div>
-        <div className="flex shrink-0 items-center gap-3">
+        <div className="flex shrink-0 w-full sm:w-auto items-center gap-3">
           <span
             suppressHydrationWarning
             className="font-mono text-base font-semibold text-zinc-900 dark:text-zinc-100 tabular-nums"
@@ -141,8 +141,15 @@ function RunningRow({
             endedAt={null}
             autoStackOverlaps={autoStackOverlaps}
             onSaved={() => notifyTimerChanged()}
+            className="h-10 w-10 sm:h-8 sm:w-8"
           />
-          <Button variant="danger" size="sm" loading={pending} onClick={() => void handleStop()}>
+          <Button
+            variant="danger"
+            size="sm"
+            loading={pending}
+            onClick={() => void handleStop()}
+            className="h-10 w-10 sm:h-8 sm:w-8"
+          >
             ■ Stop
           </Button>
         </div>
