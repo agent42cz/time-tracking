@@ -133,7 +133,7 @@ export function ReportFiltersForm({
         <p className="text-xs font-medium uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
           Období
         </p>
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex flex-wrap gap-2">
           {PRESETS.map((p) => {
             const active = activePreset === p.label;
             return (
@@ -155,32 +155,35 @@ export function ReportFiltersForm({
               </button>
             );
           })}
-          <span className="ml-2 text-xs text-zinc-400 dark:text-zinc-500">nebo vlastní:</span>
+        </div>
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+          <span className="text-xs text-zinc-400 dark:text-zinc-500">nebo vlastní:</span>
           <input
             type="date"
             name="from"
             value={from}
             onChange={(e) => setFrom(e.target.value)}
-            className="h-8 rounded-md border border-zinc-200 dark:border-zinc-700 px-2 text-sm focus:border-zinc-900 dark:focus:border-zinc-100 focus:outline-none"
+            className="h-8 w-full rounded-md border border-zinc-200 dark:border-zinc-700 px-2 text-sm focus:border-zinc-900 dark:focus:border-zinc-100 focus:outline-none sm:w-auto"
           />
-          <span className="text-zinc-400 dark:text-zinc-500">–</span>
+          <span className="hidden text-zinc-400 dark:text-zinc-500 sm:inline">–</span>
+          <span className="text-xs text-zinc-400 dark:text-zinc-500 sm:hidden">do</span>
           <input
             type="date"
             name="to"
             value={to}
             onChange={(e) => setTo(e.target.value)}
-            className="h-8 rounded-md border border-zinc-200 dark:border-zinc-700 px-2 text-sm focus:border-zinc-900 dark:focus:border-zinc-100 focus:outline-none"
+            className="h-8 w-full rounded-md border border-zinc-200 dark:border-zinc-700 px-2 text-sm focus:border-zinc-900 dark:focus:border-zinc-100 focus:outline-none sm:w-auto"
           />
         </div>
       </div>
 
       {/* Group-by + scope */}
-      <div className="flex flex-wrap items-center gap-4">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-end">
         <div className="space-y-2">
           <p className="text-xs font-medium uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
             {t('groupBy.label')}
           </p>
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="flex flex-wrap gap-2">
             {GROUP_KEYS.map((key) => {
               const active = groupBy === key;
               return (
@@ -202,7 +205,7 @@ export function ReportFiltersForm({
           <input type="hidden" name="groupBy" value={groupBy} />
         </div>
         {isAdmin ? (
-          <label className="flex items-center gap-2 self-end pb-1 text-sm text-zinc-700 dark:text-zinc-300">
+          <label className="flex items-center gap-2 text-sm text-zinc-700 dark:text-zinc-300">
             <input
               type="checkbox"
               checked={onlyMine}
@@ -245,15 +248,15 @@ export function ReportFiltersForm({
         {/* Tags — custom header instead of <Field label> because the inline
             OR/AND toggle uses <button>s and a real <label> can't contain them. */}
         <div className="space-y-1.5">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
             <span className="block text-sm font-medium text-zinc-700 dark:text-zinc-300">
               Štítky
             </span>
-            <span className="inline-flex overflow-hidden rounded-full border border-zinc-200 dark:border-zinc-700 text-[10px] font-medium">
+            <span className="inline-flex overflow-hidden rounded-full border border-zinc-200 dark:border-zinc-700 text-xs font-medium sm:text-[10px]">
               <button
                 type="button"
                 onClick={() => setTagsMode('or')}
-                className={`px-2 py-0.5 ${
+                className={`px-3 py-1 sm:px-2 sm:py-0.5 ${
                   tagsMode === 'or'
                     ? 'bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900'
                     : 'text-zinc-600 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-700'
@@ -264,7 +267,7 @@ export function ReportFiltersForm({
               <button
                 type="button"
                 onClick={() => setTagsMode('and')}
-                className={`px-2 py-0.5 ${
+                className={`px-3 py-1 sm:px-2 sm:py-0.5 ${
                   tagsMode === 'and'
                     ? 'bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900'
                     : 'text-zinc-600 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-700'
@@ -297,22 +300,24 @@ export function ReportFiltersForm({
       </Field>
 
       {/* Actions */}
-      <div className="flex flex-wrap items-center justify-between gap-2 border-t border-zinc-100 dark:border-zinc-700/60 pt-4">
+      <div className="flex flex-col gap-2 border-t border-zinc-100 pt-4 sm:flex-row sm:items-center sm:justify-between dark:border-zinc-700/60">
         <p className="text-xs text-zinc-500 dark:text-zinc-400">
           {totalSelected === 0
             ? 'Žádné aktivní filtry — zobrazí se všechny záznamy.'
             : `Aktivních filtrů: ${totalSelected}`}
         </p>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-col-reverse items-stretch gap-2 sm:flex-row sm:items-center">
           {totalSelected > 0 ? (
             <Link
               href="/reports"
-              className="rounded-md border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 py-1.5 text-sm text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-700"
+              className="rounded-md border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 py-1.5 text-center text-sm text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-700 sm:text-left"
             >
               Vymazat filtry
             </Link>
           ) : null}
-          <Button type="submit">Použít filtry</Button>
+          <Button type="submit" className="w-full sm:w-auto">
+            Použít filtry
+          </Button>
         </div>
       </div>
     </form>
