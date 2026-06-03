@@ -118,7 +118,7 @@ function Row({
   const startedAt = new Date(entry.startedAt);
   const endedAt = new Date(entry.endedAt);
   return (
-    <li className="flex items-center justify-between gap-4 py-2.5">
+    <li className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between gap-4 py-2.5">
       <div className="min-w-0">
         <p className="truncate text-sm font-medium text-zinc-900 dark:text-zinc-100">
           {entry.description || (
@@ -139,7 +139,7 @@ function Row({
           ))}
         </div>
       </div>
-      <div className="flex shrink-0 items-center gap-3 text-sm text-zinc-600 dark:text-zinc-400">
+      <div className="flex shrink-0 w-full sm:w-auto items-center gap-3 text-sm text-zinc-600 dark:text-zinc-400">
         <span className="font-mono tabular-nums">
           {fmtTime(startedAt)}–{fmtTime(endedAt)}
         </span>
@@ -152,6 +152,7 @@ function Row({
           endedAt={entry.endedAt}
           autoStackOverlaps={autoStackOverlaps}
           onSaved={() => notifyTimerChanged()}
+          className="h-10 w-10 sm:h-8 sm:w-8"
         />
         <Button
           size="sm"
@@ -160,6 +161,7 @@ function Row({
           disabled={deletePending}
           onClick={() => void runPlayAgain()}
           title="Spustit znovu"
+          className="h-10 w-10 sm:h-8 sm:w-8"
         >
           ▶
         </Button>
@@ -170,6 +172,7 @@ function Row({
           disabled={playPending}
           onClick={() => void runDelete()}
           title="Smazat"
+          className="h-10 w-10 sm:h-8 sm:w-8"
         >
           ✕
         </Button>
