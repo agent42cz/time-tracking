@@ -10,6 +10,9 @@ import {
   Tr,
   Td,
   EmptyState,
+  DataCard,
+  DataCardRow,
+  DataCardActions,
 } from '@tt/ui';
 import type { GroupedReport } from '@/lib/services/reports';
 import { fmtDur, fmtTime, formatDayKey, ymd } from '@/lib/time-format';
@@ -107,61 +110,24 @@ export function ReportGrouped({ report, autoStackOverlaps, labels }: Props): Rea
               </div>
               <ul className="space-y-3 md:hidden">
                 {g.rows.map((r) => (
-                  <li
-                    key={r.id}
-                    className="rounded-lg border border-zinc-200 bg-white p-3 dark:border-zinc-700 dark:bg-zinc-800"
-                  >
-                    <div className="space-y-2 text-sm">
-                      <div className="flex justify-between">
-                        <span className="text-xs font-medium uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
-                          Datum
-                        </span>
+                  <li key={r.id}>
+                    <DataCard>
+                      <DataCardRow label="Datum">
                         <span className="font-mono text-xs">
                           {`${ymd(r.startedAt)} ${fmtTime(r.startedAt)}`}
                         </span>
-                      </div>
-                      {showUser ? (
-                        <div className="flex justify-between">
-                          <span className="text-xs font-medium uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
-                            Uživatel
-                          </span>
-                          <span className="text-zinc-900 dark:text-zinc-100">{r.userName}</span>
-                        </div>
+                      </DataCardRow>
+                      {showUser ? <DataCardRow label="Uživatel">{r.userName}</DataCardRow> : null}
+                      {showClientProject ? (
+                        <DataCardRow label="Klient">{r.clientName ?? '—'}</DataCardRow>
                       ) : null}
                       {showClientProject ? (
-                        <div className="flex justify-between">
-                          <span className="text-xs font-medium uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
-                            Klient
-                          </span>
-                          <span className="text-zinc-700 dark:text-zinc-300">
-                            {r.clientName ?? '—'}
-                          </span>
-                        </div>
+                        <DataCardRow label="Projekt">{r.projectName ?? '—'}</DataCardRow>
                       ) : null}
-                      {showClientProject ? (
-                        <div className="flex justify-between">
-                          <span className="text-xs font-medium uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
-                            Projekt
-                          </span>
-                          <span className="text-zinc-700 dark:text-zinc-300">
-                            {r.projectName ?? '—'}
-                          </span>
-                        </div>
-                      ) : null}
-                      <div className="flex justify-between">
-                        <span className="text-xs font-medium uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
-                          Popis
-                        </span>
-                        <span className="text-right text-zinc-900 dark:text-zinc-100">
-                          {r.description}
-                        </span>
-                      </div>
+                      <DataCardRow label="Popis">{r.description}</DataCardRow>
                       {r.tags.length > 0 ? (
-                        <div>
-                          <span className="mb-1 block text-xs font-medium uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
-                            Štítky
-                          </span>
-                          <div className="flex flex-wrap gap-1">
+                        <DataCardRow label="Štítky">
+                          <div className="flex flex-wrap justify-end gap-1">
                             {r.tags.map((tag) => (
                               <span
                                 key={tag.id}
@@ -171,25 +137,22 @@ export function ReportGrouped({ report, autoStackOverlaps, labels }: Props): Rea
                               </span>
                             ))}
                           </div>
-                        </div>
+                        </DataCardRow>
                       ) : null}
-                      <div className="flex justify-between">
-                        <span className="text-xs font-medium uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
-                          Čas
-                        </span>
+                      <DataCardRow label="Čas">
                         <span className="font-mono font-semibold text-zinc-900 dark:text-zinc-100">
                           {fmtDur(r.durationMs)}
                         </span>
-                      </div>
-                    </div>
-                    <div className="mt-3 border-t border-zinc-100 pt-2 dark:border-zinc-700">
-                      <ReportsRowActions
-                        entryId={r.id}
-                        startedAt={r.startedAt.toISOString()}
-                        endedAt={r.endedAt ? r.endedAt.toISOString() : null}
-                        autoStackOverlaps={autoStackOverlaps}
-                      />
-                    </div>
+                      </DataCardRow>
+                      <DataCardActions>
+                        <ReportsRowActions
+                          entryId={r.id}
+                          startedAt={r.startedAt.toISOString()}
+                          endedAt={r.endedAt ? r.endedAt.toISOString() : null}
+                          autoStackOverlaps={autoStackOverlaps}
+                        />
+                      </DataCardActions>
+                    </DataCard>
                   </li>
                 ))}
               </ul>

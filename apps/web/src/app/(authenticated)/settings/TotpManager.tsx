@@ -44,7 +44,7 @@ export function TotpManager({ enabled }: { enabled: boolean }): ReactElement {
           skenovat, použijte tajný klíč ručně.
         </Alert>
         <div className="flex flex-col items-center gap-3 rounded-md border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 p-4 sm:flex-row">
-          <div className="max-w-[180px] w-full h-auto sm:max-w-[224px] sm:w-auto sm:h-auto shrink-0">
+          <div className="max-w-[180px] w-full h-auto sm:max-w-[224px] sm:w-auto shrink-0">
             <img
               src={enrollment.qrDataUrl}
               alt="QR kód pro 2FA"

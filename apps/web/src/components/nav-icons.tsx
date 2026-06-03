@@ -1,19 +1,7 @@
 import type { ReactElement } from 'react';
+import type { NavIcon } from '@/app/(authenticated)/nav';
 
-export type GlyphName =
-  | 'timer'
-  | 'reports'
-  | 'clients'
-  | 'members'
-  | 'tags'
-  | 'dashboard'
-  | 'settings'
-  | 'companies'
-  | 'audit'
-  | 'trash'
-  | 'extension'
-  | 'more'
-  | 'close';
+export type GlyphName = NavIcon | 'more' | 'close';
 
 const PATHS: Record<GlyphName, ReactElement> = {
   timer: (

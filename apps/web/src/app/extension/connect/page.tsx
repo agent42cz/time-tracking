@@ -14,6 +14,7 @@
 import type { ReactElement } from 'react';
 import { redirect } from 'next/navigation';
 import { Alert, Card, CardBody, CardHeader, CardTitle } from '@tt/ui';
+import { AuthPageShell } from '@/components/AuthPageShell';
 import { createSession } from '@/lib/auth/sessions';
 import { prisma, getSession } from '@/lib/session';
 import { ConnectBridge } from './ConnectBridge';
@@ -36,20 +37,18 @@ export default async function ExtensionConnectPage({
   }
   if (!validExtId) {
     return (
-      <main className="flex min-h-screen items-center justify-center bg-zinc-50 dark:bg-zinc-900 px-4 py-4 sm:py-8 md:py-12">
-        <div className="w-full max-w-md">
-          <Card>
-            <CardHeader>
-              <CardTitle>Připojení rozšíření</CardTitle>
-            </CardHeader>
-            <CardBody>
-              <Alert tone="danger">
-                Neplatný odkaz — chybí identifikátor rozšíření. Zkuste to znovu z popupu.
-              </Alert>
-            </CardBody>
-          </Card>
-        </div>
-      </main>
+      <AuthPageShell>
+        <Card>
+          <CardHeader>
+            <CardTitle>Připojení rozšíření</CardTitle>
+          </CardHeader>
+          <CardBody>
+            <Alert tone="danger">
+              Neplatný odkaz — chybí identifikátor rozšíření. Zkuste to znovu z popupu.
+            </Alert>
+          </CardBody>
+        </Card>
+      </AuthPageShell>
     );
   }
 
@@ -60,29 +59,27 @@ export default async function ExtensionConnectPage({
     'http://localhost:3000';
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-zinc-50 dark:bg-zinc-900 px-4 py-4 sm:py-8 md:py-12">
-      <div className="w-full max-w-md">
-        <div className="mb-6 text-center">
-          <h1 className="text-2xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-100">
-            Time Tracker
-          </h1>
-          <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">Připojení rozšíření</p>
-        </div>
-        <Card>
-          <CardHeader>
-            <CardTitle>Propojení s rozšířením</CardTitle>
-          </CardHeader>
-          <CardBody>
-            <ConnectBridge
-              extId={extId}
-              token={fresh.token}
-              expiresAt={fresh.expiresAt.toISOString()}
-              apiBase={apiBase}
-              email={session.email}
-            />
-          </CardBody>
-        </Card>
+    <AuthPageShell>
+      <div className="mb-6 text-center">
+        <h1 className="text-2xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-100">
+          Time Tracker
+        </h1>
+        <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">Připojení rozšíření</p>
       </div>
-    </main>
+      <Card>
+        <CardHeader>
+          <CardTitle>Propojení s rozšířením</CardTitle>
+        </CardHeader>
+        <CardBody>
+          <ConnectBridge
+            extId={extId}
+            token={fresh.token}
+            expiresAt={fresh.expiresAt.toISOString()}
+            apiBase={apiBase}
+            email={session.email}
+          />
+        </CardBody>
+      </Card>
+    </AuthPageShell>
   );
 }

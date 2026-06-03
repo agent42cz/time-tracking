@@ -12,11 +12,13 @@ import {
   Th,
   Tr,
   Td,
+  DataCard,
+  DataCardRow,
+  DataCardActions,
 } from '@tt/ui';
 import { PageHeader } from '@/components/PageHeader';
 import { prisma, requireUser } from '@/lib/session';
 import { listTokens } from '@/lib/services/api-tokens';
-import { DataCard, DataCardRow, DataCardActions } from '@tt/ui';
 import { CreateTokenDialog } from './CreateTokenDialog';
 import { RevokeTokenButton } from './RevokeTokenButton';
 
@@ -101,33 +103,37 @@ export default async function ApiTokensPage(): Promise<ReactElement> {
               </div>
               <ul className="space-y-3 px-4 py-6 md:hidden">
                 {tokens.map((token) => (
-                  <DataCard key={token.id}>
-                    <DataCardRow label={t('name')}>
-                      <div>
-                        <span className="font-medium">{token.name}</span>
-                        <span className="ml-2 font-mono text-xs text-zinc-400 dark:text-zinc-500">
-                          {token.prefix}…
-                        </span>
-                      </div>
-                    </DataCardRow>
-                    <DataCardRow label={t('company')}>
-                      {companyMap.get(token.companyId) ?? token.companyId}
-                    </DataCardRow>
-                    <DataCardRow label={t('createdAt')}>{formatDate(token.createdAt)}</DataCardRow>
-                    <DataCardRow label={t('lastUsed')}>
-                      {token.lastUsedAt ? formatDate(token.lastUsedAt) : '—'}
-                    </DataCardRow>
-                    <DataCardRow label={t('status')}>
-                      {token.revokedAt ? (
-                        <Badge tone="danger">{t('revoked')}</Badge>
-                      ) : (
-                        <Badge tone="success">{t('active')}</Badge>
-                      )}
-                    </DataCardRow>
-                    <DataCardActions>
-                      {!token.revokedAt && <RevokeTokenButton tokenId={token.id} />}
-                    </DataCardActions>
-                  </DataCard>
+                  <li key={token.id}>
+                    <DataCard>
+                      <DataCardRow label={t('name')}>
+                        <div>
+                          <span className="font-medium">{token.name}</span>
+                          <span className="ml-2 font-mono text-xs text-zinc-400 dark:text-zinc-500">
+                            {token.prefix}…
+                          </span>
+                        </div>
+                      </DataCardRow>
+                      <DataCardRow label={t('company')}>
+                        {companyMap.get(token.companyId) ?? token.companyId}
+                      </DataCardRow>
+                      <DataCardRow label={t('createdAt')}>
+                        {formatDate(token.createdAt)}
+                      </DataCardRow>
+                      <DataCardRow label={t('lastUsed')}>
+                        {token.lastUsedAt ? formatDate(token.lastUsedAt) : '—'}
+                      </DataCardRow>
+                      <DataCardRow label={t('status')}>
+                        {token.revokedAt ? (
+                          <Badge tone="danger">{t('revoked')}</Badge>
+                        ) : (
+                          <Badge tone="success">{t('active')}</Badge>
+                        )}
+                      </DataCardRow>
+                      <DataCardActions>
+                        {!token.revokedAt && <RevokeTokenButton tokenId={token.id} />}
+                      </DataCardActions>
+                    </DataCard>
+                  </li>
                 ))}
               </ul>
             </>

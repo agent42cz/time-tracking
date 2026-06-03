@@ -97,7 +97,7 @@ export default async function DashboardPage({
         <Kpi label="Projekty" value={kpis.value.distinctProjects.toString()} />
       </div>
 
-      <div className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-2">
+      <div className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-2">
         <Card>
           <CardHeader>
             <CardTitle>Lidé a čas</CardTitle>

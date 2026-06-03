@@ -172,7 +172,7 @@ export function TimerStartCard({
                 setClientId={setClientId}
               />
               <TagPicker tags={tags} selected={tagIds} onToggle={toggleTag} />
-              <div className="mt-4 flex w-full sm:w-auto justify-end">
+              <div className="mt-4 flex justify-end">
                 <Button type="submit" loading={pending} className="w-full sm:w-auto">
                   Uložit záznam
                 </Button>
@@ -220,7 +220,7 @@ export function TimerStartCard({
                 setClientId={setClientId}
               />
               <TagPicker tags={tags} selected={tagIds} onToggle={toggleTag} />
-              <div className="mt-4 flex w-full sm:w-auto justify-end">
+              <div className="mt-4 flex justify-end">
                 <Button type="submit" size="lg" loading={pending} className="w-full sm:w-auto">
                   ▶ Spustit
                 </Button>
@@ -277,7 +277,7 @@ function PickerRow({
   setClientId: (id: string) => void;
 }): ReactElement {
   return (
-    <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-2">
+    <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
       <Field label="Klient" htmlFor="clientId">
         <Select
           id="clientId"

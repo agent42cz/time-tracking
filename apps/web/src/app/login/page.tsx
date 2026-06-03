@@ -1,5 +1,6 @@
 import type { ReactElement } from 'react';
 import { Alert, Card, CardBody, CardHeader, CardTitle } from '@tt/ui';
+import { AuthPageShell } from '@/components/AuthPageShell';
 import { LoginForms } from './LoginForms';
 
 const MAGIC_ERROR_MESSAGES: Record<string, string> = {
@@ -17,30 +18,26 @@ export default async function LoginPage({
   const safeNext = next && next.startsWith('/') && !next.startsWith('//') ? next : null;
   const magicErrorMessage = magicError ? MAGIC_ERROR_MESSAGES[magicError] : null;
   return (
-    <main className="flex min-h-screen items-center justify-center bg-zinc-50 dark:bg-zinc-900 px-4 py-4 sm:py-8 md:py-12">
-      <div className="w-full max-w-md">
-        <div className="mb-6 text-center">
-          <h1 className="text-2xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-100">
-            Time Tracker
-          </h1>
-          <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
-            Sledování času pro Agent42
-          </p>
-        </div>
-        <Card>
-          <CardHeader>
-            <CardTitle>Přihlášení</CardTitle>
-          </CardHeader>
-          <CardBody>
-            {magicErrorMessage ? (
-              <div className="mb-4">
-                <Alert tone="danger">{magicErrorMessage}</Alert>
-              </div>
-            ) : null}
-            <LoginForms next={safeNext} />
-          </CardBody>
-        </Card>
+    <AuthPageShell>
+      <div className="mb-6 text-center">
+        <h1 className="text-2xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-100">
+          Time Tracker
+        </h1>
+        <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">Sledování času pro Agent42</p>
       </div>
-    </main>
+      <Card>
+        <CardHeader>
+          <CardTitle>Přihlášení</CardTitle>
+        </CardHeader>
+        <CardBody>
+          {magicErrorMessage ? (
+            <div className="mb-4">
+              <Alert tone="danger">{magicErrorMessage}</Alert>
+            </div>
+          ) : null}
+          <LoginForms next={safeNext} />
+        </CardBody>
+      </Card>
+    </AuthPageShell>
   );
 }
