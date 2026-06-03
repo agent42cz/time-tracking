@@ -1,7 +1,7 @@
 # Full responsiveness (360px → desktop)
 
 - **Date:** 2026-06-02
-- **Status:** Approved (pre-implementation)
+- **Status:** Implemented (2026-06-03)
 - **Scope:** `apps/web` (the Next.js web app) + shared `packages/ui` primitives
 - **New user stories:** none — this is a cross-cutting quality pass, not a feature. Tracked as a responsiveness epic; no US-coverage change.
 - **New ADR:** none expected. Tech stack stays locked (no icon library added — see §6.1). If we end up adding a dependency, that gets its own ADR.
