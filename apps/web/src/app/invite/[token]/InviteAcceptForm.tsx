@@ -24,12 +24,17 @@ export function InviteAcceptForm({
 
   return (
     <div className="space-y-4">
-      <p className="text-sm text-zinc-700 dark:text-zinc-300">
-        E-mail: <strong>{email}</strong> &middot; Role:{' '}
-        <Badge tone={role === 'admin' ? 'info' : 'neutral'}>
-          {role === 'admin' ? 'Správce' : 'Člen'}
-        </Badge>
-      </p>
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between text-sm text-zinc-700 dark:text-zinc-300">
+        <span>
+          E-mail: <strong>{email}</strong>
+        </span>
+        <span className="flex items-center gap-2">
+          Role:{' '}
+          <Badge tone={role === 'admin' ? 'info' : 'neutral'}>
+            {role === 'admin' ? 'Správce' : 'Člen'}
+          </Badge>
+        </span>
+      </div>
 
       {error ? <Alert tone="danger">{error}</Alert> : null}
 

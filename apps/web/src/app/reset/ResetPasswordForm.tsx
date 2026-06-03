@@ -39,7 +39,7 @@ export function ResetPasswordForm({ token }: { token: string }): ReactElement {
         <Alert tone="success">Heslo bylo nastaveno. Můžete se přihlásit.</Alert>
         <Link
           href="/login"
-          className="block w-full rounded-md bg-zinc-900 dark:bg-zinc-100 px-4 py-2 text-center text-sm font-medium text-white dark:text-zinc-900 hover:bg-zinc-800 dark:hover:bg-zinc-200"
+          className="inline-flex h-10 w-full items-center justify-center gap-2 whitespace-nowrap rounded-md bg-zinc-900 px-4 text-sm font-medium text-white transition-colors hover:bg-zinc-800 active:bg-zinc-950 focus:outline-none focus-visible:ring-2 focus-visible:ring-zinc-900 focus-visible:ring-offset-2 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200 dark:active:bg-zinc-50 dark:focus-visible:ring-zinc-100"
         >
           Přejít na přihlášení
         </Link>

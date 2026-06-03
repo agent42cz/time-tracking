@@ -36,7 +36,7 @@ export default async function ExtensionConnectPage({
   }
   if (!validExtId) {
     return (
-      <main className="flex min-h-screen items-center justify-center bg-zinc-50 dark:bg-zinc-900 px-4 py-12">
+      <main className="flex min-h-screen items-center justify-center bg-zinc-50 dark:bg-zinc-900 px-4 py-4 sm:py-8 md:py-12">
         <div className="w-full max-w-md">
           <Card>
             <CardHeader>
@@ -60,7 +60,7 @@ export default async function ExtensionConnectPage({
     'http://localhost:3000';
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-zinc-50 dark:bg-zinc-900 px-4 py-12">
+    <main className="flex min-h-screen items-center justify-center bg-zinc-50 dark:bg-zinc-900 px-4 py-4 sm:py-8 md:py-12">
       <div className="w-full max-w-md">
         <div className="mb-6 text-center">
           <h1 className="text-2xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-100">

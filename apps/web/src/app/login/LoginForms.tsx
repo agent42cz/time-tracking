@@ -93,7 +93,7 @@ export function LoginForms({ next }: { next: string | null }): ReactElement {
               setMode('password');
               setError(null);
             }}
-            className={`flex-1 rounded px-3 py-1.5 text-sm font-medium transition-colors ${
+            className={`flex-1 rounded px-3 py-2 text-sm font-medium transition-colors ${
               mode === 'password'
                 ? 'bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 shadow-sm'
                 : 'text-zinc-600 dark:text-zinc-400'
@@ -107,7 +107,7 @@ export function LoginForms({ next }: { next: string | null }): ReactElement {
               setMode('magic');
               setError(null);
             }}
-            className={`flex-1 rounded px-3 py-1.5 text-sm font-medium transition-colors ${
+            className={`flex-1 rounded px-3 py-2 text-sm font-medium transition-colors ${
               mode === 'magic'
                 ? 'bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 shadow-sm'
                 : 'text-zinc-600 dark:text-zinc-400'
@@ -173,7 +173,7 @@ export function LoginForms({ next }: { next: string | null }): ReactElement {
                 required
                 autoFocus
                 placeholder="123456"
-                className="text-center font-mono text-lg tracking-widest"
+                className="text-center font-mono text-base sm:text-lg tracking-wider sm:tracking-widest"
               />
             </Field>
             <Button type="submit" loading={pending} className="w-full">

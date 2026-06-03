@@ -13,7 +13,7 @@ export default async function InvitePage({
   const loaded = await loadInviteByToken(prisma(), token);
   const session = await getSession();
   return (
-    <main className="flex min-h-screen items-center justify-center bg-zinc-50 dark:bg-zinc-900 px-4 py-12">
+    <main className="flex min-h-screen items-center justify-center bg-zinc-50 dark:bg-zinc-900 px-4 py-4 sm:py-8 md:py-12">
       <div className="w-full max-w-md">
         <Card>
           <CardHeader>
