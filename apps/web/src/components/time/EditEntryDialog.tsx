@@ -141,7 +141,7 @@ export function EditEntryDialog({
         onConfirm={() => void handleSave()}
         onCancel={onClose}
       >
-        <div className="space-y-4">
+        <div className="space-y-3 md:space-y-4">
           <Field label={t('startedAt')} htmlFor="edit-entry-start">
             <Input
               id="edit-entry-start"
