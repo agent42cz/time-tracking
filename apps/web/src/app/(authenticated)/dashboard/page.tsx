@@ -97,7 +97,7 @@ export default async function DashboardPage({
         <Kpi label="Projekty" value={kpis.value.distinctProjects.toString()} />
       </div>
 
-      <div className="mt-6 grid grid-cols-1 gap-4 lg:grid-cols-2">
+      <div className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-2">
         <Card>
           <CardHeader>
             <CardTitle>Lidé a čas</CardTitle>
@@ -148,7 +148,7 @@ export default async function DashboardPage({
                     const pct = sharedTotal ? Math.round((c.totalMs / sharedTotal) * 100) : 0;
                     return (
                       <li key={c.clientId ?? 'none'} className="flex items-center gap-3 text-sm">
-                        <span className="w-32 shrink-0 truncate text-zinc-700 dark:text-zinc-300">
+                        <span className="w-20 shrink-0 truncate text-zinc-700 dark:text-zinc-300 sm:w-32">
                           {c.clientName}
                         </span>
                         <div className="h-2 flex-1 overflow-hidden rounded-full bg-zinc-100 dark:bg-zinc-700">
@@ -214,7 +214,7 @@ export default async function DashboardPage({
         </Card>
       </div>
 
-      <div className="mt-4">
+      <div className="mt-4 overflow-x-auto">
         <DailyBreakdown range={range} buckets={Array.from(dailyByDay.values())} />
       </div>
     </div>
@@ -381,7 +381,7 @@ function DailyBreakdown({
                         </span>
                       ) : null}
                       <span
-                        className={`tabular-nums ${isDense ? 'text-[9px]' : 'text-[10px]'} ${
+                        className={`tabular-nums ${isDense ? 'text-[10px] sm:text-[9px]' : 'text-[10px]'} ${
                           isToday
                             ? 'rounded bg-zinc-900 px-1 text-white dark:bg-zinc-100 dark:text-zinc-900'
                             : 'text-zinc-500 dark:text-zinc-400'
