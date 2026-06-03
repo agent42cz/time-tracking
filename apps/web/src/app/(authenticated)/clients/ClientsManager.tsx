@@ -138,8 +138,14 @@ export function ClientsManager({ clients }: { clients: ClientRowItem[] }): React
       >
         <FieldGroup>
           <Field label="Nový klient" htmlFor="new-client">
-            <div className="flex gap-2">
-              <Input id="new-client" name="name" placeholder="Název klienta" required />
+            <div className="flex flex-col gap-2 sm:flex-row">
+              <Input
+                id="new-client"
+                name="name"
+                placeholder="Název klienta"
+                required
+                className="w-full sm:max-w-xs"
+              />
               <Button type="submit" loading={pending}>
                 Přidat
               </Button>

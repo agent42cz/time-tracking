@@ -64,7 +64,7 @@ export function ProjectRow({
 
   return (
     <li ref={sortable.setNodeRef} style={style} className="text-sm">
-      <div className="flex items-center justify-between gap-3">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-2">
           {draggable ? (
             <button
@@ -116,11 +116,11 @@ export function ProjectRow({
           ) : (
             <>
               <span
-                className={
+                className={`truncate ${
                   project.archived
                     ? 'text-zinc-400 dark:text-zinc-500'
                     : 'text-zinc-800 dark:text-zinc-200'
-                }
+                }`}
               >
                 {project.name}
               </span>
@@ -142,7 +142,7 @@ export function ProjectRow({
             </>
           )}
         </div>
-        <div className="flex gap-1.5">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
           <Button size="sm" variant="ghost" onClick={onArchive}>
             {project.archived ? 'Obnovit' : 'Archivovat'}
           </Button>

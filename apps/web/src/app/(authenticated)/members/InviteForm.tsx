@@ -26,9 +26,17 @@ export function InviteForm(): ReactElement {
         });
       }}
     >
-      {error ? <Alert tone="danger" className="mb-3">{error}</Alert> : null}
-      {success ? <Alert tone="success" className="mb-3">{success}</Alert> : null}
-      <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+      {error ? (
+        <Alert tone="danger" className="mb-3">
+          {error}
+        </Alert>
+      ) : null}
+      {success ? (
+        <Alert tone="success" className="mb-3">
+          {success}
+        </Alert>
+      ) : null}
+      <div className="grid grid-cols-1 gap-2 md:grid-cols-3">
         <Field label="E-mail" htmlFor="email">
           <Input id="email" name="email" type="email" required />
         </Field>

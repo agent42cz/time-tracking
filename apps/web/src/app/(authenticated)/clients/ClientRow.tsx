@@ -129,7 +129,7 @@ export function ClientRow({
 
   return (
     <li ref={sortable.setNodeRef} style={style} className="py-3">
-      <div className="flex items-center justify-between gap-3">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-2">
           {draggable ? (
             <button
@@ -189,7 +189,7 @@ export function ClientRow({
           ) : (
             <>
               <span
-                className={`font-medium ${
+                className={`font-medium truncate ${
                   client.archived
                     ? 'text-zinc-400 dark:text-zinc-500'
                     : 'text-zinc-900 dark:text-zinc-100'
@@ -215,7 +215,7 @@ export function ClientRow({
             </>
           )}
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
           <Button size="sm" variant="ghost" onClick={onArchiveClient}>
             {client.archived ? 'Obnovit' : 'Archivovat'}
           </Button>
@@ -271,8 +271,8 @@ export function ClientRow({
               ))}
             </ul>
           ) : null}
-          <form onSubmit={onAddProject} className="flex gap-2">
-            <Input name="name" placeholder="Nový projekt" />
+          <form onSubmit={onAddProject} className="flex flex-col gap-2 sm:flex-row">
+            <Input name="name" placeholder="Nový projekt" className="w-full sm:max-w-xs" />
             <Button type="submit" size="sm" loading={pending}>
               Přidat projekt
             </Button>

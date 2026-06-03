@@ -58,7 +58,7 @@ export function TagsManager({ tags, isAdmin }: { tags: Tag[]; isAdmin: boolean }
                     type="button"
                     aria-label={c}
                     onClick={() => setColor(c)}
-                    className={`h-6 w-6 rounded-full ring-offset-2 ${color === c ? 'ring-2 ring-zinc-900 dark:ring-zinc-100' : ''}`}
+                    className={`h-8 w-8 rounded-full ring-offset-2 ${color === c ? 'ring-2 ring-zinc-900 dark:ring-zinc-100' : ''}`}
                     style={{ backgroundColor: c }}
                   />
                 ))}
@@ -164,7 +164,7 @@ function TagChip({
             key={c}
             type="button"
             onClick={() => onUpdate({ color: c })}
-            className="h-4 w-4 rounded-full"
+            className="h-5 w-5 rounded-full"
             style={{ backgroundColor: c }}
           />
         ))}
