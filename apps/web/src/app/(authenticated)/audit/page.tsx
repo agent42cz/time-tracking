@@ -10,6 +10,8 @@ import {
   Th,
   Tr,
   Td,
+  DataCard,
+  DataCardRow,
 } from '@tt/ui';
 import { prisma, requireAdmin } from '@/lib/session';
 import { PageHeader } from '@/components/PageHeader';
@@ -73,15 +75,18 @@ export default async function AuditPage({
           <CardTitle>Záznamy ({result.value.rows.length})</CardTitle>
         </CardHeader>
         <CardBody>
-          <form method="get" className="mb-4 flex flex-wrap items-end gap-3">
-            <label className="space-y-1">
+          <form
+            method="get"
+            className="mb-4 flex flex-col md:flex-row md:flex-wrap md:items-end gap-3"
+          >
+            <label className="space-y-1 w-full md:w-auto">
               <span className="block text-xs font-medium text-zinc-500 dark:text-zinc-400">
                 Akce
               </span>
               <select
                 name="action"
                 defaultValue={sp.action ?? ''}
-                className="rounded-md border border-zinc-200 dark:border-zinc-700 px-3 py-1.5 text-sm"
+                className="w-full md:w-auto rounded-md border border-zinc-200 dark:border-zinc-700 px-3 py-1.5 text-sm"
               >
                 <option value="">— vše —</option>
                 {ALL_ACTIONS.map((a) => (
@@ -91,7 +96,7 @@ export default async function AuditPage({
                 ))}
               </select>
             </label>
-            <label className="space-y-1">
+            <label className="space-y-1 w-full md:w-auto">
               <span className="block text-xs font-medium text-zinc-500 dark:text-zinc-400">
                 Entita
               </span>
@@ -99,30 +104,30 @@ export default async function AuditPage({
                 name="entity"
                 defaultValue={sp.entity ?? ''}
                 placeholder="TimeEntry, Tag, …"
-                className="rounded-md border border-zinc-200 dark:border-zinc-700 px-3 py-1.5 text-sm"
+                className="w-full md:w-auto rounded-md border border-zinc-200 dark:border-zinc-700 px-3 py-1.5 text-sm"
               />
             </label>
-            <label className="space-y-1">
+            <label className="space-y-1 w-full md:w-auto">
               <span className="block text-xs font-medium text-zinc-500 dark:text-zinc-400">Od</span>
               <input
                 type="date"
                 name="from"
                 defaultValue={sp.from ?? ''}
-                className="rounded-md border border-zinc-200 dark:border-zinc-700 px-3 py-1.5 text-sm"
+                className="w-full md:w-auto rounded-md border border-zinc-200 dark:border-zinc-700 px-3 py-1.5 text-sm"
               />
             </label>
-            <label className="space-y-1">
+            <label className="space-y-1 w-full md:w-auto">
               <span className="block text-xs font-medium text-zinc-500 dark:text-zinc-400">Do</span>
               <input
                 type="date"
                 name="to"
                 defaultValue={sp.to ?? ''}
-                className="rounded-md border border-zinc-200 dark:border-zinc-700 px-3 py-1.5 text-sm"
+                className="w-full md:w-auto rounded-md border border-zinc-200 dark:border-zinc-700 px-3 py-1.5 text-sm"
               />
             </label>
             <button
               type="submit"
-              className="rounded-md bg-zinc-900 dark:bg-zinc-100 px-3 py-1.5 text-sm font-medium text-white dark:text-zinc-900"
+              className="w-full md:w-auto rounded-md bg-zinc-900 dark:bg-zinc-100 px-3 py-1.5 text-sm font-medium text-white dark:text-zinc-900"
             >
               Filtrovat
             </button>
@@ -131,40 +136,78 @@ export default async function AuditPage({
           {result.value.rows.length === 0 ? (
             <EmptyState title="Žádné záznamy" />
           ) : (
-            <Table>
-              <THead>
-                <tr>
-                  <Th>Kdy</Th>
-                  <Th>Kdo</Th>
-                  <Th>Akce</Th>
-                  <Th>Entita</Th>
-                  <Th>ID</Th>
-                </tr>
-              </THead>
-              <tbody>
+            <>
+              <div className="hidden md:block">
+                <Table>
+                  <THead>
+                    <tr>
+                      <Th>Kdy</Th>
+                      <Th>Kdo</Th>
+                      <Th>Akce</Th>
+                      <Th>Entita</Th>
+                      <Th>ID</Th>
+                    </tr>
+                  </THead>
+                  <tbody>
+                    {result.value.rows.map((r) => (
+                      <Tr key={r.id}>
+                        <Td className="whitespace-nowrap font-mono text-xs">
+                          {r.createdAt.toLocaleString('cs-CZ')}
+                        </Td>
+                        <Td>
+                          {r.actorUserId
+                            ? (userMap.get(r.actorUserId)?.fullName ?? r.actorUserId)
+                            : '—'}
+                        </Td>
+                        <Td>
+                          <span className="rounded-full bg-zinc-100 dark:bg-zinc-700 px-2 py-0.5 text-xs">
+                            {r.action}
+                          </span>
+                        </Td>
+                        <Td>{r.entityType}</Td>
+                        <Td className="font-mono text-xs text-zinc-500 dark:text-zinc-400">
+                          {r.entityId}
+                        </Td>
+                      </Tr>
+                    ))}
+                  </tbody>
+                </Table>
+              </div>
+              <ul className="space-y-3 md:hidden">
                 {result.value.rows.map((r) => (
-                  <Tr key={r.id}>
-                    <Td className="whitespace-nowrap font-mono text-xs">
-                      {r.createdAt.toLocaleString('cs-CZ')}
-                    </Td>
-                    <Td>
-                      {r.actorUserId
-                        ? (userMap.get(r.actorUserId)?.fullName ?? r.actorUserId)
-                        : '—'}
-                    </Td>
-                    <Td>
-                      <span className="rounded-full bg-zinc-100 dark:bg-zinc-700 px-2 py-0.5 text-xs">
-                        {r.action}
-                      </span>
-                    </Td>
-                    <Td>{r.entityType}</Td>
-                    <Td className="font-mono text-xs text-zinc-500 dark:text-zinc-400">
-                      {r.entityId}
-                    </Td>
-                  </Tr>
+                  <li key={r.id}>
+                    <DataCard>
+                      <DataCardRow label="Kdy">
+                        <span className="font-mono text-xs">
+                          <span className="hidden sm:inline">
+                            {r.createdAt.toLocaleString('cs-CZ')}
+                          </span>
+                          <span className="sm:hidden">
+                            {new Date(r.createdAt).toLocaleDateString('cs-CZ')}
+                          </span>
+                        </span>
+                      </DataCardRow>
+                      <DataCardRow label="Kdo">
+                        {r.actorUserId
+                          ? (userMap.get(r.actorUserId)?.fullName ?? r.actorUserId)
+                          : '—'}
+                      </DataCardRow>
+                      <DataCardRow label="Akce">
+                        <span className="rounded-full bg-zinc-100 dark:bg-zinc-700 px-2 py-0.5 text-xs">
+                          {r.action}
+                        </span>
+                      </DataCardRow>
+                      <DataCardRow label="Entita">{r.entityType}</DataCardRow>
+                      <DataCardRow label="ID">
+                        <span className="font-mono text-xs text-zinc-500 dark:text-zinc-400">
+                          {r.entityId}
+                        </span>
+                      </DataCardRow>
+                    </DataCard>
+                  </li>
                 ))}
-              </tbody>
-            </Table>
+              </ul>
+            </>
           )}
         </CardBody>
       </Card>

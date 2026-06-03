@@ -16,7 +16,7 @@ export default function ExtensionPage(): ReactElement {
         </CardHeader>
         <CardBody>
           <div className="space-y-4">
-            <div className="flex flex-wrap items-center gap-4">
+            <div className="flex flex-col md:flex-row items-start md:items-center gap-4">
               <a
                 href="https://chromewebstore.google.com/detail/time-tracker/gdkdkhjhgifmhdbbmhlcihcnmgflcdla"
                 target="_blank"
@@ -30,7 +30,7 @@ export default function ExtensionPage(): ReactElement {
                 na Chromiu. Aktualizace probíhají automaticky.
               </p>
             </div>
-            <ol className="list-decimal space-y-3 pl-5 text-sm text-zinc-700 dark:text-zinc-300">
+            <ol className="list-decimal space-y-3 pl-4 sm:pl-5 text-sm text-zinc-700 dark:text-zinc-300">
               <li>
                 Klikněte na tlačítko výše a v Chrome Web Store zvolte{' '}
                 <strong>Přidat do Chromu</strong>.
