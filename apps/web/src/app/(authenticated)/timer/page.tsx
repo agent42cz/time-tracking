@@ -37,7 +37,7 @@ export default async function TimerPage(): Promise<ReactElement> {
         title="Stopky"
         description="Spusťte měření jedním kliknutím. Více měření může běžet paralelně."
       />
-      <div className="space-y-6">
+      <div className="space-y-4 md:space-y-6">
         <TimerStartCard
           clients={clients.map((c) => ({
             id: c.id,
