@@ -51,7 +51,7 @@ export function CreateTokenDialog({
         if (e.target === e.currentTarget) handleClose();
       }}
     >
-      <div className="w-full max-w-md rounded-lg border border-zinc-200 bg-white p-6 shadow-lg dark:border-zinc-700 dark:bg-zinc-800">
+      <div className="w-full max-w-md rounded-lg border border-zinc-200 bg-white p-4 shadow-lg dark:border-zinc-700 dark:bg-zinc-800 sm:p-6">
         {plaintext ? (
           <div className="space-y-4">
             <h2 className="text-base font-semibold text-zinc-900 dark:text-zinc-100">
@@ -63,18 +63,19 @@ export function CreateTokenDialog({
                 {plaintext}
               </pre>
             </div>
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-col gap-2 sm:flex-row">
               <Button
                 onClick={() => {
                   void navigator.clipboard.writeText(plaintext);
                 }}
+                className="w-full sm:w-auto"
               >
                 {t('copy')}
               </Button>
               <a
                 href={buildDownloadHref(plaintext)}
                 download="claude-mcp.json"
-                className="inline-flex items-center rounded-md border border-zinc-200 bg-white px-3 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-50 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-200 dark:hover:bg-zinc-700"
+                className="inline-flex w-full items-center justify-center rounded-md border border-zinc-200 bg-white px-3 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-50 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-200 dark:hover:bg-zinc-700 sm:w-auto"
               >
                 {t('downloadConfig')}
               </a>
