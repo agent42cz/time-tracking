@@ -1,5 +1,12 @@
 import { PrismaClient } from '@prisma/client';
-import { test, expect } from '@playwright/test';
+import { test, expect as baseExpect } from '@playwright/test';
+
+// The manual-save flow triggers a server action (overlap check + Redis publish)
+// whose round-trip can exceed the global 15s expect timeout on a contended CI
+// runner — it's instant locally (passes 15/15 and under 8x CPU throttle), so
+// this is CI resource contention, not a logic issue. Give this file's
+// assertions more headroom so the deploy isn't gated on CI timing flake.
+const expect = baseExpect.configure({ timeout: 30_000 });
 
 const E2E_ADMIN_EMAIL = 'e2e-admin@example.test';
 
