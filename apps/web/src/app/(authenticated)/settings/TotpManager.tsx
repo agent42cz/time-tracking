@@ -26,7 +26,7 @@ export function TotpManager({ enabled }: { enabled: boolean }): ReactElement {
           2FA bylo aktivováno. Uložte si tyto záložní kódy — slouží k jednorázovému přihlášení,
           pokud ztratíte zařízení.
         </Alert>
-        <ul className="grid grid-cols-2 gap-2 rounded-md bg-zinc-50 dark:bg-zinc-900 p-3 font-mono text-sm">
+        <ul className="grid grid-cols-1 gap-2 rounded-md bg-zinc-50 dark:bg-zinc-900 p-3 font-mono text-sm sm:grid-cols-2">
           {recoveryCodes.map((c) => (
             <li key={c}>{c}</li>
           ))}
@@ -44,13 +44,15 @@ export function TotpManager({ enabled }: { enabled: boolean }): ReactElement {
           skenovat, použijte tajný klíč ručně.
         </Alert>
         <div className="flex flex-col items-center gap-3 rounded-md border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 p-4 sm:flex-row">
-          <img
-            src={enrollment.qrDataUrl}
-            alt="QR kód pro 2FA"
-            width={224}
-            height={224}
-            className="shrink-0 rounded border border-zinc-100 dark:border-zinc-700/60"
-          />
+          <div className="max-w-[180px] w-full h-auto sm:max-w-[224px] sm:w-auto sm:h-auto shrink-0">
+            <img
+              src={enrollment.qrDataUrl}
+              alt="QR kód pro 2FA"
+              width={224}
+              height={224}
+              className="w-full h-auto rounded border border-zinc-100 dark:border-zinc-700/60"
+            />
+          </div>
           <div className="min-w-0 flex-1 space-y-2 text-sm">
             <div>
               <p className="text-xs font-medium text-zinc-500 dark:text-zinc-400">
