@@ -100,6 +100,12 @@ jobs:
         env:
           DATABASE_URL: ${{ env.DATABASE_URL }}
           REDIS_URL: ${{ env.REDIS_URL }}
+          # The app runs in Europe/Prague. Pin the e2e runner + dev server to the
+          # same zone so timezone-sensitive seed data (e.g. auto-stack overlap
+          # windows seeded via new Date().setHours()) lands in the same hours the
+          # app interprets form times in. Under the runner's default UTC the seed
+          # and the candidate stop overlapping, so the overlap dialog never shows.
+          TZ: Europe/Prague
 
   deploy:
     name: Deploy to Coolify
