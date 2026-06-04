@@ -24,6 +24,7 @@ import {
   setStoredSession,
   updateTheme,
 } from './api.js';
+import { fmtDurationHM } from './format.js';
 import { useExtensionSync } from './sync.js';
 import { groupRecentByDay, type RecentEntryInput } from './recent.js';
 import {
@@ -339,14 +340,6 @@ function LoginForm({
   );
 }
 
-function fmtDuration(ms: number): string {
-  const total = Math.max(0, Math.floor(ms / 1000));
-  const h = Math.floor(total / 3600);
-  const m = Math.floor((total % 3600) / 60);
-  const s = total % 60;
-  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
-}
-
 function AppShell({
   state,
   refreshing,
@@ -360,7 +353,7 @@ function AppShell({
 }): ReactElement {
   const [now, setNow] = useState(Date.now());
   useEffect(() => {
-    const t = setInterval(() => setNow(Date.now()), 1000);
+    const t = setInterval(() => setNow(Date.now()), 30_000);
     return () => clearInterval(t);
   }, []);
 
@@ -887,7 +880,7 @@ function RunningList({
           </div>
           <div className="flex items-center gap-2">
             <span className="font-mono text-xs font-semibold tabular-nums text-zinc-900 dark:text-zinc-100">
-              {fmtDuration(now - new Date(e.startedAt).getTime())}
+              {fmtDurationHM(now - new Date(e.startedAt).getTime())}
             </span>
             <button
               type="button"
@@ -963,7 +956,7 @@ function HistoryList({
                   </span>
                   <span className="h-px flex-1 bg-zinc-100 dark:bg-zinc-700/60" aria-hidden />
                   <span className="font-mono text-[10px] tabular-nums text-zinc-500 dark:text-zinc-400">
-                    {fmtDuration(g.total)}
+                    {fmtDurationHM(g.total)}
                   </span>
                 </div>
                 <div className="space-y-0.5 pt-1">
@@ -984,7 +977,7 @@ function HistoryList({
                         <div className="flex items-center gap-1.5">
                           <span className="font-mono text-[11px] tabular-nums text-zinc-700 dark:text-zinc-300">
                             {e.endedAt
-                              ? fmtDuration(
+                              ? fmtDurationHM(
                                   new Date(e.endedAt).getTime() - new Date(e.startedAt).getTime(),
                                 )
                               : '…'}
