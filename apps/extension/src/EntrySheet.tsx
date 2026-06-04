@@ -35,6 +35,7 @@ export function EntrySheet(props: EntrySheetProps): ReactElement {
   const [end, setEnd] = useState(initial?.endedAt ? toLocalInput(initial.endedAt) : '');
   const [creatingProject, setCreatingProject] = useState(false);
   const [newProjectName, setNewProjectName] = useState('');
+  const [projectPending, setProjectPending] = useState(false);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -50,7 +51,8 @@ export function EntrySheet(props: EntrySheetProps): ReactElement {
 
   async function addProject(): Promise<void> {
     const name = newProjectName.trim();
-    if (!clientId || !name) return;
+    if (!clientId || !name || projectPending) return;
+    setProjectPending(true);
     try {
       const created = await props.onCreateProject(clientId, name);
       setProjectId(created.id);
@@ -58,12 +60,19 @@ export function EntrySheet(props: EntrySheetProps): ReactElement {
       setNewProjectName('');
     } catch {
       setError('Projekt se nepodařilo vytvořit');
+    } finally {
+      setProjectPending(false);
     }
   }
 
   async function submit(): Promise<void> {
     setPending(true);
     setError(null);
+    if (!start) {
+      setError('Vyplňte začátek');
+      setPending(false);
+      return;
+    }
     try {
       if (mode === 'create') {
         if (!end) {
@@ -167,6 +176,7 @@ export function EntrySheet(props: EntrySheetProps): ReactElement {
               <button
                 type="button"
                 onClick={() => void addProject()}
+                disabled={projectPending}
                 className="rounded bg-zinc-900 px-2 py-1 text-xs font-medium text-white dark:bg-zinc-100 dark:text-zinc-900"
               >
                 Přidat
