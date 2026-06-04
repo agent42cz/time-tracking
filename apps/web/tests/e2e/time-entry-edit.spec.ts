@@ -13,7 +13,13 @@ test.describe('US-54: edit time entry', () => {
     await page.getByRole('button', { name: '▶ Spustit' }).click();
 
     // Stop the timer immediately so the entry lands in the Today list.
-    await page.getByRole('button', { name: '■ Stop' }).first().click();
+    const stopButton = page.getByRole('button', { name: '■ Stop' }).first();
+    await expect(stopButton).toBeVisible();
+    // AIAGE-31 regression: the label "■ Stop" must fit — a square icon-sized
+    // button (~32px) clips it. A real labelled button is ~70px wide.
+    const stopBox = await stopButton.boundingBox();
+    expect(stopBox?.width ?? 0).toBeGreaterThan(56);
+    await stopButton.click();
     const row = page.locator('li').filter({ hasText: description });
     await expect(row).toBeVisible();
 

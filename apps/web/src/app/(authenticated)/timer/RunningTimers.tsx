@@ -148,7 +148,7 @@ function RunningRow({
             size="sm"
             loading={pending}
             onClick={() => void handleStop()}
-            className="h-10 w-10 sm:h-8 sm:w-8"
+            className="h-10 sm:h-8"
           >
             ■ Stop
           </Button>
