@@ -13,12 +13,17 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ApiError,
+  createManualEntry,
+  createProject,
   deleteEntry,
   playAgain,
   startTimer,
   stopTimer,
+  updateEntry,
   type ApiSession,
+  type ManualEntryApiInput,
   type StartTimerInput,
+  type UpdateEntryPatch,
 } from './api.js';
 import { OfflineQueue, type Mutation } from './queue.js';
 import {
@@ -51,6 +56,10 @@ export interface SyncState {
   executeStop: (entryId: string) => Promise<void>;
   executePlayAgain: (entryId: string) => Promise<void>;
   executeDelete: (entryId: string) => Promise<void>;
+  executeUpdate: (entryId: string, patch: UpdateEntryPatch) => Promise<void>;
+  executeCreateManual: (input: ManualEntryApiInput) => Promise<void>;
+  /** Online-only (admin setup action). Returns the new project or throws on failure. */
+  executeCreateProject: (clientId: string, name: string) => Promise<{ id: string }>;
 }
 
 function isNetworkError(err: unknown): boolean {
@@ -68,12 +77,7 @@ function nudgeServiceWorker(): void {
   }
 }
 
-export function useExtensionSync({
-  session,
-  wsUrl,
-  companyId,
-  onRefresh,
-}: UseSyncArgs): SyncState {
+export function useExtensionSync({ session, wsUrl, companyId, onRefresh }: UseSyncArgs): SyncState {
   const [online, setOnline] = useState<boolean>(
     typeof navigator !== 'undefined' ? navigator.onLine : true,
   );
@@ -147,10 +151,7 @@ export function useExtensionSync({
       ws.addEventListener('message', (e: MessageEvent<string>) => {
         try {
           const msg = JSON.parse(e.data) as { type?: string; channel?: string };
-          if (
-            msg.type &&
-            (msg.type.startsWith('time_entry.') || msg.type.startsWith('timer.'))
-          ) {
+          if (msg.type && (msg.type.startsWith('time_entry.') || msg.type.startsWith('timer.'))) {
             void refreshRef.current();
           }
         } catch {
@@ -174,20 +175,21 @@ export function useExtensionSync({
     };
   }, [session, wsUrl]);
 
-  const executeStart = useCallback(
-    async (input: StartTimerInput): Promise<void> => {
+  /**
+   * Try `netCall()`; on a network error enqueue `fallbackMutation` so it can
+   * be replayed when connectivity returns.  Nudges the service worker and
+   * triggers a refresh on every code path.
+   */
+  const executeOrEnqueue = useCallback(
+    async (netCall: () => Promise<void>, fallbackMutation: Mutation): Promise<void> => {
       if (!session) return;
       try {
-        await startTimer(session, companyId, input);
+        await netCall();
         nudgeServiceWorker();
         await refreshRef.current();
       } catch (err) {
         if (isNetworkError(err)) {
-          await queue.enqueue({
-            kind: 'startTimer',
-            payload: { ...input, companyId },
-            clientId: crypto.randomUUID(),
-          });
+          await queue.enqueue(fallbackMutation);
           setPending(await queue.size());
           await refreshRef.current();
         } else {
@@ -195,82 +197,117 @@ export function useExtensionSync({
         }
       }
     },
-    [session, companyId],
+    [session],
+  );
+
+  const executeStart = useCallback(
+    (input: StartTimerInput): Promise<void> =>
+      executeOrEnqueue(
+        async () => {
+          await startTimer(session!, companyId, input);
+        },
+        {
+          kind: 'startTimer',
+          payload: { ...input, companyId },
+          clientId: crypto.randomUUID(),
+        },
+      ),
+    [session, companyId, executeOrEnqueue],
   );
 
   const executeStop = useCallback(
-    async (entryId: string): Promise<void> => {
-      if (!session) return;
-      try {
-        await stopTimer(session, entryId);
-        nudgeServiceWorker();
-        await refreshRef.current();
-      } catch (err) {
-        if (isNetworkError(err)) {
-          await queue.enqueue({
-            kind: 'stopTimer',
-            payload: { id: entryId },
-            clientId: crypto.randomUUID(),
-          });
-          setPending(await queue.size());
-          await refreshRef.current();
-        } else {
-          throw err;
-        }
-      }
-    },
-    [session],
+    (entryId: string): Promise<void> =>
+      executeOrEnqueue(
+        async () => {
+          await stopTimer(session!, entryId);
+        },
+        {
+          kind: 'stopTimer',
+          payload: { id: entryId },
+          clientId: crypto.randomUUID(),
+        },
+      ),
+    [session, executeOrEnqueue],
   );
 
   const executePlayAgain = useCallback(
-    async (entryId: string): Promise<void> => {
-      if (!session) return;
-      try {
-        await playAgain(session, entryId);
-        nudgeServiceWorker();
-        await refreshRef.current();
-      } catch (err) {
-        if (isNetworkError(err)) {
-          await queue.enqueue({
-            kind: 'startTimer', // play-again replays as a fresh start with the same metadata
-            payload: { sourceEntryId: entryId },
-            clientId: crypto.randomUUID(),
-          });
-          setPending(await queue.size());
-          await refreshRef.current();
-        } else {
-          throw err;
-        }
-      }
-    },
-    [session],
+    (entryId: string): Promise<void> =>
+      executeOrEnqueue(
+        async () => {
+          await playAgain(session!, entryId);
+        },
+        {
+          // play-again replays as a fresh start with the same metadata
+          kind: 'startTimer',
+          payload: { sourceEntryId: entryId },
+          clientId: crypto.randomUUID(),
+        },
+      ),
+    [session, executeOrEnqueue],
   );
 
   const executeDelete = useCallback(
-    async (entryId: string): Promise<void> => {
-      if (!session) return;
-      try {
-        await deleteEntry(session, entryId);
-        nudgeServiceWorker();
-        await refreshRef.current();
-      } catch (err) {
-        if (isNetworkError(err)) {
-          await queue.enqueue({
-            kind: 'deleteEntry',
-            payload: { id: entryId },
-            clientId: crypto.randomUUID(),
-          });
-          setPending(await queue.size());
-          await refreshRef.current();
-        } else {
-          throw err;
-        }
-      }
+    (entryId: string): Promise<void> =>
+      executeOrEnqueue(
+        async () => {
+          await deleteEntry(session!, entryId);
+        },
+        {
+          kind: 'deleteEntry',
+          payload: { id: entryId },
+          clientId: crypto.randomUUID(),
+        },
+      ),
+    [session, executeOrEnqueue],
+  );
+
+  const executeUpdate = useCallback(
+    (entryId: string, patch: UpdateEntryPatch): Promise<void> =>
+      executeOrEnqueue(() => updateEntry(session!, entryId, patch), {
+        kind: 'updateEntry',
+        payload: { id: entryId, patch: patch as unknown as Record<string, unknown> },
+        clientId: crypto.randomUUID(),
+      }),
+    [session, executeOrEnqueue],
+  );
+
+  const executeCreateManual = useCallback(
+    (input: ManualEntryApiInput): Promise<void> =>
+      executeOrEnqueue(
+        async () => {
+          await createManualEntry(session!, companyId, input);
+        },
+        {
+          kind: 'createManual',
+          payload: { ...input, companyId },
+          clientId: crypto.randomUUID(),
+        },
+      ),
+    [session, companyId, executeOrEnqueue],
+  );
+
+  const executeCreateProject = useCallback(
+    async (clientId: string, name: string): Promise<{ id: string }> => {
+      if (!session) throw new ApiError(401, 'no_session');
+      const created = await createProject(session, { clientId, name });
+      await refreshRef.current();
+      return created;
     },
     [session],
   );
 
-  return { online, pending, conflicts, executeStart, executeStop, executePlayAgain, executeDelete };
+  return {
+    online,
+    pending,
+    conflicts,
+    executeStart,
+    executeStop,
+    executePlayAgain,
+    executeDelete,
+    executeUpdate,
+    executeCreateManual,
+    executeCreateProject,
+  };
 }
 
 async function replayMutation(session: ApiSession, m: Mutation): Promise<void> {
@@ -287,9 +324,15 @@ async function replayMutation(session: ApiSession, m: Mutation): Promise<void> {
     case 'deleteEntry':
       await deleteEntry(session, (m.payload as { id: string }).id);
       return;
-    case 'createManual':
-    case 'updateEntry':
-      // Not exposed in popup yet — drop silently rather than 4xx the queue.
+    case 'createManual': {
+      const p = m.payload as unknown as ManualEntryApiInput & { companyId?: string | null };
+      await createManualEntry(session, (p.companyId as string | null) ?? null, p);
       return;
+    }
+    case 'updateEntry': {
+      const p = m.payload as { id: string; patch: UpdateEntryPatch };
+      await updateEntry(session, p.id, p.patch);
+      return;
+    }
   }
 }
