@@ -2,6 +2,7 @@ import type { ReactElement } from 'react';
 import { useMemo, useState } from 'react';
 import type { CatalogResponse, ManualEntryApiInput, UpdateEntryPatch } from './api.js';
 import { fromLocalInput, toLocalInput } from './datetime.js';
+import { fmtDurationHM } from './format.js';
 
 export interface EntrySheetInitial {
   id: string;
@@ -35,6 +36,15 @@ export function EntrySheet(props: EntrySheetProps): ReactElement {
   const [error, setError] = useState<string | null>(null);
 
   const wasRunning = mode === 'edit' && initial?.endedAt == null;
+
+  const workedMs = (() => {
+    if (!start) return 0;
+    const s = new Date(start).getTime();
+    const e = end ? new Date(end).getTime() : Date.now();
+    if (Number.isNaN(s) || Number.isNaN(e)) return 0;
+    return Math.max(0, e - s);
+  })();
+
   const projects = useMemo(
     () => catalog.clients.find((c) => c.id === clientId)?.projects ?? [],
     [catalog.clients, clientId],
@@ -87,7 +97,7 @@ export function EntrySheet(props: EntrySheetProps): ReactElement {
 
   return (
     <div className="absolute inset-0 z-20 flex flex-col bg-white dark:bg-zinc-900">
-      <div className="flex items-center justify-between border-b border-zinc-100 px-3 py-2 dark:border-zinc-700/60">
+      <div className="flex items-center justify-between border-b border-zinc-100 px-4 py-3 dark:border-zinc-700/60">
         <span className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
           {mode === 'create' ? 'Nový záznam' : 'Upravit záznam'}
         </span>
@@ -100,7 +110,7 @@ export function EntrySheet(props: EntrySheetProps): ReactElement {
           ✕
         </button>
       </div>
-      <div className="space-y-2 overflow-y-auto p-3">
+      <div className="space-y-4 overflow-y-auto p-4">
         {error ? (
           <div className="rounded border border-red-200 bg-red-50 px-2 py-1 text-xs text-red-800 dark:border-red-900 dark:bg-red-950/40 dark:text-red-200">
             {error}
@@ -110,16 +120,16 @@ export function EntrySheet(props: EntrySheetProps): ReactElement {
           value={description}
           onChange={(e) => setDescription(e.target.value)}
           placeholder="Co děláte?"
-          className="block w-full rounded border border-zinc-200 bg-white px-2 py-1.5 text-sm text-zinc-900 placeholder:text-zinc-400 focus:border-zinc-900 focus:outline-none dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100 dark:placeholder:text-zinc-500 dark:focus:border-zinc-100"
+          className="block w-full rounded border border-zinc-200 bg-white px-2 py-2 text-sm text-zinc-900 placeholder:text-zinc-400 focus:border-zinc-900 focus:outline-none dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100 dark:placeholder:text-zinc-500 dark:focus:border-zinc-100"
         />
-        <div className="grid grid-cols-2 gap-2">
+        <div className="grid grid-cols-2 gap-3">
           <select
             value={clientId}
             onChange={(e) => {
               setClientId(e.target.value);
               setProjectId('');
             }}
-            className="rounded border border-zinc-200 bg-white px-2 py-1.5 text-xs text-zinc-900 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100"
+            className="rounded border border-zinc-200 bg-white px-2 py-2 text-xs text-zinc-900 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100"
           >
             <option value="">— klient —</option>
             {catalog.clients.map((c) => (
@@ -132,7 +142,7 @@ export function EntrySheet(props: EntrySheetProps): ReactElement {
             value={projectId}
             onChange={(e) => setProjectId(e.target.value)}
             disabled={!clientId}
-            className="rounded border border-zinc-200 bg-white px-2 py-1.5 text-xs text-zinc-900 disabled:bg-zinc-50 disabled:text-zinc-400 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100 dark:disabled:bg-zinc-800 dark:disabled:text-zinc-500"
+            className="rounded border border-zinc-200 bg-white px-2 py-2 text-xs text-zinc-900 disabled:bg-zinc-50 disabled:text-zinc-400 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100 dark:disabled:bg-zinc-800 dark:disabled:text-zinc-500"
           >
             <option value="">— projekt —</option>
             {projects.map((p) => (
@@ -142,7 +152,7 @@ export function EntrySheet(props: EntrySheetProps): ReactElement {
             ))}
           </select>
         </div>
-        <div className="grid grid-cols-2 gap-2">
+        <div className="grid grid-cols-2 gap-3">
           <label className="block">
             <span className="text-[10px] uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
               Začátek
@@ -151,7 +161,7 @@ export function EntrySheet(props: EntrySheetProps): ReactElement {
               type="datetime-local"
               value={start}
               onChange={(e) => setStart(e.target.value)}
-              className="mt-0.5 block w-full rounded border border-zinc-200 bg-white px-2 py-1 text-xs text-zinc-900 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100"
+              className="mt-0.5 block w-full rounded border border-zinc-200 bg-white px-2 py-2 text-xs text-zinc-900 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100"
             />
           </label>
           <label className="block">
@@ -162,7 +172,7 @@ export function EntrySheet(props: EntrySheetProps): ReactElement {
               type="datetime-local"
               value={end}
               onChange={(e) => setEnd(e.target.value)}
-              className="mt-0.5 block w-full rounded border border-zinc-200 bg-white px-2 py-1 text-xs text-zinc-900 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100"
+              className="mt-0.5 block w-full rounded border border-zinc-200 bg-white px-2 py-2 text-xs text-zinc-900 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100"
             />
           </label>
         </div>
@@ -188,6 +198,12 @@ export function EntrySheet(props: EntrySheetProps): ReactElement {
             })}
           </div>
         ) : null}
+        <p className="text-xs text-zinc-500 dark:text-zinc-400">
+          Odpracováno:{' '}
+          <span className="font-mono font-semibold text-zinc-700 dark:text-zinc-300">
+            {fmtDurationHM(workedMs)}
+          </span>
+        </p>
         <button
           type="button"
           onClick={() => void submit()}
