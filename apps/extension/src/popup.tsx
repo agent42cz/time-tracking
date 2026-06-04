@@ -26,6 +26,7 @@ import {
 } from './api.js';
 import { fmtDurationHM } from './format.js';
 import { useExtensionSync } from './sync.js';
+import { EntrySheet, type EntrySheetInitial } from './EntrySheet.js';
 import { groupRecentByDay, type RecentEntryInput } from './recent.js';
 import {
   applyThemeClass,
@@ -403,8 +404,35 @@ function AppShell({
     onRefresh: onChange,
   });
 
+  const [sheet, setSheet] = useState<{
+    mode: 'edit' | 'create';
+    initial?: EntrySheetInitial;
+  } | null>(null);
+  const isAdmin = useMemo(
+    () => state.me.memberships.find((m) => m.companyId === state.timer.companyId)?.role === 'admin',
+    [state.me.memberships, state.timer.companyId],
+  );
+
+  function openEdit(id: string): void {
+    const all = [...(state.timer.running ?? []), ...(state.timer.history ?? [])];
+    const e = all.find((x) => x.id === id);
+    if (!e) return;
+    setSheet({
+      mode: 'edit',
+      initial: {
+        id: e.id,
+        description: e.description,
+        clientId: e.clientId,
+        projectId: e.projectId,
+        startedAt: e.startedAt,
+        endedAt: e.endedAt,
+        tagIds: e.tags.map((t) => t.id),
+      },
+    });
+  }
+
   return (
-    <div className="w-[380px] divide-y divide-zinc-100 text-sm dark:divide-zinc-700/60">
+    <div className="relative w-[380px] divide-y divide-zinc-100 text-sm dark:divide-zinc-700/60">
       <Header
         me={state.me}
         apiBase={state.session.apiBase}
@@ -420,13 +448,41 @@ function AppShell({
         onLogout={onLogout}
       />
       <StartRow catalog={state.catalog} onStart={sync.executeStart} />
-      <RunningList entries={state.timer.running} now={now} onStop={sync.executeStop} />
+      <div className="px-3 pb-2">
+        <button
+          type="button"
+          onClick={() => setSheet({ mode: 'create' })}
+          className="text-xs font-medium text-zinc-600 underline-offset-2 hover:underline dark:text-zinc-300"
+        >
+          + Přidat ručně
+        </button>
+      </div>
+      <RunningList
+        entries={state.timer.running}
+        now={now}
+        onStop={sync.executeStop}
+        onEdit={openEdit}
+      />
       {showStats ? <SummaryCards summary={state.timer.summary} /> : null}
       <HistoryList
         entries={state.timer.history ?? []}
         onPlayAgain={sync.executePlayAgain}
         onDelete={sync.executeDelete}
+        onEdit={openEdit}
       />
+      {sheet ? (
+        <EntrySheet
+          mode={sheet.mode}
+          catalog={state.catalog}
+          isAdmin={isAdmin}
+          nowIso={new Date(now).toISOString()}
+          initial={sheet.initial}
+          onClose={() => setSheet(null)}
+          onSave={sync.executeUpdate}
+          onCreate={sync.executeCreateManual}
+          onCreateProject={sync.executeCreateProject}
+        />
+      ) : null}
     </div>
   );
 }
@@ -846,6 +902,7 @@ function RunningList({
   entries,
   now,
   onStop,
+  onEdit,
 }: {
   entries: {
     id: string;
@@ -856,6 +913,7 @@ function RunningList({
   }[];
   now: number;
   onStop: (entryId: string) => Promise<void>;
+  onEdit: (entryId: string) => void;
 }): ReactElement | null {
   if (entries.length === 0) return null;
   return (
@@ -868,7 +926,7 @@ function RunningList({
           key={e.id}
           className="flex items-center justify-between gap-2 rounded-md bg-zinc-50 px-2 py-1.5 dark:bg-zinc-800"
         >
-          <div className="min-w-0">
+          <button type="button" onClick={() => onEdit(e.id)} className="min-w-0 flex-1 text-left">
             <div className="truncate text-sm font-medium text-zinc-900 dark:text-zinc-100">
               {e.description || (
                 <span className="text-zinc-400 dark:text-zinc-500">(bez popisu)</span>
@@ -877,7 +935,7 @@ function RunningList({
             <div className="truncate text-[10px] text-zinc-500 dark:text-zinc-400">
               {[e.clientName, e.projectName].filter(Boolean).join(' · ') || '—'}
             </div>
-          </div>
+          </button>
           <div className="flex items-center gap-2">
             <span className="font-mono text-xs font-semibold tabular-nums text-zinc-900 dark:text-zinc-100">
               {fmtDurationHM(now - new Date(e.startedAt).getTime())}
@@ -900,10 +958,12 @@ function HistoryList({
   entries,
   onPlayAgain,
   onDelete,
+  onEdit,
 }: {
   entries: RecentEntryInput[];
   onPlayAgain: (entryId: string) => Promise<void>;
   onDelete: (entryId: string) => Promise<void>;
+  onEdit: (entryId: string) => void;
 }): ReactElement {
   const groups = groupRecentByDay(entries, new Date());
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
@@ -964,7 +1024,11 @@ function HistoryList({
                     const confirming = pendingDeleteId === e.id;
                     return (
                       <div key={e.id} className="flex items-center justify-between gap-2 px-1 py-1">
-                        <div className="min-w-0">
+                        <button
+                          type="button"
+                          onClick={() => onEdit(e.id)}
+                          className="min-w-0 flex-1 text-left"
+                        >
                           <div className="truncate text-xs font-medium text-zinc-900 dark:text-zinc-100">
                             {e.description || (
                               <span className="text-zinc-400 dark:text-zinc-500">(bez popisu)</span>
@@ -973,7 +1037,7 @@ function HistoryList({
                           <div className="truncate text-[10px] text-zinc-500 dark:text-zinc-400">
                             {[e.clientName, e.projectName].filter(Boolean).join(' · ') || '—'}
                           </div>
-                        </div>
+                        </button>
                         <div className="flex items-center gap-1.5">
                           <span className="font-mono text-[11px] tabular-nums text-zinc-700 dark:text-zinc-300">
                             {e.endedAt
