@@ -295,4 +295,61 @@ export async function playAgain(session: ApiSession, entryId: string): Promise<{
   );
 }
 
+export interface UpdateEntryPatch {
+  description?: string;
+  clientId?: string | null;
+  projectId?: string | null;
+  startedAt?: string; // ISO
+  endedAt?: string | null; // ISO, or null to clear (re-open a running timer)
+  tagIds?: string[];
+}
+
+export async function updateEntry(
+  session: ApiSession,
+  entryId: string,
+  patch: UpdateEntryPatch,
+): Promise<void> {
+  await call(
+    session.apiBase,
+    `/api/v1/entries/${encodeURIComponent(entryId)}`,
+    { method: 'PATCH', body: JSON.stringify(patch) },
+    session.token,
+  );
+}
+
+export interface ManualEntryApiInput {
+  description?: string;
+  clientId?: string | null;
+  projectId?: string | null;
+  startedAt: string; // ISO
+  endedAt: string; // ISO
+  tagIds?: string[];
+}
+
+export async function createManualEntry(
+  session: ApiSession,
+  companyId: string | null,
+  input: ManualEntryApiInput,
+): Promise<{ id: string }> {
+  const qs = companyId ? `?company=${encodeURIComponent(companyId)}` : '';
+  return call<{ id: string }>(
+    session.apiBase,
+    `/api/v1/entries${qs}`,
+    { method: 'POST', body: JSON.stringify(input) },
+    session.token,
+  );
+}
+
+export async function createProject(
+  session: ApiSession,
+  input: { clientId: string; name: string },
+): Promise<{ id: string }> {
+  return call<{ id: string }>(
+    session.apiBase,
+    '/api/v1/projects',
+    { method: 'POST', body: JSON.stringify(input) },
+    session.token,
+  );
+}
+
 export { ApiError };
