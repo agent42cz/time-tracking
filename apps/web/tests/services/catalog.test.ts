@@ -77,6 +77,26 @@ describe('catalog (clients / projects / tags)', () => {
     });
   });
 
+  it('US-14: creating a project writes exactly one audit row', async () => {
+    await withTx(async (tx) => {
+      const w = await bootstrap(tx, 'proj-audit');
+      const client = await createClient(tx, w.admin, { companyId: w.company, name: 'Acme' });
+      if (!client.ok) throw new Error('setup');
+      const before = await auditCount(tx, w.company);
+      const project = await createProject(tx, w.admin, {
+        clientId: client.value.id,
+        name: 'Website',
+      });
+      expect(project.ok).toBe(true);
+      expect((await auditCount(tx, w.company)) - before).toBe(1);
+      const rows = await tx.auditLog.findMany({
+        where: { companyId: w.company, entityType: 'Project' },
+      });
+      expect(rows).toHaveLength(1);
+      expect(rows[0]?.action).toBe('create');
+    });
+  });
+
   it('US-14: archive removes the client from the default picker but keeps history', async () => {
     await withTx(async (tx) => {
       const w = await bootstrap(tx, 'us14');

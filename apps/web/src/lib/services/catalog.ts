@@ -191,6 +191,14 @@ export async function createProject(
   const auth = await requireAdmin(db, actorUserId, c.companyId);
   if (!auth.ok) return auth;
   const p = await db.project.create({ data: { clientId: input.clientId, name: input.name } });
+  await writeAudit(db, {
+    companyId: c.companyId,
+    actorUserId,
+    action: 'create',
+    entityType: 'Project',
+    entityId: p.id,
+    after: { clientId: input.clientId, name: input.name },
+  });
   return { ok: true, value: { id: p.id } };
 }
 
