@@ -385,6 +385,7 @@ export async function listRunningEntries(
     {
       id: string;
       description: string;
+      note: string;
       startedAt: Date;
       clientId: string | null;
       projectId: string | null;
@@ -404,6 +405,7 @@ export async function listRunningEntries(
     value: rows.map((r) => ({
       id: r.id,
       description: r.description,
+      note: r.note,
       startedAt: r.startedAt,
       clientId: r.clientId,
       projectId: r.projectId,
@@ -422,6 +424,7 @@ export async function listRecentEntries(
     {
       id: string;
       description: string;
+      note: string;
       startedAt: Date;
       endedAt: Date | null;
       clientId: string | null;
@@ -444,6 +447,7 @@ export async function listRecentEntries(
     value: rows.map((r) => ({
       id: r.id,
       description: r.description,
+      note: r.note,
       startedAt: r.startedAt,
       endedAt: r.endedAt,
       clientId: r.clientId,

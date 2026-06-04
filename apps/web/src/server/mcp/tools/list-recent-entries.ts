@@ -9,6 +9,7 @@ const OutputSchema = z.object({
     z.object({
       id: z.string(),
       description: z.string(),
+      note: z.string(),
       startedAt: z.string(),
       endedAt: z.string().nullable(),
       clientId: z.string().nullable(),
@@ -39,6 +40,7 @@ toolRegistrars.push((server, ctx: ToolContext) => {
         entries: res.value.map((e) => ({
           id: e.id,
           description: e.description.length > 500 ? e.description.slice(0, 500) : e.description,
+          note: e.note,
           startedAt: e.startedAt.toISOString(),
           endedAt: e.endedAt?.toISOString() ?? null,
           clientId: e.clientId,

@@ -2,7 +2,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { Prisma } from '@prisma/client';
 import { getTestPrisma, stopTestPrisma, withTx } from '@tt/db/test';
 import { createCompany } from '../../../../src/lib/services/companies.js';
-import { startTimer, stopTimer } from '../../../../src/lib/services/time-entries.js';
+import { startTimer, stopTimer, updateEntry } from '../../../../src/lib/services/time-entries.js';
 import { buildInProcessMcp } from '../../../_helpers/mcp.js';
 
 beforeAll(async () => {
@@ -27,13 +27,14 @@ describe('mcp tool: list_running_entries', () => {
       const b = await startTimer(tx, w.userId, { companyId: w.companyId, description: 'B' });
       if (!a.ok || !b.ok) throw new Error('setup');
       await stopTimer(tx, w.userId, a.value.id);
+      await updateEntry(tx, w.userId, b.value.id, { note: 'running note' });
 
       const m = await buildInProcessMcp({ db: tx, userId: w.userId, companyId: w.companyId });
       try {
         const out = await m.client.callTool({ name: 'list_running_entries', arguments: {} });
         expect(out.isError).toBeFalsy();
         expect(out.structuredContent).toMatchObject({
-          entries: [{ id: b.value.id, description: 'B' }],
+          entries: [{ id: b.value.id, description: 'B', note: 'running note' }],
         });
       } finally {
         await m.close();

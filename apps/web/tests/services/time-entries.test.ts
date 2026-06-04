@@ -245,6 +245,8 @@ describe('time entries', () => {
         orderBy: { createdAt: 'desc' },
       });
       expect((updateAudit?.after as { note?: string } | null)?.note).toBe('detail text');
+      // create + update = exactly 2 audit rows (one update row added by the note edit).
+      expect(await auditCount(tx, m.value.id)).toBe(2);
     });
   });
 

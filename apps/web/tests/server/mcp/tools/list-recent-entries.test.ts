@@ -2,7 +2,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { Prisma } from '@prisma/client';
 import { getTestPrisma, stopTestPrisma, withTx } from '@tt/db/test';
 import { createCompany } from '../../../../src/lib/services/companies.js';
-import { startTimer, stopTimer } from '../../../../src/lib/services/time-entries.js';
+import { startTimer, stopTimer, updateEntry } from '../../../../src/lib/services/time-entries.js';
 import { buildInProcessMcp } from '../../../_helpers/mcp.js';
 
 beforeAll(async () => {
@@ -33,6 +33,8 @@ describe('mcp tool: list_recent_entries', () => {
         ids.push(r.value.id);
         await stopTimer(tx, w.userId, r.value.id);
       }
+      // Newest entry carries a note — it must surface on the row.
+      await updateEntry(tx, w.userId, ids[2]!, { note: 'recent note' });
       const m = await buildInProcessMcp({ db: tx, userId: w.userId, companyId: w.companyId });
       try {
         const out = await m.client.callTool({
@@ -40,8 +42,10 @@ describe('mcp tool: list_recent_entries', () => {
           arguments: { limit: 2 },
         });
         expect(out.isError).toBeFalsy();
-        const entries = (out.structuredContent as { entries: { id: string }[] }).entries;
+        const entries = (out.structuredContent as { entries: { id: string; note: string }[] })
+          .entries;
         expect(entries.map((e) => e.id)).toEqual([ids[2], ids[1]]);
+        expect(entries[0]!.note).toBe('recent note');
       } finally {
         await m.close();
       }
