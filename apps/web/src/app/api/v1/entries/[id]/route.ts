@@ -19,6 +19,7 @@ export async function PATCH(
   const { id } = await params;
   let body: {
     description?: string;
+    note?: string;
     clientId?: string | null;
     projectId?: string | null;
     startedAt?: string;
@@ -33,6 +34,7 @@ export async function PATCH(
 
   const patch: UpdateEntryPatch = {};
   if (body.description !== undefined) patch.description = body.description;
+  if (body.note !== undefined) patch.note = body.note;
   if (body.clientId !== undefined) patch.clientId = body.clientId;
   if (body.projectId !== undefined) patch.projectId = body.projectId;
   if (body.tagIds !== undefined) patch.tagIds = body.tagIds;

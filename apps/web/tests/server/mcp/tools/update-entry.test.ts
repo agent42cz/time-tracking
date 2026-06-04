@@ -53,4 +53,28 @@ describe('mcp tool: update_entry', () => {
       expect(last.action).toBe('update');
     });
   });
+
+  it('US-24: sets the separate note field', async () => {
+    await withTx(async (tx) => {
+      const w = await setup(tx, 'note');
+      const a = await startTimer(tx, w.userId, { companyId: w.companyId, description: 'old' });
+      if (!a.ok) throw new Error('setup');
+
+      const m = await buildInProcessMcp({ db: tx, userId: w.userId, companyId: w.companyId });
+      try {
+        const out = await m.client.callTool({
+          name: 'update_entry',
+          arguments: { entryId: a.value.id, note: 'detail text' },
+        });
+        expect(out.isError).toBeFalsy();
+      } finally {
+        await m.close();
+      }
+
+      const updated = await tx.timeEntry.findUniqueOrThrow({ where: { id: a.value.id } });
+      expect(updated.note).toBe('detail text');
+      // description is untouched (note is a parallel field).
+      expect(updated.description).toBe('old');
+    });
+  });
 });

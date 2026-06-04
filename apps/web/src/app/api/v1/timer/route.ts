@@ -81,6 +81,7 @@ export async function GET(req: NextRequest): Promise<Response> {
     return {
       id: e.id,
       description: e.description,
+      note: e.note,
       clientId: e.clientId,
       clientName: e.client?.name ?? null,
       projectId: e.projectId,
@@ -94,6 +95,7 @@ export async function GET(req: NextRequest): Promise<Response> {
     return {
       id: e.id,
       description: e.description,
+      note: e.note,
       clientId: e.clientId,
       clientName: e.clientName,
       projectId: e.projectId,

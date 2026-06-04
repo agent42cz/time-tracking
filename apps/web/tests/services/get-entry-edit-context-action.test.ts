@@ -4,7 +4,7 @@ import type { Prisma } from '@prisma/client';
 import { getTestPrisma, stopTestPrisma, withTx } from '@tt/db/test';
 import { createCompany } from '../../src/lib/services/companies.js';
 import { createClient, createProject } from '../../src/lib/services/catalog.js';
-import { startTimer } from '../../src/lib/services/time-entries.js';
+import { startTimer, updateEntry } from '../../src/lib/services/time-entries.js';
 
 // Mutable holder that the mocked session reads from (vi.mock factories are hoisted).
 const ctx = vi.hoisted(() => ({
@@ -65,6 +65,12 @@ describe('getEntryEditContextAction', () => {
       });
       if (!timerResult.ok) throw new Error('setup: startTimer');
 
+      // Set the separate note field so the edit context returns it.
+      const noteUpd = await updateEntry(tx, admin.id, timerResult.value.id, {
+        note: 'extra detail',
+      });
+      if (!noteUpd.ok) throw new Error('setup: updateEntry note');
+
       ctx.session = {
         userId: admin.id,
         activeCompanyId: company.id,
@@ -77,6 +83,7 @@ describe('getEntryEditContextAction', () => {
       if (!res.ok) return;
 
       expect(res.data.entry.description).toBe('Working on feature');
+      expect(res.data.entry.note).toBe('extra detail');
       expect(res.data.entry.clientId).toBe(clientResult.value.id);
       expect(res.data.entry.projectId).toBe(projectResult.value.id);
       expect(Array.isArray(res.data.entry.tagIds)).toBe(true);

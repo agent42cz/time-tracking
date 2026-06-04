@@ -7,6 +7,7 @@ const InputSchema = z
   .object({
     entryId: z.string().min(1),
     description: z.string().max(5000).optional(),
+    note: z.string().max(5000).optional(),
     clientId: z.string().nullable().optional(),
     projectId: z.string().nullable().optional(),
     tagIds: z.array(z.string()).max(20).optional(),
@@ -32,6 +33,7 @@ toolRegistrars.push((server, ctx: ToolContext) => {
         args.entryId,
         {
           description: args.description,
+          note: args.note,
           clientId: args.clientId,
           projectId: args.projectId,
           tagIds: args.tagIds,

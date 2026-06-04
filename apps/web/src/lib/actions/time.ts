@@ -108,6 +108,7 @@ export async function updateEntryAction(
 export interface EntryEditContext {
   entry: {
     description: string;
+    note: string;
     clientId: string | null;
     projectId: string | null;
     tagIds: string[];
@@ -153,6 +154,7 @@ export async function getEntryEditContextAction(
     data: {
       entry: {
         description: entry.description,
+        note: entry.note,
         clientId: entry.clientId,
         projectId: entry.projectId,
         tagIds: entry.tags.map((t) => t.tagId),

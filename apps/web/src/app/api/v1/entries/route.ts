@@ -20,6 +20,7 @@ export async function POST(req: NextRequest): Promise<Response> {
 
   let body: {
     description?: string;
+    note?: string;
     clientId?: string | null;
     projectId?: string | null;
     startedAt?: string;
@@ -41,6 +42,7 @@ export async function POST(req: NextRequest): Promise<Response> {
   const result = await createManualEntry(prisma(), session.userId, {
     companyId: active.companyId,
     description: body.description ?? '',
+    note: body.note ?? '',
     clientId: body.clientId ?? null,
     projectId: body.projectId ?? null,
     startedAt,

@@ -212,6 +212,42 @@ describe('time entries', () => {
     });
   });
 
+  it('US-24: persists a separate note on create and update; audit captures the new note', async () => {
+    await withTx(async (tx) => {
+      const w = await bootstrap(tx, 'us24note');
+      const now = new Date('2026-05-03T10:00:00Z');
+      // createManualEntry with a note persists it.
+      const m = await createManualEntry(
+        tx,
+        w.user,
+        {
+          companyId: w.company,
+          startedAt: new Date('2026-04-15T08:00:00Z'),
+          endedAt: new Date('2026-04-15T09:00:00Z'),
+          note: 'initial note',
+        },
+        now,
+      );
+      if (!m.ok) throw new Error('setup');
+      const created = await tx.timeEntry.findUniqueOrThrow({ where: { id: m.value.id } });
+      expect(created.note).toBe('initial note');
+
+      // updateEntry with a note persists it and the audit `after` snapshot captures it.
+      const upd = await updateEntry(tx, w.user, m.value.id, { note: 'detail text' });
+      expect(upd.ok).toBe(true);
+      const reread = await tx.timeEntry.findUniqueOrThrow({ where: { id: m.value.id } });
+      expect(reread.note).toBe('detail text');
+      // description is untouched (note is a parallel field).
+      expect(reread.description).toBe(created.description);
+
+      const updateAudit = await tx.auditLog.findFirst({
+        where: { entityType: 'TimeEntry', entityId: m.value.id, action: 'update' },
+        orderBy: { createdAt: 'desc' },
+      });
+      expect((updateAudit?.after as { note?: string } | null)?.note).toBe('detail text');
+    });
+  });
+
   it('US-25: soft-deleting hides the entry from normal queries (US-47 too)', async () => {
     await withTx(async (tx) => {
       const w = await bootstrap(tx, 'us25');

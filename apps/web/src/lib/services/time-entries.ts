@@ -71,6 +71,7 @@ async function snapshot(db: Db, id: string): Promise<Record<string, unknown> | n
   if (!e) return null;
   return {
     description: e.description,
+    note: e.note,
     clientId: e.clientId,
     projectId: e.projectId,
     startedAt: e.startedAt.toISOString(),
@@ -167,6 +168,7 @@ export async function stopTimer(
 export interface ManualEntryInput extends StartTimerInput {
   startedAt: Date;
   endedAt: Date;
+  note?: string;
 }
 
 export async function createManualEntry(
@@ -184,6 +186,7 @@ export async function createManualEntry(
       userId: actorUserId,
       companyId: input.companyId,
       description: input.description ?? '',
+      note: input.note ?? '',
       clientId: input.clientId ?? null,
       projectId: input.projectId ?? null,
       startedAt: input.startedAt,
@@ -212,6 +215,7 @@ export async function createManualEntry(
 // --- Edit ---
 export interface UpdateEntryPatch {
   description?: string;
+  note?: string;
   clientId?: string | null;
   projectId?: string | null;
   startedAt?: Date;
@@ -246,6 +250,7 @@ export async function updateEntry(
 
   const update: Prisma.TimeEntryUpdateInput = {};
   if (patch.description !== undefined) update.description = patch.description;
+  if (patch.note !== undefined) update.note = patch.note;
   if (patch.clientId !== undefined)
     update.client =
       patch.clientId === null ? { disconnect: true } : { connect: { id: patch.clientId } };
@@ -451,6 +456,7 @@ export async function listRecentEntries(
 export interface HistoryEntry {
   id: string;
   description: string;
+  note: string;
   clientId: string | null;
   clientName: string | null;
   projectId: string | null;
@@ -501,6 +507,7 @@ export async function listRecentHistory(
     value: rows.map((r) => ({
       id: r.id,
       description: r.description,
+      note: r.note,
       clientId: r.clientId,
       clientName: r.client?.name ?? null,
       projectId: r.projectId,

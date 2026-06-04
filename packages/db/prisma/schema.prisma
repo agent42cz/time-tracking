@@ -187,6 +187,7 @@ model TimeEntry {
   clientId    String?   @map("client_id")
   projectId   String?   @map("project_id")
   description String    @default("")
+  note        String    @default("")
   startedAt   DateTime  @map("started_at")
   endedAt    DateTime? @map("ended_at")
   deletedAt   DateTime? @map("deleted_at")

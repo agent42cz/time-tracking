@@ -68,6 +68,29 @@ describe('POST /api/v1/entries', () => {
     });
   });
 
+  it('US-19: persists the separate note field on a manual entry', async () => {
+    await withTx(async (tx) => {
+      ctx.db = tx;
+      const user = await tx.user.create({ data: { email: 'mn-n@x.test', fullName: 'U' } });
+      const company = await createCompany(tx, { name: 'Mn Co Note', createdByUserId: user.id });
+      ctx.userId = user.id;
+      ctx.active = { companyId: company.id, role: 'admin' };
+
+      const res = await POST(
+        postReq({
+          description: 'Manual work',
+          note: 'a longer note',
+          startedAt: '2026-05-10T08:00:00.000Z',
+          endedAt: '2026-05-10T10:00:00.000Z',
+        }),
+      );
+      expect(res.status).toBe(200);
+      const json = (await res.json()) as { id: string };
+      const created = await tx.timeEntry.findUnique({ where: { id: json.id } });
+      expect(created?.note).toBe('a longer note');
+    });
+  });
+
   it('US-19: returns 404 when the active company is one the user does not belong to', async () => {
     await withTx(async (tx) => {
       ctx.db = tx;
