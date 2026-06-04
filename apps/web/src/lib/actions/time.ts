@@ -105,6 +105,70 @@ export async function updateEntryAction(
   return { ok: true };
 }
 
+export interface EntryEditContext {
+  entry: {
+    description: string;
+    clientId: string | null;
+    projectId: string | null;
+    tagIds: string[];
+    startedAt: string; // ISO
+    endedAt: string | null; // ISO
+  };
+  clients: { id: string; name: string; projects: { id: string; name: string }[] }[];
+  tags: { id: string; name: string; color: string }[];
+}
+
+export async function getEntryEditContextAction(
+  entryId: string,
+): Promise<{ ok: true; data: EntryEditContext } | { ok: false; error: string }> {
+  const s = await requireActiveCompany();
+  const entry = await prisma().timeEntry.findUnique({
+    where: { id: entryId },
+    include: { tags: true },
+  });
+  // Existence-safe: not-found / cross-company / non-owner-non-admin / deleted all
+  // collapse to the same not_found string updateEntryAction returns (no leaks).
+  if (
+    !entry ||
+    entry.deletedAt ||
+    entry.companyId !== s.activeCompanyId ||
+    (entry.userId !== s.userId && s.activeRole !== 'admin')
+  ) {
+    return { ok: false, error: 'Nelze upravit' };
+  }
+
+  const [clients, tags] = await Promise.all([
+    prisma().client.findMany({
+      where: { companyId: s.activeCompanyId, archived: false },
+      include: {
+        projects: { where: { archived: false }, orderBy: [{ sortOrder: 'asc' }, { name: 'asc' }] },
+      },
+      orderBy: [{ sortOrder: 'asc' }, { name: 'asc' }],
+    }),
+    prisma().tag.findMany({ where: { companyId: s.activeCompanyId }, orderBy: { name: 'asc' } }),
+  ]);
+
+  return {
+    ok: true,
+    data: {
+      entry: {
+        description: entry.description,
+        clientId: entry.clientId,
+        projectId: entry.projectId,
+        tagIds: entry.tags.map((t) => t.tagId),
+        startedAt: entry.startedAt.toISOString(),
+        endedAt: entry.endedAt?.toISOString() ?? null,
+      },
+      clients: clients.map((c) => ({
+        id: c.id,
+        name: c.name,
+        projects: c.projects.map((p) => ({ id: p.id, name: p.name })),
+      })),
+      tags: tags.map((t) => ({ id: t.id, name: t.name, color: t.color })),
+    },
+  };
+}
+
 export async function deleteEntryAction(entryId: string): Promise<ActionResult> {
   const s = await requireActiveCompany();
   const result = await softDeleteEntry(prisma(), s.userId, entryId);
