@@ -34,7 +34,7 @@ export function NewProjectSheet({
 
   return (
     <div className="absolute inset-0 z-20 flex flex-col bg-white dark:bg-zinc-900">
-      <div className="flex items-center justify-between border-b border-zinc-100 px-3 py-2 dark:border-zinc-700/60">
+      <div className="flex items-center justify-between border-b border-zinc-100 px-4 py-3 dark:border-zinc-700/60">
         <span className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">Nový projekt</span>
         <button
           type="button"
@@ -45,7 +45,7 @@ export function NewProjectSheet({
           ✕
         </button>
       </div>
-      <div className="space-y-2 overflow-y-auto p-3">
+      <div className="space-y-4 overflow-y-auto p-4">
         {error ? (
           <div className="rounded border border-red-200 bg-red-50 px-2 py-1 text-xs text-red-800 dark:border-red-900 dark:bg-red-950/40 dark:text-red-200">
             {error}
@@ -58,7 +58,7 @@ export function NewProjectSheet({
           <select
             value={clientId}
             onChange={(e) => setClientId(e.target.value)}
-            className="mt-0.5 block w-full rounded border border-zinc-200 bg-white px-2 py-1.5 text-xs text-zinc-900 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100"
+            className="mt-0.5 block w-full rounded border border-zinc-200 bg-white px-2 py-2 text-xs text-zinc-900 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100"
           >
             <option value="">— klient —</option>
             {catalog.clients.map((c) => (
@@ -76,7 +76,7 @@ export function NewProjectSheet({
             value={name}
             onChange={(e) => setName(e.target.value)}
             placeholder="Název projektu"
-            className="mt-0.5 block w-full rounded border border-zinc-200 bg-white px-2 py-1.5 text-sm text-zinc-900 placeholder:text-zinc-400 focus:border-zinc-900 focus:outline-none dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100 dark:placeholder:text-zinc-500 dark:focus:border-zinc-100"
+            className="mt-0.5 block w-full rounded border border-zinc-200 bg-white px-2 py-2 text-sm text-zinc-900 placeholder:text-zinc-400 focus:border-zinc-900 focus:outline-none dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100 dark:placeholder:text-zinc-500 dark:focus:border-zinc-100"
           />
         </label>
         <button

@@ -18,7 +18,7 @@ export type AutoStackPreviewDialogProps = {
   candidate: AutoStackActionInput['candidate'];
   onClose: () => void;
   onSaveWithoutShift: () => Promise<void> | void;
-  onShifted: (candidateId: string) => void;
+  onShifted: (candidateId: string) => void | Promise<void>;
 };
 
 function formatRange(startedAt: string, endedAt: string): string {
@@ -58,7 +58,7 @@ export function AutoStackPreviewDialog(props: AutoStackPreviewDialogProps): Reac
     startTransition(async () => {
       const result = await saveEntryWithAutoStackAction({ candidate, direction });
       if (result.ok) {
-        onShifted(result.candidateId);
+        await onShifted(result.candidateId);
         onClose();
       } else {
         setError(result.error);
