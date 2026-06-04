@@ -1,7 +1,7 @@
 import type { ReactElement } from 'react';
 import { useMemo, useState } from 'react';
 import type { CatalogResponse, ManualEntryApiInput, UpdateEntryPatch } from './api.js';
-import { fromLocalInput, toLocalInput } from './datetime.js';
+import { combineToIso, resolveWindow, toDateInput, toTimeInput } from './datetime.js';
 import { fmtDurationHM } from './format.js';
 
 export interface EntrySheetInitial {
@@ -30,17 +30,24 @@ export function EntrySheet(props: EntrySheetProps): ReactElement {
   const [clientId, setClientId] = useState(initial?.clientId ?? '');
   const [projectId, setProjectId] = useState(initial?.projectId ?? '');
   const [tagIds, setTagIds] = useState<string[]>(initial?.tagIds ?? []);
-  const [start, setStart] = useState(toLocalInput(initial?.startedAt ?? props.nowIso));
-  const [end, setEnd] = useState(initial?.endedAt ? toLocalInput(initial.endedAt) : '');
+  const [startDate, setStartDate] = useState(toDateInput(initial?.startedAt ?? props.nowIso));
+  const [startTime, setStartTime] = useState(toTimeInput(initial?.startedAt ?? props.nowIso));
+  const [endTime, setEndTime] = useState(initial?.endedAt ? toTimeInput(initial.endedAt) : '');
+  const [showDate, setShowDate] = useState(false);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const wasRunning = mode === 'edit' && initial?.endedAt == null;
 
+  const startIso = startTime ? combineToIso(startDate, startTime) : '';
+  const win = startTime && endTime ? resolveWindow(startDate, startTime, endTime) : null;
+  const endIso = win ? win.endIso : null;
+  const crossesMidnight = win?.nextDay ?? false;
+
   const workedMs = (() => {
-    if (!start) return 0;
-    const s = new Date(start).getTime();
-    const e = end ? new Date(end).getTime() : Date.now();
+    if (!startIso) return 0;
+    const s = new Date(startIso).getTime();
+    const e = endIso ? new Date(endIso).getTime() : Date.now();
     if (Number.isNaN(s) || Number.isNaN(e)) return 0;
     return Math.max(0, e - s);
   })();
@@ -57,14 +64,14 @@ export function EntrySheet(props: EntrySheetProps): ReactElement {
   async function submit(): Promise<void> {
     setPending(true);
     setError(null);
-    if (!start) {
+    if (!startTime) {
       setError('Vyplňte začátek');
       setPending(false);
       return;
     }
     try {
       if (mode === 'create') {
-        if (!end) {
+        if (!endTime) {
           setError('Vyplňte konec');
           setPending(false);
           return;
@@ -73,8 +80,8 @@ export function EntrySheet(props: EntrySheetProps): ReactElement {
           description,
           clientId: clientId || null,
           projectId: projectId || null,
-          startedAt: fromLocalInput(start),
-          endedAt: fromLocalInput(end),
+          startedAt: startIso,
+          endedAt: endIso!,
           tagIds,
         });
       } else if (initial) {
@@ -82,10 +89,10 @@ export function EntrySheet(props: EntrySheetProps): ReactElement {
           description,
           clientId: clientId || null,
           projectId: projectId || null,
-          startedAt: fromLocalInput(start),
+          startedAt: startIso,
           tagIds,
         };
-        if (!wasRunning || end) patch.endedAt = end ? fromLocalInput(end) : null;
+        if (!wasRunning || endTime) patch.endedAt = endTime ? endIso : null;
         await props.onSave(initial.id, patch);
       }
       props.onClose();
@@ -164,24 +171,48 @@ export function EntrySheet(props: EntrySheetProps): ReactElement {
               Začátek
             </span>
             <input
-              type="datetime-local"
-              value={start}
-              onChange={(e) => setStart(e.target.value)}
-              className="mt-0.5 block w-full rounded border border-zinc-200 bg-white px-2 py-2 text-xs text-zinc-900 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100"
+              type="time"
+              value={startTime}
+              onChange={(e) => setStartTime(e.target.value)}
+              className="mt-0.5 block w-full rounded border border-zinc-200 bg-white px-2 py-2 text-sm text-zinc-900 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100"
             />
           </label>
           <label className="block">
             <span className="text-[10px] uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
               Konec
+              {crossesMidnight ? (
+                <span className="ml-1 normal-case text-zinc-400">(+1 den)</span>
+              ) : null}
             </span>
             <input
-              type="datetime-local"
-              value={end}
-              onChange={(e) => setEnd(e.target.value)}
-              className="mt-0.5 block w-full rounded border border-zinc-200 bg-white px-2 py-2 text-xs text-zinc-900 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100"
+              type="time"
+              value={endTime}
+              onChange={(e) => setEndTime(e.target.value)}
+              className="mt-0.5 block w-full rounded border border-zinc-200 bg-white px-2 py-2 text-sm text-zinc-900 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100"
             />
           </label>
         </div>
+        {showDate ? (
+          <label className="block">
+            <span className="text-[10px] uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
+              Datum
+            </span>
+            <input
+              type="date"
+              value={startDate}
+              onChange={(e) => setStartDate(e.target.value)}
+              className="mt-0.5 block w-full rounded border border-zinc-200 bg-white px-2 py-2 text-xs text-zinc-900 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100"
+            />
+          </label>
+        ) : (
+          <button
+            type="button"
+            onClick={() => setShowDate(true)}
+            className="text-[10px] font-medium text-zinc-500 underline-offset-2 hover:underline dark:text-zinc-400"
+          >
+            Změnit datum
+          </button>
+        )}
         {catalog.tags.length > 0 ? (
           <div className="flex flex-wrap gap-1">
             {catalog.tags.map((t) => {
