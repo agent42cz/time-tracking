@@ -342,7 +342,20 @@ export function EditEntryDialog({
               setError(r.error);
             }
           }}
-          onShifted={() => {
+          onShifted={async () => {
+            // The shift action only persisted startedAt/endedAt; persist the
+            // non-time field edits too so they aren't silently dropped. These
+            // don't affect the time window, so no overlap re-check is needed.
+            const r = await updateEntryAction(entryId, {
+              description,
+              clientId: clientId || null,
+              projectId: projectId || null,
+              tagIds,
+            });
+            if (!r.ok) {
+              setError(r.error);
+              return;
+            }
             onSaved({
               startedAt: pendingCandidate.startedAt,
               endedAt: pendingCandidate.endedAt,
