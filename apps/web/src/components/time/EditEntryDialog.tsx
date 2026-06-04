@@ -32,6 +32,7 @@ interface Tag {
 
 interface EntryPatch {
   description: string;
+  note: string;
   clientId: string | null;
   projectId: string | null;
   tagIds: string[];
@@ -77,6 +78,7 @@ export function EditEntryDialog({
     initial.endedAt ? isoToLocalInput(initial.endedAt) : '',
   );
   const [description, setDescription] = useState('');
+  const [note, setNote] = useState('');
   const [clientId, setClientId] = useState('');
   const [projectId, setProjectId] = useState('');
   const [tagIds, setTagIds] = useState<string[]>([]);
@@ -113,6 +115,7 @@ export function EditEntryDialog({
       if (cancelled) return;
       if (r.ok) {
         setDescription(r.data.entry.description);
+        setNote(r.data.entry.note);
         setClientId(r.data.entry.clientId ?? '');
         setProjectId(r.data.entry.projectId ?? '');
         setTagIds(r.data.entry.tagIds);
@@ -135,6 +138,7 @@ export function EditEntryDialog({
   function buildPatch(startIso: string, endIso: string | null): EntryPatch {
     const patch: EntryPatch = {
       description,
+      note,
       clientId: clientId || null,
       projectId: projectId || null,
       tagIds,
@@ -219,11 +223,20 @@ export function EditEntryDialog({
         onCancel={onClose}
       >
         <div className="space-y-3 md:space-y-4">
-          <Field label={t('description')} htmlFor="edit-entry-description">
-            <Textarea
+          <Field label={t('name')} htmlFor="edit-entry-description">
+            <Input
               id="edit-entry-description"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
+              placeholder={t('namePlaceholder')}
+              disabled={loadingContext}
+            />
+          </Field>
+          <Field label={t('description')} htmlFor="edit-entry-note">
+            <Textarea
+              id="edit-entry-note"
+              value={note}
+              onChange={(e) => setNote(e.target.value)}
               placeholder={t('descriptionPlaceholder')}
               disabled={loadingContext}
               rows={3}
@@ -349,6 +362,7 @@ export function EditEntryDialog({
             // don't affect the time window, so no overlap re-check is needed.
             const r = await updateEntryAction(entryId, {
               description,
+              note,
               clientId: clientId || null,
               projectId: projectId || null,
               tagIds,

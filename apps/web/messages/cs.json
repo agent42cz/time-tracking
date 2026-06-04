@@ -61,8 +61,10 @@
   "timeEntry": {
     "edit": {
       "title": "Upravit záznam",
+      "name": "Název",
+      "namePlaceholder": "Co děláte?",
       "description": "Popis",
-      "descriptionPlaceholder": "Co děláte?",
+      "descriptionPlaceholder": "Podrobnější poznámka k záznamu…",
       "client": "Klient",
       "project": "Projekt",
       "tags": "Štítky",

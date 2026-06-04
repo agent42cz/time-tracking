@@ -75,6 +75,7 @@ export async function updateEntryAction(
   entryId: string,
   patch: {
     description?: string;
+    note?: string;
     clientId?: string | null;
     projectId?: string | null;
     tagIds?: string[];
@@ -85,6 +86,7 @@ export async function updateEntryAction(
   const s = await requireActiveCompany();
   const result = await updateEntry(prisma(), s.userId, entryId, {
     description: patch.description,
+    note: patch.note,
     clientId: patch.clientId ?? undefined,
     projectId: patch.projectId ?? undefined,
     tagIds: patch.tagIds,
