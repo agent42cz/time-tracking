@@ -16,26 +16,21 @@ export interface EntrySheetInitial {
 export interface EntrySheetProps {
   mode: 'edit' | 'create';
   catalog: CatalogResponse;
-  isAdmin: boolean;
   nowIso: string;
   initial?: EntrySheetInitial;
   onClose: () => void;
   onSave: (entryId: string, patch: UpdateEntryPatch) => Promise<void>;
   onCreate: (input: ManualEntryApiInput) => Promise<void>;
-  onCreateProject: (clientId: string, name: string) => Promise<{ id: string }>;
 }
 
 export function EntrySheet(props: EntrySheetProps): ReactElement {
-  const { mode, catalog, isAdmin, initial } = props;
+  const { mode, catalog, initial } = props;
   const [description, setDescription] = useState(initial?.description ?? '');
   const [clientId, setClientId] = useState(initial?.clientId ?? '');
   const [projectId, setProjectId] = useState(initial?.projectId ?? '');
   const [tagIds, setTagIds] = useState<string[]>(initial?.tagIds ?? []);
   const [start, setStart] = useState(toLocalInput(initial?.startedAt ?? props.nowIso));
   const [end, setEnd] = useState(initial?.endedAt ? toLocalInput(initial.endedAt) : '');
-  const [creatingProject, setCreatingProject] = useState(false);
-  const [newProjectName, setNewProjectName] = useState('');
-  const [projectPending, setProjectPending] = useState(false);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -47,22 +42,6 @@ export function EntrySheet(props: EntrySheetProps): ReactElement {
 
   function toggleTag(id: string): void {
     setTagIds((prev) => (prev.includes(id) ? prev.filter((t) => t !== id) : [...prev, id]));
-  }
-
-  async function addProject(): Promise<void> {
-    const name = newProjectName.trim();
-    if (!clientId || !name || projectPending) return;
-    setProjectPending(true);
-    try {
-      const created = await props.onCreateProject(clientId, name);
-      setProjectId(created.id);
-      setCreatingProject(false);
-      setNewProjectName('');
-    } catch {
-      setError('Projekt se nepodařilo vytvořit');
-    } finally {
-      setProjectPending(false);
-    }
   }
 
   async function submit(): Promise<void> {
@@ -139,7 +118,6 @@ export function EntrySheet(props: EntrySheetProps): ReactElement {
             onChange={(e) => {
               setClientId(e.target.value);
               setProjectId('');
-              setCreatingProject(false);
             }}
             className="rounded border border-zinc-200 bg-white px-2 py-1.5 text-xs text-zinc-900 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100"
           >
@@ -164,41 +142,6 @@ export function EntrySheet(props: EntrySheetProps): ReactElement {
             ))}
           </select>
         </div>
-        {isAdmin && clientId ? (
-          creatingProject ? (
-            <div className="flex gap-1">
-              <input
-                value={newProjectName}
-                onChange={(e) => setNewProjectName(e.target.value)}
-                placeholder="Název projektu"
-                className="block w-full rounded border border-zinc-200 bg-white px-2 py-1 text-xs text-zinc-900 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100"
-              />
-              <button
-                type="button"
-                onClick={() => void addProject()}
-                disabled={projectPending}
-                className="rounded bg-zinc-900 px-2 py-1 text-xs font-medium text-white dark:bg-zinc-100 dark:text-zinc-900"
-              >
-                Přidat
-              </button>
-              <button
-                type="button"
-                onClick={() => setCreatingProject(false)}
-                className="rounded border border-zinc-200 px-2 py-1 text-xs text-zinc-600 dark:border-zinc-600 dark:text-zinc-300"
-              >
-                ✕
-              </button>
-            </div>
-          ) : (
-            <button
-              type="button"
-              onClick={() => setCreatingProject(true)}
-              className="text-xs font-medium text-zinc-600 underline-offset-2 hover:underline dark:text-zinc-300"
-            >
-              + Nový projekt
-            </button>
-          )
-        ) : null}
         <div className="grid grid-cols-2 gap-2">
           <label className="block">
             <span className="text-[10px] uppercase tracking-wide text-zinc-500 dark:text-zinc-400">

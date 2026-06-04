@@ -27,6 +27,7 @@ import {
 import { fmtDurationHM } from './format.js';
 import { useExtensionSync } from './sync.js';
 import { EntrySheet, type EntrySheetInitial } from './EntrySheet.js';
+import { NewProjectSheet } from './NewProjectSheet.js';
 import { groupRecentByDay, type RecentEntryInput } from './recent.js';
 import {
   applyThemeClass,
@@ -408,6 +409,7 @@ function AppShell({
     mode: 'edit' | 'create';
     initial?: EntrySheetInitial;
   } | null>(null);
+  const [projectOpen, setProjectOpen] = useState(false);
   const isAdmin = useMemo(
     () => state.me.memberships.find((m) => m.companyId === state.timer.companyId)?.role === 'admin',
     [state.me.memberships, state.timer.companyId],
@@ -442,21 +444,14 @@ function AppShell({
         refreshing={refreshing}
         theme={theme}
         showStats={showStats}
+        onManualEntry={() => setSheet({ mode: 'create' })}
+        onNewProject={isAdmin ? () => setProjectOpen(true) : null}
         onRefresh={() => void onChange()}
         onSetTheme={handleSetTheme}
         onToggleStats={handleToggleStats}
         onLogout={onLogout}
       />
       <StartRow catalog={state.catalog} onStart={sync.executeStart} />
-      <div className="px-3 pb-2">
-        <button
-          type="button"
-          onClick={() => setSheet({ mode: 'create' })}
-          className="text-xs font-medium text-zinc-600 underline-offset-2 hover:underline dark:text-zinc-300"
-        >
-          + Přidat ručně
-        </button>
-      </div>
       <RunningList
         entries={state.timer.running}
         now={now}
@@ -474,13 +469,18 @@ function AppShell({
         <EntrySheet
           mode={sheet.mode}
           catalog={state.catalog}
-          isAdmin={isAdmin}
           nowIso={new Date(now).toISOString()}
           initial={sheet.initial}
           onClose={() => setSheet(null)}
           onSave={sync.executeUpdate}
           onCreate={sync.executeCreateManual}
-          onCreateProject={sync.executeCreateProject}
+        />
+      ) : null}
+      {projectOpen ? (
+        <NewProjectSheet
+          catalog={state.catalog}
+          onClose={() => setProjectOpen(false)}
+          onCreate={sync.executeCreateProject}
         />
       ) : null}
     </div>
@@ -505,6 +505,8 @@ function Header({
   refreshing,
   theme,
   showStats,
+  onManualEntry,
+  onNewProject,
   onRefresh,
   onSetTheme,
   onToggleStats,
@@ -518,6 +520,8 @@ function Header({
   refreshing: boolean;
   theme: ThemePreference;
   showStats: boolean;
+  onManualEntry: () => void;
+  onNewProject: (() => void) | null;
   onRefresh: () => void;
   onSetTheme: (t: ThemePreference) => void;
   onToggleStats: () => void;
@@ -570,6 +574,8 @@ function Header({
           apiBase={apiBase}
           theme={theme}
           showStats={showStats}
+          onManualEntry={onManualEntry}
+          onNewProject={onNewProject}
           onRefresh={onRefresh}
           onSetTheme={onSetTheme}
           onToggleStats={onToggleStats}
@@ -590,6 +596,8 @@ function MoreMenu({
   apiBase,
   theme,
   showStats,
+  onManualEntry,
+  onNewProject,
   onRefresh,
   onSetTheme,
   onToggleStats,
@@ -598,6 +606,8 @@ function MoreMenu({
   apiBase: string;
   theme: ThemePreference;
   showStats: boolean;
+  onManualEntry: () => void;
+  onNewProject: (() => void) | null;
   onRefresh: () => void;
   onSetTheme: (t: ThemePreference) => void;
   onToggleStats: () => void;
@@ -652,6 +662,38 @@ function MoreMenu({
           role="menu"
           className="absolute right-0 top-full z-10 mt-1 w-48 overflow-hidden rounded-md border border-zinc-200 bg-white shadow-lg dark:border-zinc-600 dark:bg-zinc-800"
         >
+          <div className="border-b border-zinc-100 dark:border-zinc-700">
+            <button
+              type="button"
+              role="menuitem"
+              onClick={() => {
+                onManualEntry();
+                setOpen(false);
+              }}
+              className="flex w-full items-center justify-between px-3 py-2 text-left text-xs text-zinc-700 hover:bg-zinc-50 dark:text-zinc-300 dark:hover:bg-zinc-700"
+            >
+              <span>Přidat ručně</span>
+              <span aria-hidden className="text-zinc-400 dark:text-zinc-500">
+                +
+              </span>
+            </button>
+            {onNewProject ? (
+              <button
+                type="button"
+                role="menuitem"
+                onClick={() => {
+                  onNewProject();
+                  setOpen(false);
+                }}
+                className="flex w-full items-center justify-between px-3 py-2 text-left text-xs text-zinc-700 hover:bg-zinc-50 dark:text-zinc-300 dark:hover:bg-zinc-700"
+              >
+                <span>Nový projekt</span>
+                <span aria-hidden className="text-zinc-400 dark:text-zinc-500">
+                  +
+                </span>
+              </button>
+            ) : null}
+          </div>
           <button
             type="button"
             role="menuitem"
