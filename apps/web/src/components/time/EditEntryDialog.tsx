@@ -4,7 +4,7 @@ import type { ReactElement } from 'react';
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
-import { ConfirmModal, Field, Input, Select } from '@tt/ui';
+import { ConfirmModal, Field, Input, Select, Textarea } from '@tt/ui';
 import { getEntryEditContextAction, updateEntryAction } from '@/lib/actions/time';
 import { checkOverlap } from './save-with-overlap-check';
 import { AutoStackPreviewDialog } from './AutoStackPreviewDialog';
@@ -220,12 +220,13 @@ export function EditEntryDialog({
       >
         <div className="space-y-3 md:space-y-4">
           <Field label={t('description')} htmlFor="edit-entry-description">
-            <Input
+            <Textarea
               id="edit-entry-description"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               placeholder={t('descriptionPlaceholder')}
               disabled={loadingContext}
+              rows={3}
             />
           </Field>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">

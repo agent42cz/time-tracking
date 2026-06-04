@@ -116,12 +116,18 @@ export function EntrySheet(props: EntrySheetProps): ReactElement {
             {error}
           </div>
         ) : null}
-        <input
-          value={description}
-          onChange={(e) => setDescription(e.target.value)}
-          placeholder="Co děláte?"
-          className="block w-full rounded border border-zinc-200 bg-white px-2 py-2 text-sm text-zinc-900 placeholder:text-zinc-400 focus:border-zinc-900 focus:outline-none dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100 dark:placeholder:text-zinc-500 dark:focus:border-zinc-100"
-        />
+        <label className="block">
+          <span className="text-[10px] uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
+            Popis
+          </span>
+          <textarea
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            placeholder="Co děláte?"
+            rows={3}
+            className="mt-0.5 block w-full resize-y rounded border border-zinc-200 bg-white px-2 py-2 text-sm text-zinc-900 placeholder:text-zinc-400 focus:border-zinc-900 focus:outline-none dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100 dark:placeholder:text-zinc-500 dark:focus:border-zinc-100"
+          />
+        </label>
         <div className="grid grid-cols-2 gap-3">
           <select
             value={clientId}
