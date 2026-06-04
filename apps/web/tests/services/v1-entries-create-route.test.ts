@@ -134,4 +134,23 @@ describe('POST /api/v1/entries', () => {
       expect(res.status).toBe(400);
     });
   });
+
+  it('returns 400 when note exceeds the 5000-char cap', async () => {
+    await withTx(async (tx) => {
+      ctx.db = tx;
+      const user = await tx.user.create({ data: { email: 'mn-long@x.test', fullName: 'U' } });
+      const company = await createCompany(tx, { name: 'Mn Co Long', createdByUserId: user.id });
+      ctx.userId = user.id;
+      ctx.active = { companyId: company.id, role: 'admin' };
+
+      const res = await POST(
+        postReq({
+          startedAt: '2026-05-10T08:00:00.000Z',
+          endedAt: '2026-05-10T10:00:00.000Z',
+          note: 'x'.repeat(5001),
+        }),
+      );
+      expect(res.status).toBe(400);
+    });
+  });
 });

@@ -40,7 +40,7 @@ toolRegistrars.push((server, ctx: ToolContext) => {
         entries: res.value.map((e) => ({
           id: e.id,
           description: e.description.length > 500 ? e.description.slice(0, 500) : e.description,
-          note: e.note,
+          note: e.note.length > 500 ? e.note.slice(0, 500) : e.note,
           startedAt: e.startedAt.toISOString(),
           endedAt: e.endedAt?.toISOString() ?? null,
           clientId: e.clientId,

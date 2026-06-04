@@ -31,6 +31,9 @@ export async function PATCH(
   } catch {
     return errorCors(req, 400, 'invalid_json');
   }
+  if ((body.description?.length ?? 0) > 5000 || (body.note?.length ?? 0) > 5000) {
+    return errorCors(req, 400, 'text_too_long');
+  }
 
   const patch: UpdateEntryPatch = {};
   if (body.description !== undefined) patch.description = body.description;

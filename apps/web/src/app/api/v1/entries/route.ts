@@ -38,6 +38,9 @@ export async function POST(req: NextRequest): Promise<Response> {
   if (Number.isNaN(startedAt.getTime()) || Number.isNaN(endedAt.getTime())) {
     return errorCors(req, 400, 'invalid_date');
   }
+  if ((body.description?.length ?? 0) > 5000 || (body.note?.length ?? 0) > 5000) {
+    return errorCors(req, 400, 'text_too_long');
+  }
 
   const result = await createManualEntry(prisma(), session.userId, {
     companyId: active.companyId,

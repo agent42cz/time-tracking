@@ -143,4 +143,21 @@ describe('PATCH /api/v1/entries/[id]', () => {
       expect(res.status).toBe(422);
     });
   });
+
+  it('returns 400 when note exceeds the 5000-char cap', async () => {
+    await withTx(async (tx) => {
+      ctx.db = tx;
+      const user = await tx.user.create({ data: { email: 'ed-long@x.test', fullName: 'U' } });
+      const company = await createCompany(tx, { name: 'Ed Co Long', createdByUserId: user.id });
+      const started = await startTimer(tx, user.id, { companyId: company.id, description: 'orig' });
+      if (!started.ok) throw new Error('setup');
+      ctx.userId = user.id;
+
+      const res = await PATCH(
+        patchReq(started.value.id, { note: 'x'.repeat(5001) }),
+        params(started.value.id),
+      );
+      expect(res.status).toBe(400);
+    });
+  });
 });
