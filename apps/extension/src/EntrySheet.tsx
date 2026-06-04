@@ -1,8 +1,35 @@
 import type { ReactElement } from 'react';
 import { useMemo, useState } from 'react';
-import type { CatalogResponse, ManualEntryApiInput, UpdateEntryPatch } from './api.js';
+import {
+  ApiError,
+  type CatalogResponse,
+  type ManualEntryApiInput,
+  type UpdateEntryPatch,
+} from './api.js';
 import { combineToIso, resolveWindow, toDateInput, toTimeInput } from './datetime.js';
 import { fmtDurationHM } from './format.js';
+
+/** Turn a failed save into a human-readable Czech reason instead of a generic message. */
+function saveErrorMessage(err: unknown): string {
+  if (err instanceof ApiError) {
+    switch (err.code) {
+      case 'future_timestamp':
+        return 'Čas nesmí být v budoucnosti.';
+      case 'invalid_window':
+        return 'Konec musí být po začátku.';
+      case 'no_company':
+        return 'Není vybrána firma.';
+      case 'not_found':
+        return 'Záznam nebyl nalezen.';
+      case 'missing_window':
+      case 'invalid_date':
+        return 'Vyplňte platný čas.';
+      default:
+        return `Uložení se nezdařilo (${err.status}${err.code ? ` ${err.code}` : ''}).`;
+    }
+  }
+  return 'Uložení se nezdařilo.';
+}
 
 export interface EntrySheetInitial {
   id: string;
@@ -96,8 +123,8 @@ export function EntrySheet(props: EntrySheetProps): ReactElement {
         await props.onSave(initial.id, patch);
       }
       props.onClose();
-    } catch {
-      setError('Uložení se nezdařilo');
+    } catch (err) {
+      setError(saveErrorMessage(err));
       setPending(false);
     }
   }
