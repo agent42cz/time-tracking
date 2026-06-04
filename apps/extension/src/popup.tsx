@@ -424,6 +424,7 @@ function AppShell({
       initial: {
         id: e.id,
         description: e.description,
+        note: e.note,
         clientId: e.clientId,
         projectId: e.projectId,
         startedAt: e.startedAt,

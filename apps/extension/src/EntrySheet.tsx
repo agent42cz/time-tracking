@@ -34,6 +34,7 @@ function saveErrorMessage(err: unknown): string {
 export interface EntrySheetInitial {
   id: string;
   description: string;
+  note: string;
   clientId: string | null;
   projectId: string | null;
   startedAt: string; // ISO
@@ -54,6 +55,7 @@ export interface EntrySheetProps {
 export function EntrySheet(props: EntrySheetProps): ReactElement {
   const { mode, catalog, initial } = props;
   const [description, setDescription] = useState(initial?.description ?? '');
+  const [note, setNote] = useState(initial?.note ?? '');
   const [clientId, setClientId] = useState(initial?.clientId ?? '');
   const [projectId, setProjectId] = useState(initial?.projectId ?? '');
   const [tagIds, setTagIds] = useState<string[]>(initial?.tagIds ?? []);
@@ -105,6 +107,7 @@ export function EntrySheet(props: EntrySheetProps): ReactElement {
         }
         await props.onCreate({
           description,
+          note,
           clientId: clientId || null,
           projectId: projectId || null,
           startedAt: startIso,
@@ -114,6 +117,7 @@ export function EntrySheet(props: EntrySheetProps): ReactElement {
       } else if (initial) {
         const patch: UpdateEntryPatch = {
           description,
+          note,
           clientId: clientId || null,
           projectId: projectId || null,
           startedAt: startIso,
@@ -152,12 +156,23 @@ export function EntrySheet(props: EntrySheetProps): ReactElement {
         ) : null}
         <label className="block">
           <span className="text-[10px] uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
-            Popis
+            Název
           </span>
-          <textarea
+          <input
             value={description}
             onChange={(e) => setDescription(e.target.value)}
             placeholder="Co děláte?"
+            className="mt-0.5 block w-full rounded border border-zinc-200 bg-white px-2 py-2 text-sm text-zinc-900 placeholder:text-zinc-400 focus:border-zinc-900 focus:outline-none dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100 dark:placeholder:text-zinc-500 dark:focus:border-zinc-100"
+          />
+        </label>
+        <label className="block">
+          <span className="text-[10px] uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
+            Popis
+          </span>
+          <textarea
+            value={note}
+            onChange={(e) => setNote(e.target.value)}
+            placeholder="Detailní popis (lze upravit i přes MCP)"
             rows={3}
             className="mt-0.5 block w-full resize-y rounded border border-zinc-200 bg-white px-2 py-2 text-sm text-zinc-900 placeholder:text-zinc-400 focus:border-zinc-900 focus:outline-none dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100 dark:placeholder:text-zinc-500 dark:focus:border-zinc-100"
           />

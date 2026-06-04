@@ -47,6 +47,7 @@ export interface CatalogResponse {
 export interface EntryDto {
   id: string;
   description: string;
+  note: string;
   clientId: string | null;
   clientName: string | null;
   projectId: string | null;
@@ -297,6 +298,7 @@ export async function playAgain(session: ApiSession, entryId: string): Promise<{
 
 export interface UpdateEntryPatch {
   description?: string;
+  note?: string;
   clientId?: string | null;
   projectId?: string | null;
   startedAt?: string; // ISO
@@ -319,6 +321,7 @@ export async function updateEntry(
 
 export interface ManualEntryApiInput {
   description?: string;
+  note?: string;
   clientId?: string | null;
   projectId?: string | null;
   startedAt: string; // ISO
