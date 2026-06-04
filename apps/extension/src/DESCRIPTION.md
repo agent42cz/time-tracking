@@ -19,6 +19,9 @@ The popup is a self-contained Vite + React app loaded by the MV3 manifest. It au
 | `sync.ts`         | Connects to `apps/ws`, applies incoming events to local state, wires reconnect via `packages/shared/src/ws/client.ts`.                                                   |
 | `queue.ts`        | The persistent FIFO offline queue. Commit-before-send so a browser kill mid-replay leaves a recoverable queue.                                                           |
 | `queue.test.ts`   | Vitest unit tests for the queue: in-order replay, conflict resolution, transient retry, browser-kill resume, pending-count surface for the unsynced indicator.           |
+| `EntrySheet.tsx`  | Overlay sheet for creating or editing a time entry inline; also supports inline admin project creation without leaving the popup.                                        |
+| `format.ts`       | Formatting helpers — `fmtDurationHM` converts a millisecond duration to a human-readable `Hh Mm` string.                                                                 |
+| `datetime.ts`     | Conversion helpers between `datetime-local` input values and ISO 8601 strings (used by `EntrySheet` to read/write date-time fields).                                     |
 
 ## Offline queue (the load-bearing piece)
 

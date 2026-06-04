@@ -76,6 +76,28 @@ A mutation flows like this:
 - Cross-company isolation is verified over a 3s window: zero events leak (US-31).
 - Reconnect uses exponential backoff in `packages/shared/src/ws/client.ts`.
 
+## REST API (v1)
+
+Token-authenticated REST surface consumed by the Chrome extension and external tools. All routes share the same auth / CORS helpers (`resolveApiSession`, `jsonCors`/`errorCors`/`corsPreflight` from `@/lib/api/cors`). Cross-company or not-found cases return **404** (existence-safe — not 403).
+
+| Method   | Path                              | Auth         | Description                                                                                                                          |
+| -------- | --------------------------------- | ------------ | ------------------------------------------------------------------------------------------------------------------------------------ |
+| `POST`   | `/api/v1/auth/login`              | public       | Exchange email + password for a session token.                                                                                       |
+| `POST`   | `/api/v1/auth/logout`             | token        | Invalidate the current session token.                                                                                                |
+| `GET`    | `/api/v1/me`                      | token        | Return the authenticated user's profile and active company.                                                                          |
+| `PATCH`  | `/api/v1/me`                      | token        | Update profile fields (e.g. theme preference).                                                                                       |
+| `GET`    | `/api/v1/timer`                   | token        | Running timers + history (start-of-last-month..end-of-this-month) + this-week/month/last-month summary — drives the extension popup. |
+| `POST`   | `/api/v1/timer`                   | token        | Start a new running timer in the active company (`?company=`).                                                                       |
+| `POST`   | `/api/v1/timer/[id]/stop`         | token        | Stop the running timer identified by `id`; 404 if not found or cross-company.                                                        |
+| `GET`    | `/api/v1/catalog`                 | token        | Return active clients (with projects) and tags for the active company (`?company=`).                                                 |
+| `POST`   | `/api/v1/entries`                 | token        | Create a manual (completed) entry in the active company (`?company=`); 422 if window invalid (`end ≤ start` or future).              |
+| `PATCH`  | `/api/v1/entries/[id]`            | token        | Edit an entry (owner or admin); 404 cross-company; 422 invalid window.                                                               |
+| `DELETE` | `/api/v1/entries/[id]`            | token        | Soft-delete an entry (owner or admin); 404 cross-company.                                                                            |
+| `POST`   | `/api/v1/entries/[id]/play-again` | token        | Start a new timer pre-filled from the entry identified by `id`.                                                                      |
+| `POST`   | `/api/v1/projects`                | token, admin | Create a project under an existing client (admin-only); 404 if non-admin or client is cross-company. Writes one audit row.           |
+
+Every mutation (start/stop/create/edit/delete/play-again/create-project) writes exactly one audit row and publishes a WS event to Redis. The `/api/v1/auth/*` routes are public; all others require a bearer token from `chrome.storage.local` or an API-token header (`tt_pat_…`).
+
 ## Build log
 
 The chronological v1 build is recorded in [`build-log.md`](build-log.md) — useful as archaeological context but not load-bearing for present-day work.
