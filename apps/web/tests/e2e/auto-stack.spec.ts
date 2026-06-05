@@ -106,22 +106,65 @@ async function seedRunningEntry(opts: {
   return entry.id;
 }
 
+/**
+ * An overlapping seed + candidate window anchored to the recent past.
+ *
+ * The app rejects entries whose endedAt is more than 60s in the future
+ * (services/time-entries.ts:62 and services/auto-stack.ts:59). Hardcoding
+ * wall-clock times like 09:30–10:30 made these tests pass only when CI ran after
+ * that hour and fail every morning. Deriving the window from `now` keeps the
+ * candidate's end safely in the past whatever time CI runs.
+ *
+ * Layout mirrors the original (seed 09:00–10:00, candidate 09:30–10:30):
+ *   seed:      [now-120m, now-60m]
+ *   candidate: [now-90m,  now-30m]   ← ends 30 min in the past
+ *   overlap:   [now-90m,  now-60m]
+ *
+ * Assumes CI runs at least ~2h into the local day (TZ is pinned to
+ * Europe/Prague); a run between midnight and ~02:00 would push it into yesterday.
+ */
+function pastOverlapWindow(): {
+  seed: { startHour: number; startMinute: number; endHour: number; endMinute: number };
+  from: string;
+  to: string;
+} {
+  const MIN = 60_000;
+  const now = new Date();
+  const candidateTo = new Date(now.getTime() - 30 * MIN);
+  const candidateFrom = new Date(candidateTo.getTime() - 60 * MIN);
+  const seedStart = new Date(candidateFrom.getTime() - 30 * MIN);
+  const seedEnd = new Date(candidateTo.getTime() - 30 * MIN);
+  const hhmm = (d: Date): string =>
+    `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+  return {
+    seed: {
+      startHour: seedStart.getHours(),
+      startMinute: seedStart.getMinutes(),
+      endHour: seedEnd.getHours(),
+      endMinute: seedEnd.getMinutes(),
+    },
+    from: hhmm(candidateFrom),
+    to: hhmm(candidateTo),
+  };
+}
+
 // ─── tests ──────────────────────────────────────────────────────────────────
 
 test('US-65: with setting OFF, saving an overlapping entry shows no dialog', async ({ page }) => {
   await setAutoStackOverlaps(false);
 
-  // Seed existing closed entry 09:00–10:00
-  await seedClosedEntry({ startHour: 9, endHour: 10 });
+  // Overlapping seed + candidate, anchored to the recent past (see helper).
+  const slot = pastOverlapWindow();
+  await seedClosedEntry(slot.seed);
 
   await page.goto('/timer');
 
   // Open manual form
   await page.getByRole('button', { name: 'Přidat ručně' }).click();
 
-  // Fill overlapping entry 09:30–10:30
-  await page.locator('input[name="from"]').fill('09:30');
-  await page.locator('input[name="to"]').fill('10:30');
+  // Fill overlapping candidate entry
+  await page.locator('input[name="from"]').fill(slot.from);
+  await page.locator('input[name="to"]').fill(slot.to);
 
   // Submit — label is "Uložit záznam" per TimerStartCard.tsx
   await page.getByRole('button', { name: 'Uložit záznam' }).click();
@@ -138,17 +181,18 @@ test('US-67/US-68: forward direction stacks the candidate after existing entry',
 }) => {
   await setAutoStackOverlaps(true);
 
-  // Seed existing closed entry 09:00–10:00
-  await seedClosedEntry({ startHour: 9, endHour: 10 });
+  // Overlapping seed + candidate, anchored to the recent past (see helper).
+  const slot = pastOverlapWindow();
+  await seedClosedEntry(slot.seed);
 
   await page.goto('/timer');
 
   // Open manual form
   await page.getByRole('button', { name: 'Přidat ručně' }).click();
 
-  // Fill overlapping entry 09:30–10:30
-  await page.locator('input[name="from"]').fill('09:30');
-  await page.locator('input[name="to"]').fill('10:30');
+  // Fill overlapping candidate entry
+  await page.locator('input[name="from"]').fill(slot.from);
+  await page.locator('input[name="to"]').fill(slot.to);
 
   // Submit
   await page.getByRole('button', { name: 'Uložit záznam' }).click();
@@ -166,17 +210,18 @@ test('US-67/US-68: forward direction stacks the candidate after existing entry',
 test('US-69: "Uložit bez posunu" saves without shifting entries', async ({ page }) => {
   await setAutoStackOverlaps(true);
 
-  // Seed existing closed entry 09:00–10:00
-  await seedClosedEntry({ startHour: 9, endHour: 10 });
+  // Overlapping seed + candidate, anchored to the recent past (see helper).
+  const slot = pastOverlapWindow();
+  await seedClosedEntry(slot.seed);
 
   await page.goto('/timer');
 
   // Open manual form
   await page.getByRole('button', { name: 'Přidat ručně' }).click();
 
-  // Fill overlapping entry 09:30–10:30
-  await page.locator('input[name="from"]').fill('09:30');
-  await page.locator('input[name="to"]').fill('10:30');
+  // Fill overlapping candidate entry
+  await page.locator('input[name="from"]').fill(slot.from);
+  await page.locator('input[name="to"]').fill(slot.to);
 
   // Submit
   await page.getByRole('button', { name: 'Uložit záznam' }).click();
@@ -197,17 +242,18 @@ test('US-69: "Uložit bez posunu" saves without shifting entries', async ({ page
 test('US-75: switch direction toggle to backward and confirm shift', async ({ page }) => {
   await setAutoStackOverlaps(true);
 
-  // Seed existing closed entry 09:00–10:00
-  await seedClosedEntry({ startHour: 9, endHour: 10 });
+  // Overlapping seed + candidate, anchored to the recent past (see helper).
+  const slot = pastOverlapWindow();
+  await seedClosedEntry(slot.seed);
 
   await page.goto('/timer');
 
   // Open manual form
   await page.getByRole('button', { name: 'Přidat ručně' }).click();
 
-  // Fill overlapping entry 09:30–10:30
-  await page.locator('input[name="from"]').fill('09:30');
-  await page.locator('input[name="to"]').fill('10:30');
+  // Fill overlapping candidate entry
+  await page.locator('input[name="from"]').fill(slot.from);
+  await page.locator('input[name="to"]').fill(slot.to);
 
   // Submit
   await page.getByRole('button', { name: 'Uložit záznam' }).click();
