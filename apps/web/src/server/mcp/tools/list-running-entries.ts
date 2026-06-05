@@ -7,8 +7,8 @@ const InputSchema = z.object({}).strict();
 
 const EntrySchema = z.object({
   id: z.string(),
+  title: z.string(),
   description: z.string(),
-  note: z.string(),
   startedAt: z.string(),
   clientId: z.string().nullable(),
   projectId: z.string().nullable(),
@@ -38,8 +38,8 @@ toolRegistrars.push((server, ctx: ToolContext) => {
       const payload = {
         entries: res.value.map((e) => ({
           id: e.id,
-          description: e.description,
-          note: e.note,
+          title: e.description,
+          description: e.note,
           startedAt: e.startedAt.toISOString(),
           clientId: e.clientId,
           projectId: e.projectId,

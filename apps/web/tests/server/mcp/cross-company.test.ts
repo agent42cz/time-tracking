@@ -58,7 +58,7 @@ describe('mcp cross-company not_found', () => {
       try {
         const out = await m.client.callTool({
           name: 'update_entry',
-          arguments: { entryId: a.value.id, description: 'x' },
+          arguments: { entryId: a.value.id, title: 'x' },
         });
         expect(out.isError).toBe(true);
         expect((out.structuredContent as { code: string }).code).toBe('not_found');

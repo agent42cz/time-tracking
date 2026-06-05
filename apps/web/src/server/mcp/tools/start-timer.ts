@@ -5,7 +5,7 @@ import { toolRegistrars, type ToolContext } from './registry.js';
 
 const InputSchema = z
   .object({
-    description: z.string().max(2000).optional(),
+    title: z.string().max(2000).optional(),
     clientId: z.string().optional(),
     projectId: z.string().optional(),
     tagIds: z.array(z.string()).max(20).optional(),
@@ -20,7 +20,7 @@ toolRegistrars.push((server, ctx: ToolContext) => {
     {
       title: 'Start a timer',
       description:
-        'Starts a new running time entry. Other already-running timers (US-21) are left alone. Optional `description`, `clientId`, `projectId`, `tagIds`.',
+        'Starts a new running time entry. Other already-running timers (US-21) are left alone. Optional `title` (the entry name), `clientId`, `projectId`, `tagIds`. Use `update_entry` afterwards to set the longer `description`.',
       inputSchema: InputSchema.shape,
       outputSchema: OutputSchema.shape,
     },
@@ -30,7 +30,7 @@ toolRegistrars.push((server, ctx: ToolContext) => {
         ctx.auth.userId,
         {
           companyId: ctx.auth.companyId,
-          description: args.description,
+          description: args.title,
           clientId: args.clientId,
           projectId: args.projectId,
           tagIds: args.tagIds,

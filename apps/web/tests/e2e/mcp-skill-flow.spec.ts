@@ -68,7 +68,7 @@ test.describe('MCP server (US-55, US-57)', () => {
       // start_timer happy path.
       const start = await client.callTool({
         name: 'start_timer',
-        arguments: { description: 'e2e mcp ping' },
+        arguments: { title: 'e2e mcp ping' },
       });
       expect(start.isError).toBeFalsy();
       const { id } = start.structuredContent as { id: string };

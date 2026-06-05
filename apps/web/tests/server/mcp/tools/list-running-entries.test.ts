@@ -34,7 +34,7 @@ describe('mcp tool: list_running_entries', () => {
         const out = await m.client.callTool({ name: 'list_running_entries', arguments: {} });
         expect(out.isError).toBeFalsy();
         expect(out.structuredContent).toMatchObject({
-          entries: [{ id: b.value.id, description: 'B', note: 'running note' }],
+          entries: [{ id: b.value.id, title: 'B', description: 'running note' }],
         });
       } finally {
         await m.close();

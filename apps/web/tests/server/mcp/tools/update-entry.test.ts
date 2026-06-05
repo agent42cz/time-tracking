@@ -20,7 +20,7 @@ async function setup(tx: Prisma.TransactionClient, suffix: string) {
 }
 
 describe('mcp tool: update_entry', () => {
-  it('US-59: updates description and writes one audit row with source=mcp', async () => {
+  it('US-59: updates the title and writes one audit row with source=mcp', async () => {
     await withTx(async (tx) => {
       const w = await setup(tx, '59');
       const a = await startTimer(tx, w.userId, { companyId: w.companyId, description: 'old' });
@@ -33,7 +33,7 @@ describe('mcp tool: update_entry', () => {
       try {
         const out = await m.client.callTool({
           name: 'update_entry',
-          arguments: { entryId: a.value.id, description: 'new' },
+          arguments: { entryId: a.value.id, title: 'new' },
         });
         expect(out.isError).toBeFalsy();
       } finally {
@@ -54,7 +54,7 @@ describe('mcp tool: update_entry', () => {
     });
   });
 
-  it('US-24: sets the separate note field', async () => {
+  it('US-24: sets the separate description (note) field', async () => {
     await withTx(async (tx) => {
       const w = await setup(tx, 'note');
       const a = await startTimer(tx, w.userId, { companyId: w.companyId, description: 'old' });
@@ -64,7 +64,7 @@ describe('mcp tool: update_entry', () => {
       try {
         const out = await m.client.callTool({
           name: 'update_entry',
-          arguments: { entryId: a.value.id, note: 'detail text' },
+          arguments: { entryId: a.value.id, description: 'detail text' },
         });
         expect(out.isError).toBeFalsy();
       } finally {
@@ -72,8 +72,9 @@ describe('mcp tool: update_entry', () => {
       }
 
       const updated = await tx.timeEntry.findUniqueOrThrow({ where: { id: a.value.id } });
+      // MCP `description` maps to the DB `note` column (the longer free-text detail).
       expect(updated.note).toBe('detail text');
-      // description is untouched (note is a parallel field).
+      // The title (DB `description` column) is untouched — it is a parallel field.
       expect(updated.description).toBe('old');
     });
   });

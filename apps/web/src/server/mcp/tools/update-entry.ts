@@ -6,8 +6,8 @@ import { toolRegistrars, type ToolContext } from './registry.js';
 const InputSchema = z
   .object({
     entryId: z.string().min(1),
+    title: z.string().max(5000).optional(),
     description: z.string().max(5000).optional(),
-    note: z.string().max(5000).optional(),
     clientId: z.string().nullable().optional(),
     projectId: z.string().nullable().optional(),
     tagIds: z.array(z.string()).max(20).optional(),
@@ -22,7 +22,7 @@ toolRegistrars.push((server, ctx: ToolContext) => {
     {
       title: 'Update a time entry',
       description:
-        'Updates fields on a specific time entry identified by `entryId`. Pass `null` for `clientId`/`projectId` to clear the link. `tagIds` replaces the full tag set.',
+        'Updates fields on a specific time entry identified by `entryId`. `title` is the entry name; `description` is the longer free-text detail. Pass `null` for `clientId`/`projectId` to clear the link. `tagIds` replaces the full tag set.',
       inputSchema: InputSchema.shape,
       outputSchema: OutputSchema.shape,
     },
@@ -32,8 +32,8 @@ toolRegistrars.push((server, ctx: ToolContext) => {
         ctx.auth.userId,
         args.entryId,
         {
-          description: args.description,
-          note: args.note,
+          description: args.title,
+          note: args.description,
           clientId: args.clientId,
           projectId: args.projectId,
           tagIds: args.tagIds,

@@ -33,7 +33,7 @@ describe('mcp tool: list_recent_entries', () => {
         ids.push(r.value.id);
         await stopTimer(tx, w.userId, r.value.id);
       }
-      // Newest entry carries a note — it must surface on the row.
+      // Newest entry carries a note — it must surface as `description` on the row.
       await updateEntry(tx, w.userId, ids[2]!, { note: 'recent note' });
       const m = await buildInProcessMcp({ db: tx, userId: w.userId, companyId: w.companyId });
       try {
@@ -42,17 +42,18 @@ describe('mcp tool: list_recent_entries', () => {
           arguments: { limit: 2 },
         });
         expect(out.isError).toBeFalsy();
-        const entries = (out.structuredContent as { entries: { id: string; note: string }[] })
-          .entries;
+        const entries = (
+          out.structuredContent as { entries: { id: string; description: string }[] }
+        ).entries;
         expect(entries.map((e) => e.id)).toEqual([ids[2], ids[1]]);
-        expect(entries[0]!.note).toBe('recent note');
+        expect(entries[0]!.description).toBe('recent note');
       } finally {
         await m.close();
       }
     });
   });
 
-  it('caps limit at 50 and truncates description to 500 chars', async () => {
+  it('caps limit at 50 and truncates title to 500 chars', async () => {
     await withTx(async (tx) => {
       const w = await setup(tx, 'cap');
       const long = 'x'.repeat(1000);
@@ -69,8 +70,8 @@ describe('mcp tool: list_recent_entries', () => {
         // limit > 50 should NOT be rejected by Zod (server caps it). Adjust if your
         // Zod input schema rejects values >50 — see note below.
         expect(out.isError).toBeFalsy();
-        const entries = (out.structuredContent as { entries: { description: string }[] }).entries;
-        expect(entries[0]!.description.length).toBe(500);
+        const entries = (out.structuredContent as { entries: { title: string }[] }).entries;
+        expect(entries[0]!.title.length).toBe(500);
       } finally {
         await m.close();
       }

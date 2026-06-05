@@ -26,14 +26,14 @@ When the limit is exceeded the server returns **HTTP 429** with a `Retry-After` 
 
 ## Tools
 
-| Tool                   | Description                                                                                                                                                                 |
-| ---------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `list_running_entries` | Returns all currently running (no `endTime`) entries for the authenticated user. Returns an empty array when none are running.                                              |
-| `list_recent_entries`  | Returns the N most recent entries (running or stopped) for the authenticated user, newest first.                                                                            |
-| `start_timer`          | Opens a new running entry with an optional description, client/project, and tags. Broadcasts `timer.started` over WebSocket.                                                |
-| `stop_timer`           | Stops the entry identified by `entryId`. Requires the entry to belong to the authenticated user's company. Broadcasts `timer.stopped`.                                      |
-| `update_entry`         | Patches one or more fields (description, clientId, projectId, tagIds, startTime, endTime) of the entry identified by `entryId`. Writes one audit row with `source = 'mcp'`. |
-| `list_catalog`         | Returns the full list of active clients, projects, and tags for the authenticated company — useful for resolving names to IDs before calling other tools.                   |
+| Tool                   | Description                                                                                                                                                                                                                                 |
+| ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `list_running_entries` | Returns all currently running (no `endTime`) entries for the authenticated user. Returns an empty array when none are running.                                                                                                              |
+| `list_recent_entries`  | Returns the N most recent entries (running or stopped) for the authenticated user, newest first.                                                                                                                                            |
+| `start_timer`          | Opens a new running entry with an optional `title`, client/project, and tags. Broadcasts `timer.started` over WebSocket.                                                                                                                    |
+| `stop_timer`           | Stops the entry identified by `entryId`. Requires the entry to belong to the authenticated user's company. Broadcasts `timer.stopped`.                                                                                                      |
+| `update_entry`         | Patches one or more fields (`title`, `description`, clientId, projectId, tagIds) of the entry identified by `entryId`. `title` is the entry name; `description` is the longer free-text detail. Writes one audit row with `source = 'mcp'`. |
+| `list_catalog`         | Returns the full list of active clients, projects, and tags for the authenticated company — useful for resolving names to IDs before calling other tools.                                                                                   |
 
 ## Error codes
 
@@ -70,7 +70,7 @@ This is the primary use-case the MCP server was designed for. The Plane side (ma
 
 1. **List running timers** — call `list_running_entries` to see what's currently tracked. Pick the entry you want to update (note its `id`).
 2. **Resolve catalog IDs if needed** — call `list_catalog` once to get the `clientId`/`projectId` for the work you're logging against.
-3. **Patch the description** — call `update_entry` with the chosen `entryId` and a `description` that embeds the Plane work-item identifier and the relevant commit SHA. For example:
+3. **Patch the title** — call `update_entry` with the chosen `entryId` and a `title` that embeds the Plane work-item identifier and the relevant commit SHA (use `description` for any longer free-text detail). For example:
    ```
    TT-42 — implement rate-limit middleware (abc1234)
    ```

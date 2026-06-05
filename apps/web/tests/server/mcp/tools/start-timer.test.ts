@@ -28,7 +28,7 @@ describe('mcp tool: start_timer', () => {
       try {
         const out = await m.client.callTool({
           name: 'start_timer',
-          arguments: { description: 'driving from MCP' },
+          arguments: { title: 'driving from MCP' },
         });
         expect(out.isError).toBeFalsy();
         const { id } = out.structuredContent as { id: string };
