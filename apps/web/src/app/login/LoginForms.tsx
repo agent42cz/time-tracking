@@ -126,7 +126,27 @@ export function LoginForms({ next }: { next: string | null }): ReactElement {
             <Field label="E-mail" htmlFor="email">
               <Input id="email" name="email" type="email" autoComplete="email" required />
             </Field>
-            <Field label="Heslo" htmlFor="password">
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between gap-2">
+                <label
+                  htmlFor="password"
+                  className="block text-sm font-medium text-zinc-700 dark:text-zinc-300"
+                >
+                  Heslo
+                </label>
+                {/* Kept on the label row, out of the autofill drop zone below the submit
+                    button, so 1Password's inline menu can't click-through into reset mode. */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMode('reset');
+                    setError(null);
+                  }}
+                  className="text-xs text-zinc-500 dark:text-zinc-400 underline hover:text-zinc-700 dark:hover:text-zinc-300"
+                >
+                  Zapomněli jste heslo?
+                </button>
+              </div>
               <Input
                 id="password"
                 name="password"
@@ -134,20 +154,10 @@ export function LoginForms({ next }: { next: string | null }): ReactElement {
                 autoComplete="current-password"
                 required
               />
-            </Field>
+            </div>
             <Button type="submit" loading={pending} className="w-full">
               Přihlásit se
             </Button>
-            <button
-              type="button"
-              onClick={() => {
-                setMode('reset');
-                setError(null);
-              }}
-              className="mt-1 block w-full text-center text-xs text-zinc-500 dark:text-zinc-400 underline hover:text-zinc-700 dark:hover:text-zinc-300"
-            >
-              Zapomněli jste heslo?
-            </button>
           </FieldGroup>
         </form>
       ) : null}
