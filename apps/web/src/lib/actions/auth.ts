@@ -9,9 +9,13 @@ import { acceptInviteAsExistingUser, acceptInviteAsNewUser } from '../auth/signu
 import { beginEnrollment, confirmEnrollment, disableTotp } from '../auth/totp-enrollment.js';
 import { hashPassword, verifyPassword } from '../auth/passwords.js';
 import { magicLinkEmail, passwordResetEmail, sendMail } from '../email.js';
+import { checkEmailSendAllowed, recordEmailSend } from '../auth/email-rate-limit.js';
+import type { EmailSendKind } from '../auth/email-rate-limit.js';
+import { clientIpFrom } from '../auth/client-ip.js';
+import { safeNextPath } from '../auth/safe-next.js';
 import { clearSessionCookie, prisma, setActiveCompany, setSessionCookie } from '../session.js';
 import { createSession, invalidateSession } from '../auth/sessions.js';
-import { cookies } from 'next/headers';
+import { cookies, headers } from 'next/headers';
 import { SESSION_COOKIE } from '../session.js';
 
 export type ActionResult = { ok: true } | { ok: false; error: string };
@@ -23,15 +27,17 @@ export type PasswordLoginActionResult = {
 };
 
 /**
- * Allowlist for the post-login redirect target. Must be a same-origin path
- * (starts with `/`, no `//` to dodge protocol-relative URLs). Anything else
- * falls back to /timer to prevent open-redirect to phishing.
+ * Rate-limit gate for outbound auth emails. Runs before the user lookup so
+ * probing nonexistent emails counts too and the block message can't be used
+ * as an enumeration oracle. Returns the error result when blocked, null when
+ * the send may proceed (the attempt is then already recorded).
  */
-function safeNextPath(input: string | null | undefined): string {
-  if (!input) return '/timer';
-  if (!input.startsWith('/')) return '/timer';
-  if (input.startsWith('//')) return '/timer';
-  return input;
+async function guardEmailSend(email: string, kind: EmailSendKind): Promise<ActionResult | null> {
+  const ip = clientIpFrom(await headers());
+  const limit = await checkEmailSendAllowed(prisma(), { email, ip });
+  if (!limit.allowed) return { ok: false, error: 'Příliš mnoho žádostí, zkuste to později' };
+  await recordEmailSend(prisma(), { kind, email, ip });
+  return null;
 }
 
 export async function passwordLoginAction(formData: FormData): Promise<PasswordLoginActionResult> {
@@ -59,6 +65,8 @@ export async function passwordLoginAction(formData: FormData): Promise<PasswordL
 
 export async function magicLinkSendAction(formData: FormData): Promise<ActionResult> {
   const email = String(formData.get('email') ?? '').toLowerCase();
+  const blocked = await guardEmailSend(email, 'magic_link');
+  if (blocked) return blocked;
   const user = await prisma().user.findUnique({ where: { email } });
   // Always claim success to avoid email enumeration.
   if (!user) return { ok: true };
@@ -72,6 +80,8 @@ export async function magicLinkSendAction(formData: FormData): Promise<ActionRes
 
 export async function passwordResetSendAction(formData: FormData): Promise<ActionResult> {
   const email = String(formData.get('email') ?? '').toLowerCase();
+  const blocked = await guardEmailSend(email, 'password_reset');
+  if (blocked) return blocked;
   const user = await prisma().user.findUnique({ where: { email } });
   // Always claim success to avoid email enumeration.
   if (!user) return { ok: true };

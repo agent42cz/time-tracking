@@ -310,6 +310,21 @@ model PasswordLoginAttempt {
   @@map("password_login_attempts")
 }
 
+// Outbound auth-email requests (password reset, magic link) for rate
+// limiting. Rows are written for every request — even for unknown emails —
+// so probing can't dodge the limiter (AIAGE-39).
+model EmailSendAttempt {
+  id        String   @id @default(cuid())
+  kind      String // 'password_reset' | 'magic_link'
+  email     String
+  ip        String?
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([email, createdAt])
+  @@index([ip, createdAt])
+  @@map("email_send_attempts")
+}
+
 model MagicLink {
   id        String    @id @default(cuid())
   userId    String    @map("user_id")

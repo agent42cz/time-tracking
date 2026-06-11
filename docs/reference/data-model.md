@@ -55,10 +55,11 @@ AuditLog
 
 ## Auth helpers (Auth.js v5 + custom)
 
-In addition to Auth.js's standard tables (`User`, `Account`, `Session`, `VerificationToken`), three app-specific tables back custom flows:
+In addition to Auth.js's standard tables (`User`, `Account`, `Session`, `VerificationToken`), four app-specific tables back custom flows:
 
 - **`MagicLink`** — single-use email login tokens (15-min expiry, SHA-256 hash on the token).
 - **`PasswordLoginAttempt`** — sliding-window counter for password rate-limit / lockout.
+- **`EmailSendAttempt`** — sliding-window counter for outbound auth emails (password reset + magic link), per target email and per source IP; rows are written even for unknown emails so the limiter can't be probed around.
 - **`TotpRecoveryCode`** — 10 single-use recovery codes generated on TOTP enable.
 
 ## Cascading rules on delete

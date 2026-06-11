@@ -3,6 +3,7 @@ import { loginWithPassword } from '@/lib/auth/login';
 import { prisma } from '@/lib/session';
 import { corsPreflight, errorCors, jsonCors } from '@/lib/api/cors';
 import { checkIpRateLimit } from '@/lib/api/rate-limit-ip';
+import { clientIpFrom } from '@/lib/auth/client-ip';
 
 export const dynamic = 'force-dynamic';
 
@@ -11,7 +12,7 @@ export function OPTIONS(req: NextRequest): Response {
 }
 
 export async function POST(req: NextRequest): Promise<Response> {
-  const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ?? null;
+  const ip = clientIpFrom(req.headers);
   const bucket = await checkIpRateLimit(ip);
   if (!bucket.ok) {
     return errorCors(req, 429, 'too_many_requests');
