@@ -274,6 +274,38 @@ test('US-75: switch direction toggle to backward and confirm shift', async ({ pa
   await expect(page.getByText('Tento záznam se překrývá s ostatními.')).toBeHidden();
 });
 
+test('US-84: manual (Ručně) tab is available and applies a manual rearrangement', async ({
+  page,
+}) => {
+  await setAutoStackOverlaps(true);
+
+  // Overlapping seed + candidate, anchored to the recent past (see helper).
+  const slot = pastOverlapWindow();
+  await seedClosedEntry(slot.seed);
+
+  await page.goto('/timer');
+
+  // Open the manual form and fill the overlapping candidate
+  await page.getByRole('button', { name: 'Přidat ručně' }).click();
+  await page.locator('input[name="from"]').fill(slot.from);
+  await page.locator('input[name="to"]').fill(slot.to);
+  await page.getByRole('button', { name: 'Uložit záznam' }).click();
+
+  // Dialog opens
+  await expect(page.getByText('Tento záznam se překrývá s ostatními.')).toBeVisible();
+
+  // Switch to the manual tab — label from cs.json: autoStack.directionManual = "Ručně"
+  await page.getByRole('tab', { name: 'Ručně' }).click();
+  await expect(page.getByRole('tab', { name: 'Ručně' })).toHaveAttribute('aria-selected', 'true');
+
+  // The manual start-time input appears
+  await expect(page.locator('input[type="datetime-local"]')).toBeVisible();
+
+  // Confirm — "Posunout a uložit" — a manual save succeeds and closes the dialog
+  await page.getByRole('button', { name: 'Posunout a uložit' }).click();
+  await expect(page.getByText('Tento záznam se překrývá s ostatními.')).toBeHidden();
+});
+
 test('US-76: parallel timers — stopping the second opens auto-stack dialog', async ({ page }) => {
   await setAutoStackOverlaps(true);
 

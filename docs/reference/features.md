@@ -1,4 +1,4 @@
-# Features (US-1 … US-76)
+# Features (US-1 … US-86)
 
 Feature catalogue keyed by user-story IDs from PRD §13. Test names embed the US ID so [`../../scripts/test-trace.ts`](../../scripts/test-trace.ts) can verify 100% coverage.
 
@@ -111,10 +111,23 @@ Feature catalogue keyed by user-story IDs from PRD §13. Test names embed the US
 - **US-75** — Choosing **Posunout zpět a uložit** shifts the candidate so its `endedAt` equals the existing overlapping entry's `startedAt`, preserving the candidate's duration; entries earlier than the candidate's new position are cascaded backward by the same rule. The candidate's resulting `startedAt` may land in an earlier calendar day.
 - **US-76** — Starting a timer while another is running never triggers auto-stack (both are `endedAt IS NULL`, excluded). Auto-stack fires when the **second** of two parallel timers is stopped, because that stop is when the second timer becomes a closed entry that overlaps the now-closed first timer. The user is offered the preview dialog at that moment.
 
+## Auto-stack — extension + manual mode (US-77…US-86)
+
+- **US-77** — `GET /api/v1/me` returns the user's `autoStackOverlaps` setting; the extension reads and stores it. The setting remains read-only in the extension (managed in the web app).
+- **US-78** — Stopping a timer in the extension with the setting OFF performs a plain stop; the stop response carries `overlap: null` and no dialog appears.
+- **US-79** — With the setting ON and no overlap, the stop response carries `overlap: null` and no dialog appears.
+- **US-80** — With the setting ON and an overlap, the stop commits as a plain stop and the response carries the overlap payload; the extension opens the auto-stack sheet for the now-closed entry.
+- **US-81** — The extension sheet offers Vpřed / Zpět / Ručně and "Uložit bez posunu"; confirming applies the shifts (preserving each duration) and audits one row per shifted entry plus the candidate update.
+- **US-82** — Manual mode: the user pins the work's start time; the earlier overlapping ("blocker") entry moves earlier preserving its duration (cascading into entries before it); the candidate's `endedAt` is unchanged.
+- **US-83** — A stop performed offline is queued; on reconnect the replay detects the overlap, records it in `tt:pending-overlaps`, and the popup shows the sheet. Survives a browser kill mid-queue.
+- **US-84** — The web `AutoStackPreviewDialog` gains a "Ručně" tab with a start-time input (parity); choosing it applies the same manual planner result.
+- **US-85** — A cross-company entry id returns `not_found` (404) on `/api/v1/entries/{id}/auto-stack/preview` and `/api/v1/entries/{id}/auto-stack`. No existence leak.
+- **US-86** — A manual start in the future, ≥ the candidate's `endedAt`, or outside the candidate's calendar-day window is rejected (`invalid_window`) with no mutation.
+
 ## Reports — grouped view + PDF export
 
-- **US-77** — Reports group time entries by project / member / day, with per-group subtotals and a grand total.
-- **US-78** — Reports export to PDF (filter-respecting + one-click previous calendar month), Europe/Prague.
+- Reports group time entries by project / member / day, with per-group subtotals and a grand total (see US-77 tests in `report-grouped.test.ts`).
+- Reports export to PDF (filter-respecting + one-click previous calendar month), Europe/Prague (see US-78 tests in `report-pdf.test.ts`).
 
 ## Coverage check
 
@@ -122,4 +135,4 @@ Feature catalogue keyed by user-story IDs from PRD §13. Test names embed the US
 pnpm test:trace
 ```
 
-Walks every test file (`*.test.{ts,tsx}`, `*.spec.{ts,tsx}`, `tests/**`) and looks for `\bUS-N\b`. Exits non-zero if any of US-1..US-78 has zero matches.
+Walks every test file (`*.test.{ts,tsx}`, `*.spec.{ts,tsx}`, `tests/**`) and looks for `\bUS-N\b`. Exits non-zero if any of US-1..US-86 has zero matches.
