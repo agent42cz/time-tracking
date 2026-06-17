@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   CandidateEndsInFutureError,
+  InvalidManualStartError,
   planAutoStack,
   type ClosedEntry,
 } from '../../src/lib/services/auto-stack.js';
@@ -282,5 +283,89 @@ describe('planAutoStack — backward', () => {
         direction: 'backward',
       }),
     ).toThrow(CandidateEndsInFutureError);
+  });
+});
+
+describe('planAutoStack — manual', () => {
+  const now = t('23:59');
+
+  it('US-82: manual start moves the earlier blocker back, preserving its length', () => {
+    // Blocker A 12:30–13:30; candidate ends 14:00; user pins start at 13:00.
+    const existing: ClosedEntry[] = [{ id: 'A', startedAt: t('12:30'), endedAt: t('13:30') }];
+    const plan = planAutoStack({
+      candidate: { kind: 'stop', id: 'CAND', startedAt: t('13:00'), endedAt: t('14:00') },
+      existing,
+      now,
+      direction: 'manual',
+      manualStartedAt: t('13:00'),
+    });
+    expect(plan.direction).toBe('manual');
+    expect(plan.candidateAfter).toEqual({ startedAt: t('13:00'), endedAt: t('14:00') });
+    expect(plan.shifts).toEqual([
+      {
+        entryId: 'A',
+        before: { startedAt: t('12:30'), endedAt: t('13:30') },
+        after: { startedAt: t('12:00'), endedAt: t('13:00') },
+      },
+    ]);
+  });
+
+  it('US-82: manual cascade pushes a chain of earlier entries back', () => {
+    const existing: ClosedEntry[] = [
+      { id: 'EARLY', startedAt: t('11:00'), endedAt: t('11:30') }, // no overlap, stays
+      { id: 'MID', startedAt: t('12:50'), endedAt: t('13:10') }, // overlaps after first move
+      { id: 'BLOCK', startedAt: t('12:30'), endedAt: t('13:30') },
+    ];
+    const plan = planAutoStack({
+      candidate: { kind: 'stop', id: 'CAND', startedAt: t('13:00'), endedAt: t('14:00') },
+      existing,
+      now,
+      direction: 'manual',
+      manualStartedAt: t('13:00'),
+    });
+    expect(plan.candidateAfter).toEqual({ startedAt: t('13:00'), endedAt: t('14:00') });
+    const byId = new Map(plan.shifts.map((s) => [s.entryId, s]));
+    // BLOCK (12:30–13:30) anchors at 13:00 → 12:00–13:00.
+    expect(byId.get('BLOCK')!.after).toEqual({ startedAt: t('12:00'), endedAt: t('13:00') });
+    // MID (12:50–13:10) ends after 12:00 anchor → 11:40–12:00 (20 min preserved).
+    expect(byId.get('MID')!.after).toEqual({ startedAt: t('11:40'), endedAt: t('12:00') });
+    // EARLY ends 11:30 < 11:40 anchor → untouched.
+    expect(byId.has('EARLY')).toBe(false);
+  });
+
+  it('US-82: no overlap — candidate just adopts the manual start, no shifts', () => {
+    const existing: ClosedEntry[] = [{ id: 'A', startedAt: t('11:00'), endedAt: t('12:00') }];
+    const plan = planAutoStack({
+      candidate: { kind: 'stop', id: 'CAND', startedAt: t('13:30'), endedAt: t('14:00') },
+      existing,
+      now,
+      direction: 'manual',
+      manualStartedAt: t('13:00'),
+    });
+    expect(plan.candidateAfter).toEqual({ startedAt: t('13:00'), endedAt: t('14:00') });
+    expect(plan.shifts).toEqual([]);
+  });
+
+  it('US-86: manual start missing throws InvalidManualStartError', () => {
+    expect(() =>
+      planAutoStack({
+        candidate: { kind: 'stop', id: 'CAND', startedAt: t('13:00'), endedAt: t('14:00') },
+        existing: [],
+        now,
+        direction: 'manual',
+      }),
+    ).toThrow(InvalidManualStartError);
+  });
+
+  it('US-86: manual start at/after candidate end throws InvalidManualStartError', () => {
+    expect(() =>
+      planAutoStack({
+        candidate: { kind: 'stop', id: 'CAND', startedAt: t('13:00'), endedAt: t('14:00') },
+        existing: [],
+        now,
+        direction: 'manual',
+        manualStartedAt: t('14:00'),
+      }),
+    ).toThrow(InvalidManualStartError);
   });
 });

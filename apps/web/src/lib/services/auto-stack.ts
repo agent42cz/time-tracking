@@ -24,7 +24,7 @@ export type Candidate =
   | { kind: 'edit'; id: string; startedAt: Date; endedAt: Date }
   | { kind: 'stop'; id: string; startedAt: Date; endedAt: Date };
 
-export type Direction = 'forward' | 'backward';
+export type Direction = 'forward' | 'backward' | 'manual';
 
 export type Shift = {
   entryId: string;
@@ -44,6 +44,12 @@ export class CandidateEndsInFutureError extends Error {
   }
 }
 
+export class InvalidManualStartError extends Error {
+  constructor() {
+    super('Manual start is missing or not before the candidate end');
+  }
+}
+
 const FUTURE_GRACE_MS = 60_000;
 
 type WorkingEntry = { id: string; startedAt: Date; endedAt: Date };
@@ -53,8 +59,9 @@ export function planAutoStack(input: {
   existing: ClosedEntry[];
   now: Date;
   direction: Direction;
+  manualStartedAt?: Date;
 }): Plan {
-  const { candidate, existing, now, direction } = input;
+  const { candidate, existing, now, direction, manualStartedAt } = input;
 
   if (candidate.endedAt.getTime() > now.getTime() + FUTURE_GRACE_MS) {
     throw new CandidateEndsInFutureError();
@@ -92,7 +99,7 @@ export function planAutoStack(input: {
         };
       }
     }
-  } else {
+  } else if (direction === 'backward') {
     // backward — dock to the earliest-startedAt entry that overlaps the
     // candidate (no requirement that it start before the candidate). The
     // candidate then ends at the dock's startedAt, and every other entry
@@ -160,6 +167,52 @@ export function planAutoStack(input: {
       });
     }
     // If no dockEntry: candidate stays, no shifts. (Truly no overlap.)
+  } else {
+    // manual — candidate is pinned at [manualStartedAt, candidate.endedAt] and
+    // does not move. Every other entry that starts before the candidate's end
+    // is compacted backward, preserving its duration, anchored at the manual
+    // start.
+    if (
+      manualStartedAt === undefined ||
+      manualStartedAt.getTime() >= candidateEntry.endedAt.getTime()
+    ) {
+      throw new InvalidManualStartError();
+    }
+    const pinnedEnd = candidateEntry.endedAt;
+    const candidateIdx = working.findIndex((e) => e.id === candidateId);
+    working[candidateIdx] = {
+      id: candidateId,
+      startedAt: new Date(manualStartedAt),
+      endedAt: new Date(pinnedEnd),
+    };
+
+    const chain = working
+      .filter((e) => e.id !== candidateId && e.startedAt.getTime() < pinnedEnd.getTime())
+      .sort((a, b) => {
+        const cmp = b.endedAt.getTime() - a.endedAt.getTime();
+        if (cmp !== 0) return cmp;
+        return a.id < b.id ? 1 : a.id > b.id ? -1 : 0;
+      });
+
+    let anchor = new Date(manualStartedAt);
+    for (const entry of chain) {
+      if (entry.endedAt.getTime() > anchor.getTime()) {
+        const duration = entry.endedAt.getTime() - entry.startedAt.getTime();
+        const newEnd = new Date(anchor);
+        const newStart = new Date(anchor.getTime() - duration);
+        const idx = working.findIndex((e) => e.id === entry.id);
+        working[idx] = { id: entry.id, startedAt: newStart, endedAt: newEnd };
+        anchor = newStart;
+      } else {
+        anchor = entry.startedAt;
+      }
+    }
+
+    working.sort((a, b) => {
+      const cmp = a.startedAt.getTime() - b.startedAt.getTime();
+      if (cmp !== 0) return cmp;
+      return a.id < b.id ? -1 : a.id > b.id ? 1 : 0;
+    });
   }
 
   const finalCandidate = working.find((e) => e.id === candidateId)!;
