@@ -347,3 +347,81 @@ describe('previewAutoStack', () => {
     expect(result).toEqual({ ok: false, reason: 'not_found' });
   });
 });
+
+describe('saveEntryWithAutoStack — manual', () => {
+  it('US-82: manual start moves the earlier blocker back and audits one shift', async () => {
+    const blocker = await makeEntry(t('12:30'), t('13:30'));
+    const stopped = await makeEntry(t('12:45'), t('14:00')); // already closed; we re-place its start
+    const result = await saveEntryWithAutoStack(prisma, {
+      actorUserId: userId,
+      companyId,
+      candidate: { kind: 'edit', id: stopped.id, startedAt: t('12:45'), endedAt: t('14:00') },
+      direction: 'manual',
+      manualStartedAt: t('13:00'),
+      now: t('23:59'),
+    });
+    expect(result.ok).toBe(true);
+    if (!result.ok) throw new Error('expected ok');
+    const cand = await prisma.timeEntry.findUniqueOrThrow({ where: { id: stopped.id } });
+    expect(cand.startedAt.toISOString()).toBe(t('13:00').toISOString());
+    expect(cand.endedAt?.toISOString()).toBe(t('14:00').toISOString());
+    const movedBlocker = await prisma.timeEntry.findUniqueOrThrow({ where: { id: blocker.id } });
+    expect(movedBlocker.startedAt.toISOString()).toBe(t('12:00').toISOString());
+    expect(movedBlocker.endedAt?.toISOString()).toBe(t('13:00').toISOString());
+    // one candidate update + one shift
+    expect(await auditCount()).toBe(2);
+    const shiftAudits = await prisma.auditLog.findMany({ where: { companyId, action: 'shift' } });
+    expect(shiftAudits).toHaveLength(1);
+    expect((shiftAudits[0]!.after as { direction?: string }).direction).toBe('manual');
+  });
+
+  it('US-86: manual start at/after candidate end returns invalid_window', async () => {
+    const stopped = await makeEntry(t('12:45'), t('14:00'));
+    const result = await saveEntryWithAutoStack(prisma, {
+      actorUserId: userId,
+      companyId,
+      candidate: { kind: 'edit', id: stopped.id, startedAt: t('12:45'), endedAt: t('14:00') },
+      direction: 'manual',
+      manualStartedAt: t('14:00'),
+      now: t('23:59'),
+    });
+    expect(result.ok).toBe(false);
+    if (result.ok) throw new Error('expected failure');
+    expect(result.reason).toBe('invalid_window');
+  });
+
+  it('US-85: manual on a cross-company entry id returns not_found', async () => {
+    const foreign = await makeEntry(t('12:45'), t('14:00'), otherUserId, otherCompanyId);
+    const result = await saveEntryWithAutoStack(prisma, {
+      actorUserId: userId,
+      companyId,
+      candidate: { kind: 'edit', id: foreign.id, startedAt: t('12:45'), endedAt: t('14:00') },
+      direction: 'manual',
+      manualStartedAt: t('13:00'),
+      now: t('23:59'),
+    });
+    expect(result.ok).toBe(false);
+    if (result.ok) throw new Error('expected failure');
+    expect(result.reason).toBe('not_found');
+  });
+
+  it('US-82: previewAutoStack(manual) returns the plan without writing', async () => {
+    const blocker = await makeEntry(t('12:30'), t('13:30'));
+    const stopped = await makeEntry(t('12:45'), t('14:00'));
+    const before = await auditCount();
+    const result = await previewAutoStack(prisma, {
+      actorUserId: userId,
+      companyId,
+      candidate: { kind: 'edit', id: stopped.id, startedAt: t('12:45'), endedAt: t('14:00') },
+      direction: 'manual',
+      manualStartedAt: t('13:00'),
+      now: t('23:59'),
+    });
+    expect(result.ok).toBe(true);
+    if (!result.ok) throw new Error('expected ok');
+    expect(result.plan.shifts).toHaveLength(1);
+    expect(await auditCount()).toBe(before); // no writes
+    const stillBlocker = await prisma.timeEntry.findUniqueOrThrow({ where: { id: blocker.id } });
+    expect(stillBlocker.startedAt.toISOString()).toBe(t('12:30').toISOString()); // unchanged
+  });
+});

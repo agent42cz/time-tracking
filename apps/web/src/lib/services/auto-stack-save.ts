@@ -12,6 +12,7 @@ import { writeAudit } from './audit.js';
 import { publishTimeEntry } from '../realtime.js';
 import {
   CandidateEndsInFutureError,
+  InvalidManualStartError,
   type Candidate,
   type Direction,
   type Plan,
@@ -27,18 +28,18 @@ const CASCADE_EDGE_BUFFER_MS = 60 * 60 * 1000;
 // 7-day window since pushing into the next day is the intended overflow.
 function computeWindow(
   direction: Direction,
-  candidateStartedAt: Date,
+  reference: Date,
 ): {
   windowStart: Date;
   windowEnd: Date;
 } {
-  if (direction === 'backward') {
-    const today = getPeriodRange('today', candidateStartedAt);
+  if (direction === 'backward' || direction === 'manual') {
+    const today = getPeriodRange('today', reference);
     return { windowStart: today.start, windowEnd: today.end };
   }
   return {
-    windowStart: new Date(candidateStartedAt.getTime() - WINDOW_DAYS * MS_PER_DAY),
-    windowEnd: new Date(candidateStartedAt.getTime() + WINDOW_DAYS * MS_PER_DAY),
+    windowStart: new Date(reference.getTime() - WINDOW_DAYS * MS_PER_DAY),
+    windowEnd: new Date(reference.getTime() + WINDOW_DAYS * MS_PER_DAY),
   };
 }
 
@@ -55,6 +56,7 @@ export interface SaveAutoStackInput {
   candidate: Candidate;
   direction: Direction;
   now: Date;
+  manualStartedAt?: Date;
 }
 
 export async function saveEntryWithAutoStack(
@@ -70,9 +72,20 @@ async function runInTx(
   tx: Prisma.TransactionClient,
   input: SaveAutoStackInput,
 ): Promise<SaveAutoStackResult> {
-  const { actorUserId, companyId, candidate, direction, now } = input;
+  const { actorUserId, companyId, candidate, direction, now, manualStartedAt } = input;
 
-  const { windowStart, windowEnd } = computeWindow(direction, candidate.startedAt);
+  const windowRef = direction === 'manual' ? candidate.endedAt : candidate.startedAt;
+  const { windowStart, windowEnd } = computeWindow(direction, windowRef);
+
+  if (direction === 'manual') {
+    if (
+      manualStartedAt === undefined ||
+      manualStartedAt.getTime() >= candidate.endedAt.getTime() ||
+      manualStartedAt.getTime() < windowStart.getTime()
+    ) {
+      return { ok: false, reason: 'invalid_window' };
+    }
+  }
 
   // Cross-company / not-found check for edit/stop kinds.
   if (candidate.kind !== 'create') {
@@ -125,10 +138,14 @@ async function runInTx(
       })),
       now,
       direction,
+      manualStartedAt,
     });
   } catch (err) {
     if (err instanceof CandidateEndsInFutureError) {
       return { ok: false, reason: 'future_timestamp' };
+    }
+    if (err instanceof InvalidManualStartError) {
+      return { ok: false, reason: 'invalid_window' };
     }
     throw err;
   }
@@ -249,8 +266,19 @@ export async function previewAutoStack(
   prisma: PrismaClient,
   input: SaveAutoStackInput,
 ): Promise<SaveAutoStackResult> {
-  const { actorUserId, companyId, candidate, direction, now } = input;
-  const { windowStart, windowEnd } = computeWindow(direction, candidate.startedAt);
+  const { actorUserId, companyId, candidate, direction, now, manualStartedAt } = input;
+  const windowRef = direction === 'manual' ? candidate.endedAt : candidate.startedAt;
+  const { windowStart, windowEnd } = computeWindow(direction, windowRef);
+
+  if (direction === 'manual') {
+    if (
+      manualStartedAt === undefined ||
+      manualStartedAt.getTime() >= candidate.endedAt.getTime() ||
+      manualStartedAt.getTime() < windowStart.getTime()
+    ) {
+      return { ok: false, reason: 'invalid_window' };
+    }
+  }
 
   if (candidate.kind !== 'create') {
     const existing = await prisma.timeEntry.findFirst({
@@ -283,10 +311,14 @@ export async function previewAutoStack(
       })),
       now,
       direction,
+      manualStartedAt,
     });
   } catch (err) {
     if (err instanceof CandidateEndsInFutureError) {
       return { ok: false, reason: 'future_timestamp' };
+    }
+    if (err instanceof InvalidManualStartError) {
+      return { ok: false, reason: 'invalid_window' };
     }
     throw err;
   }
