@@ -17,7 +17,7 @@ afterAll(async () => {
 }, 30_000);
 
 describe('resolveApiSession', () => {
-  it('US-77: includes the user autoStackOverlaps setting', async () => {
+  it('US-87: includes the user autoStackOverlaps setting', async () => {
     await withTx(async (tx) => {
       ctx.db = tx;
       const user = await tx.user.create({

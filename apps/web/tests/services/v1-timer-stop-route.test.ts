@@ -97,7 +97,7 @@ describe('POST /api/v1/timer/[id]/stop', () => {
     });
   });
 
-  it('US-78: setting OFF returns overlap: null even when entries overlap', async () => {
+  it('US-88: setting OFF returns overlap: null even when entries overlap', async () => {
     await withTx(async (tx) => {
       ctx.db = tx;
       const user = await tx.user.create({ data: { email: 's3@x.test', fullName: 'U' } });
