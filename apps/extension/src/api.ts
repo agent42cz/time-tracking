@@ -24,6 +24,8 @@ export interface MeResponse {
   theme?: ThemePreference;
   memberships: Membership[];
   wsUrl: string | null;
+  /** When true, stopping a timer that overlaps offers rearrangement. */
+  autoStackOverlaps?: boolean;
 }
 
 export interface TagDto {
@@ -55,6 +57,31 @@ export interface EntryDto {
   startedAt: string;
   endedAt: string | null;
   tags: TagDto[];
+}
+
+export interface OverlapInfo {
+  entryId: string;
+  startedAt: string;
+  endedAt: string;
+}
+
+export type AutoStackDirection = 'forward' | 'backward' | 'manual';
+
+export interface WireRange {
+  startedAt: string;
+  endedAt: string;
+}
+
+export interface WireShift {
+  entryId: string;
+  before: WireRange;
+  after: WireRange;
+}
+
+export interface WirePlan {
+  direction: AutoStackDirection;
+  shifts: WireShift[];
+  candidateAfter: WireRange;
 }
 
 export interface TimerSummary {
@@ -269,13 +296,18 @@ export async function startTimer(
   );
 }
 
-export async function stopTimer(session: ApiSession, entryId: string): Promise<void> {
-  await call(
+export interface StopTimerResult {
+  overlap: OverlapInfo | null;
+}
+
+export async function stopTimer(session: ApiSession, entryId: string): Promise<StopTimerResult> {
+  const data = await call<{ ok: true; overlap: OverlapInfo | null }>(
     session.apiBase,
     `/api/v1/timer/${encodeURIComponent(entryId)}/stop`,
     { method: 'POST' },
     session.token,
   );
+  return { overlap: data.overlap ?? null };
 }
 
 export async function deleteEntry(session: ApiSession, entryId: string): Promise<void> {
@@ -353,6 +385,40 @@ export async function createProject(
     { method: 'POST', body: JSON.stringify(input) },
     session.token,
   );
+}
+
+export interface AutoStackBody {
+  direction: AutoStackDirection;
+  /** ISO; required when direction === 'manual'. */
+  startedAt?: string;
+}
+
+export async function previewAutoStack(
+  session: ApiSession,
+  entryId: string,
+  body: AutoStackBody,
+): Promise<WirePlan> {
+  const res = await call<{ ok: true; plan: WirePlan }>(
+    session.apiBase,
+    `/api/v1/entries/${encodeURIComponent(entryId)}/auto-stack/preview`,
+    { method: 'POST', body: JSON.stringify(body) },
+    session.token,
+  );
+  return res.plan;
+}
+
+export async function applyAutoStack(
+  session: ApiSession,
+  entryId: string,
+  body: AutoStackBody,
+): Promise<WirePlan> {
+  const res = await call<{ ok: true; plan: WirePlan }>(
+    session.apiBase,
+    `/api/v1/entries/${encodeURIComponent(entryId)}/auto-stack`,
+    { method: 'POST', body: JSON.stringify(body) },
+    session.token,
+  );
+  return res.plan;
 }
 
 export { ApiError };
