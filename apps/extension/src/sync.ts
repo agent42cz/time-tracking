@@ -22,10 +22,12 @@ import {
   updateEntry,
   type ApiSession,
   type ManualEntryApiInput,
+  type OverlapInfo,
   type StartTimerInput,
   type UpdateEntryPatch,
 } from './api.js';
 import { OfflineQueue, type Mutation } from './queue.js';
+import { PendingOverlaps } from './pending-overlaps.js';
 import {
   InMemoryStorageAdapter,
   createChromeStorageAdapter,
@@ -38,6 +40,7 @@ const storage: StorageAdapter =
     : new InMemoryStorageAdapter();
 
 const queue = new OfflineQueue(storage);
+const pendingOverlaps = new PendingOverlaps(storage);
 
 interface UseSyncArgs {
   session: ApiSession | null;
@@ -60,6 +63,10 @@ export interface SyncState {
   executeCreateManual: (input: ManualEntryApiInput) => Promise<void>;
   /** Online-only (admin setup action). Returns the new project or throws on failure. */
   executeCreateProject: (clientId: string, name: string) => Promise<{ id: string }>;
+  /** Head of the pending stop-overlap queue, or null. */
+  pendingOverlap: OverlapInfo | null;
+  /** Remove a resolved/dismissed overlap and advance to the next. */
+  resolvePendingOverlap: (entryId: string) => Promise<void>;
 }
 
 function isNetworkError(err: unknown): boolean {
@@ -86,10 +93,17 @@ export function useExtensionSync({ session, wsUrl, companyId, onRefresh }: UseSy
   const refreshRef = useRef(onRefresh);
   refreshRef.current = onRefresh;
 
+  const [pendingOverlap, setPendingOverlap] = useState<OverlapInfo | null>(null);
+
+  const refreshPendingOverlap = useCallback(async (): Promise<void> => {
+    setPendingOverlap(await pendingOverlaps.head());
+  }, []);
+
   // --- pending count, refresh on mount
   useEffect(() => {
     void queue.size().then(setPending);
-  }, []);
+    void refreshPendingOverlap();
+  }, [refreshPendingOverlap]);
 
   // --- network status
   useEffect(() => {
@@ -109,7 +123,10 @@ export function useExtensionSync({ session, wsUrl, companyId, onRefresh }: UseSy
     const result = await queue.flush(
       async (m) => {
         try {
-          await replayMutation(session, m);
+          const r = await replayMutation(session, m);
+          if (m.kind === 'stopTimer' && r && r.overlap) {
+            await pendingOverlaps.add(r.overlap);
+          }
           return { ok: true as const };
         } catch (err) {
           if (err instanceof ApiError) return { ok: false, reason: 'conflict' };
@@ -121,10 +138,11 @@ export function useExtensionSync({ session, wsUrl, companyId, onRefresh }: UseSy
       },
     );
     setPending(await queue.size());
+    await refreshPendingOverlap();
     if (result.applied > 0 || result.conflicts > 0) {
       await refreshRef.current();
     }
-  }, [session]);
+  }, [session, refreshPendingOverlap]);
 
   useEffect(() => {
     if (online && session) void drain();
@@ -216,18 +234,31 @@ export function useExtensionSync({ session, wsUrl, companyId, onRefresh }: UseSy
   );
 
   const executeStop = useCallback(
-    (entryId: string): Promise<void> =>
-      executeOrEnqueue(
-        async () => {
-          await stopTimer(session!, entryId);
-        },
-        {
-          kind: 'stopTimer',
-          payload: { id: entryId },
-          clientId: crypto.randomUUID(),
-        },
-      ),
-    [session, executeOrEnqueue],
+    async (entryId: string): Promise<void> => {
+      if (!session) return;
+      try {
+        const res = await stopTimer(session, entryId);
+        nudgeServiceWorker();
+        await refreshRef.current();
+        if (res.overlap) {
+          await pendingOverlaps.add(res.overlap);
+          await refreshPendingOverlap();
+        }
+      } catch (err) {
+        if (isNetworkError(err)) {
+          await queue.enqueue({
+            kind: 'stopTimer',
+            payload: { id: entryId },
+            clientId: crypto.randomUUID(),
+          });
+          setPending(await queue.size());
+          await refreshRef.current();
+        } else {
+          throw err;
+        }
+      }
+    },
+    [session, refreshPendingOverlap],
   );
 
   const executePlayAgain = useCallback(
@@ -296,6 +327,14 @@ export function useExtensionSync({ session, wsUrl, companyId, onRefresh }: UseSy
     [session],
   );
 
+  const resolvePendingOverlap = useCallback(
+    async (entryId: string): Promise<void> => {
+      await pendingOverlaps.remove(entryId);
+      await refreshPendingOverlap();
+    },
+    [refreshPendingOverlap],
+  );
+
   return {
     online,
     pending,
@@ -307,10 +346,15 @@ export function useExtensionSync({ session, wsUrl, companyId, onRefresh }: UseSy
     executeUpdate,
     executeCreateManual,
     executeCreateProject,
+    pendingOverlap,
+    resolvePendingOverlap,
   };
 }
 
-async function replayMutation(session: ApiSession, m: Mutation): Promise<void> {
+async function replayMutation(
+  session: ApiSession,
+  m: Mutation,
+): Promise<{ overlap: OverlapInfo | null } | void> {
   switch (m.kind) {
     case 'startTimer': {
       const p = m.payload as { sourceEntryId?: string } & StartTimerInput & { companyId?: string };
@@ -319,8 +363,7 @@ async function replayMutation(session: ApiSession, m: Mutation): Promise<void> {
       return;
     }
     case 'stopTimer':
-      await stopTimer(session, (m.payload as { id: string }).id);
-      return;
+      return await stopTimer(session, (m.payload as { id: string }).id);
     case 'deleteEntry':
       await deleteEntry(session, (m.payload as { id: string }).id);
       return;
