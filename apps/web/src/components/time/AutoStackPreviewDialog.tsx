@@ -10,7 +10,7 @@ import {
   type AutoStackActionResult,
 } from '@/lib/actions/auto-stack';
 
-type Direction = 'forward' | 'backward';
+type Direction = 'forward' | 'backward' | 'manual';
 type Plan = Extract<AutoStackActionResult, { ok: true }>['plan']; // WirePlan; timestamps are ISO strings
 
 export type AutoStackPreviewDialogProps = {
@@ -27,10 +27,17 @@ function formatRange(startedAt: string, endedAt: string): string {
   return `${fmt(startedAt)}–${fmt(endedAt)}`;
 }
 
+function toLocalInput(iso: string): string {
+  const d = new Date(iso);
+  const pad = (n: number): string => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
 export function AutoStackPreviewDialog(props: AutoStackPreviewDialogProps): ReactElement | null {
   const { open, candidate, onClose, onSaveWithoutShift, onShifted } = props;
   const t = useTranslations('autoStack');
   const [direction, setDirection] = useState<Direction>('forward');
+  const [manualStartedAt, setManualStartedAt] = useState<string>(candidate.startedAt);
   const [plan, setPlan] = useState<Plan | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
@@ -39,9 +46,14 @@ export function AutoStackPreviewDialog(props: AutoStackPreviewDialogProps): Reac
     if (!open) return;
     setError(null);
     setPlan(null);
+    setManualStartedAt(candidate.startedAt);
     const timer = setTimeout(() => {
       startTransition(async () => {
-        const result = await previewAutoStackAction({ candidate, direction });
+        const result = await previewAutoStackAction({
+          candidate,
+          direction,
+          startedAt: direction === 'manual' ? manualStartedAt : undefined,
+        });
         if (result.ok) {
           setPlan(result.plan);
         } else {
@@ -50,13 +62,17 @@ export function AutoStackPreviewDialog(props: AutoStackPreviewDialogProps): Reac
       });
     }, 200);
     return () => clearTimeout(timer);
-  }, [open, direction, candidate]);
+  }, [open, direction, candidate, manualStartedAt]);
 
   if (!open) return null;
 
   const handleSave = (): void => {
     startTransition(async () => {
-      const result = await saveEntryWithAutoStackAction({ candidate, direction });
+      const result = await saveEntryWithAutoStackAction({
+        candidate,
+        direction,
+        startedAt: direction === 'manual' ? manualStartedAt : undefined,
+      });
       if (result.ok) {
         await onShifted(result.candidateId);
         onClose();
@@ -112,7 +128,36 @@ export function AutoStackPreviewDialog(props: AutoStackPreviewDialogProps): Reac
         >
           {t('directionBackward')}
         </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={direction === 'manual'}
+          className={`rounded px-3 py-2 sm:py-1 text-sm ${
+            direction === 'manual'
+              ? 'bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900'
+              : 'bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-200'
+          }`}
+          onClick={() => setDirection('manual')}
+          disabled={pending}
+        >
+          {t('directionManual')}
+        </button>
       </div>
+
+      {direction === 'manual' && (
+        <label className="mb-3 block text-sm">
+          <span className="mb-1 block text-zinc-700 dark:text-zinc-300">
+            {t('manualStartLabel')}
+          </span>
+          <input
+            type="datetime-local"
+            className="w-full rounded border border-zinc-300 bg-white px-2 py-1 dark:border-zinc-700 dark:bg-zinc-900"
+            value={toLocalInput(manualStartedAt)}
+            onChange={(e) => setManualStartedAt(new Date(e.target.value).toISOString())}
+            disabled={pending}
+          />
+        </label>
+      )}
 
       {plan && (
         <ul className="space-y-1 text-sm">

@@ -258,6 +258,8 @@
     "dialogSubtitle": "Posunout záznamy, aby šly za sebou?",
     "directionForward": "Vpřed",
     "directionBackward": "Zpět",
+    "directionManual": "Ručně",
+    "manualStartLabel": "Začátek práce",
     "candidateRowLabel": "Tento záznam",
     "futureEndNote": "Poslední záznam končí v {time} (za {duration}).",
     "crossDayNote": "Posun zasahuje do dne {date}.",

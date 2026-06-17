@@ -13,6 +13,8 @@ export type AutoStackActionInput = {
     endedAt: string;
   };
   direction: Direction;
+  /** Manual mode only: the user-chosen start (ISO). Ignored otherwise. */
+  startedAt?: string;
 };
 
 // Server actions serialize Date objects to ISO strings over the wire.
@@ -42,7 +44,7 @@ export type AutoStackActionResult =
 const VALID_KINDS = ['create', 'edit', 'stop'] as const;
 type ValidKind = (typeof VALID_KINDS)[number];
 
-const VALID_DIRECTIONS = ['forward', 'backward'] as const;
+const VALID_DIRECTIONS = ['forward', 'backward', 'manual'] as const;
 type ValidDirection = (typeof VALID_DIRECTIONS)[number];
 
 function isValidDirection(value: unknown): value is Direction {
@@ -107,12 +109,23 @@ export async function previewAutoStackAction(
   const parsed = parseInput(input);
   if (!parsed.ok) return { ok: false, error: parsed.error };
   const candidate = parsed.candidate;
+  const manualStartedAt =
+    input.direction === 'manual' && typeof input.startedAt === 'string'
+      ? new Date(input.startedAt)
+      : undefined;
+  if (
+    input.direction === 'manual' &&
+    (manualStartedAt === undefined || Number.isNaN(manualStartedAt.getTime()))
+  ) {
+    return { ok: false, error: 'invalid_input' };
+  }
   const result = await previewAutoStack(prisma(), {
     actorUserId: session.userId,
     companyId: session.activeCompanyId,
     candidate,
     direction: input.direction,
     now: new Date(),
+    manualStartedAt,
   });
   if (!result.ok) return { ok: false, error: result.reason };
   return { ok: true, candidateId: result.candidateId, plan: planToWire(result.plan) };
@@ -128,12 +141,23 @@ export async function saveEntryWithAutoStackAction(
   const parsed = parseInput(input);
   if (!parsed.ok) return { ok: false, error: parsed.error };
   const candidate = parsed.candidate;
+  const manualStartedAt =
+    input.direction === 'manual' && typeof input.startedAt === 'string'
+      ? new Date(input.startedAt)
+      : undefined;
+  if (
+    input.direction === 'manual' &&
+    (manualStartedAt === undefined || Number.isNaN(manualStartedAt.getTime()))
+  ) {
+    return { ok: false, error: 'invalid_input' };
+  }
   const result = await saveEntryWithAutoStack(prisma(), {
     actorUserId: session.userId,
     companyId: session.activeCompanyId,
     candidate,
     direction: input.direction,
     now: new Date(),
+    manualStartedAt,
   });
   if (!result.ok) return { ok: false, error: result.reason };
   revalidatePath('/timer');
