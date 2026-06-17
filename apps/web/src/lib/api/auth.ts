@@ -25,6 +25,7 @@ export interface ApiSession {
   fullName: string;
   totpEnabled: boolean;
   theme: ThemePreference;
+  autoStackOverlaps: boolean;
   memberships: { companyId: string; companyName: string; companySlug: string; role: Role }[];
 }
 
@@ -52,6 +53,7 @@ export async function resolveApiSession(req: NextRequest): Promise<ApiSession | 
     fullName: user.fullName,
     totpEnabled: user.totpEnabled,
     theme: isThemePreference(user.theme) ? user.theme : 'system',
+    autoStackOverlaps: user.autoStackOverlaps,
     memberships: user.memberships.map((m) => ({
       companyId: m.companyId,
       companyName: m.company.name,

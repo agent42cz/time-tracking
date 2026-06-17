@@ -18,6 +18,7 @@ export async function GET(req: NextRequest): Promise<Response> {
     fullName: session.fullName,
     totpEnabled: session.totpEnabled,
     theme: session.theme,
+    autoStackOverlaps: session.autoStackOverlaps,
     memberships: session.memberships,
     wsUrl: process.env.WS_PUBLIC_URL ?? null,
   });
