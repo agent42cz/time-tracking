@@ -2030,13 +2030,65 @@ git commit -m "feat(ext): show AutoStackSheet for pending stop overlaps (US-80, 
 ### Task 12: Docs + US coverage
 
 **Files:**
+- Modify: `scripts/test-trace.ts` (bump the US total so US-77…86 are tracked)
+- Modify: `apps/web/tests/e2e/auto-stack.spec.ts` (add the US-84 e2e test)
 - Modify: `docs/reference/features.md`
 - Modify: `docs/architecture/` (the file describing the extension and/or the v1 API surface — find via `rg -l "auto-stack|/api/v1" docs/architecture`)
 - Modify: `docs/gotchas.md` (only if a 20+-minute surprise occurred during implementation)
 
-**Interfaces:** none (documentation).
+**Interfaces:** none (documentation + coverage).
 
-- [ ] **Step 1: Add US-77 … US-86 to features.md**
+- [ ] **Step 1: Bump the US-coverage total**
+
+`scripts/test-trace.ts` hardcodes `const TOTAL_US = 76;`. Without this bump, US-77…86 are never checked. Change it:
+
+```ts
+const TOTAL_US = 86;
+```
+
+(Leave everything else in the script unchanged — it already scans every `.test.ts(x)`/`.spec.ts(x)` file and any file under a `tests/` dir for `\bUS-N\b`.)
+
+- [ ] **Step 2: Add the US-84 e2e test for the web Ručně tab**
+
+US-84 (the web dialog's manual tab) is the one new story with no test reference yet. Add a Playwright test to `apps/web/tests/e2e/auto-stack.spec.ts`, after the existing `US-75` test, reusing the file's `setAutoStackOverlaps`/`pastOverlapWindow`/`seedClosedEntry` helpers:
+
+```ts
+test('US-84: manual (Ručně) tab is available and applies a manual rearrangement', async ({
+  page,
+}) => {
+  await setAutoStackOverlaps(true);
+
+  // Overlapping seed + candidate, anchored to the recent past (see helper).
+  const slot = pastOverlapWindow();
+  await seedClosedEntry(slot.seed);
+
+  await page.goto('/timer');
+
+  // Open the manual form and fill the overlapping candidate
+  await page.getByRole('button', { name: 'Přidat ručně' }).click();
+  await page.locator('input[name="from"]').fill(slot.from);
+  await page.locator('input[name="to"]').fill(slot.to);
+  await page.getByRole('button', { name: 'Uložit záznam' }).click();
+
+  // Dialog opens
+  await expect(page.getByText('Tento záznam se překrývá s ostatními.')).toBeVisible();
+
+  // Switch to the manual tab — label from cs.json: autoStack.directionManual = "Ručně"
+  await page.getByRole('tab', { name: 'Ručně' }).click();
+  await expect(page.getByRole('tab', { name: 'Ručně' })).toHaveAttribute('aria-selected', 'true');
+
+  // The manual start-time input appears
+  await expect(page.locator('input[type="datetime-local"]')).toBeVisible();
+
+  // Confirm — "Posunout a uložit" — a manual save succeeds and closes the dialog
+  await page.getByRole('button', { name: 'Posunout a uložit' }).click();
+  await expect(page.getByText('Tento záznam se překrývá s ostatními.')).toBeHidden();
+});
+```
+
+This is genuine coverage (it runs in `pnpm test:e2e`) and the spec file's `US-84` reference satisfies `test:trace`. Note: this e2e is NOT part of `pnpm test:all`, so Step 5's `test:all` won't run it — but `test:trace` (which IS in `test:all`) counts the reference.
+
+- [ ] **Step 3: Add US-77 … US-86 to features.md**
 
 In `docs/reference/features.md`, update the title range (line 1) to `# Features (US-1 … US-86)` and append after US-76:
 
@@ -2053,22 +2105,22 @@ In `docs/reference/features.md`, update the title range (line 1) to `# Features 
 - **US-86** — A manual start in the future, ≥ the candidate's `endedAt`, or outside the candidate's calendar-day window is rejected (`invalid_window`) with no mutation.
 ```
 
-- [ ] **Step 2: Update architecture docs**
+- [ ] **Step 4: Update architecture docs**
 
 In the architecture file that documents the v1 API and/or the extension, add the two new routes, the stop-route overlap field, the `/me` field, and the `tt:pending-overlaps` storage key + commit-then-resolve model. Keep it factual (AS-IS) and brief.
 
-- [ ] **Step 3: Run the full gate**
+- [ ] **Step 5: Run the full gate**
 
 Run: `pnpm test:trace`
-Expected: 100% US coverage including US-77 … US-86 (every US has a test whose name embeds the ID).
+Expected: `US coverage: 86/86 (100.0%)` / `All user stories have test coverage.` — including US-77 … US-86.
 
 Run: `pnpm test:all`
-Expected: lint + typecheck + unit/integration all PASS.
+Expected: lint + typecheck + unit/integration + test:trace all PASS. (This starts testcontainers; the full run takes several minutes. `test:all` does NOT include `pnpm test:e2e`, so the US-84 e2e from Step 2 is not executed here — that's expected.)
 
-- [ ] **Step 4: Commit**
+- [ ] **Step 6: Commit**
 
 ```bash
-git add docs/reference/features.md docs/architecture
+git add scripts/test-trace.ts apps/web/tests/e2e/auto-stack.spec.ts docs/reference/features.md docs/architecture
 git commit -m "docs: record extension auto-stack overlap + manual mode (US-77..US-86)"
 ```
 
