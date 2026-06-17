@@ -993,6 +993,7 @@ git commit -m "feat(api): stop route returns overlap probe when auto-stack is on
 ### Task 6: New REST routes — auto-stack preview + apply
 
 **Files:**
+- Create: `apps/web/src/lib/api/auto-stack-route-helpers.ts`
 - Create: `apps/web/src/app/api/v1/entries/[id]/auto-stack/preview/route.ts`
 - Create: `apps/web/src/app/api/v1/entries/[id]/auto-stack/route.ts`
 - Test: `apps/web/tests/services/v1-auto-stack-routes.test.ts` (create)
@@ -1161,24 +1162,80 @@ describe('auto-stack REST routes', () => {
 Run: `pnpm --filter @tt/web vitest run tests/services/v1-auto-stack-routes.test.ts`
 Expected: FAIL — route modules do not exist.
 
-- [ ] **Step 3: Create a shared route helper, then the two routes**
+- [ ] **Step 3: Create the shared helper, then the two thin routes**
 
-Both routes share request parsing + entry resolution. Put the helper inline in each route (small, DRY across just two files is acceptable; do not over-abstract). Create `apps/web/src/app/api/v1/entries/[id]/auto-stack/preview/route.ts`:
+The two routes share identical request parsing + entry resolution + the wire serializer. Extract them into one helper module so neither route duplicates the block. Create `apps/web/src/lib/api/auto-stack-route-helpers.ts`:
 
 ```ts
 import type { NextRequest } from 'next/server';
-import { resolveApiSession } from '@/lib/api/auth';
-import { corsPreflight, errorCors, jsonCors } from '@/lib/api/cors';
-import { prisma } from '@/lib/session';
-import { previewAutoStack } from '@/lib/services/auto-stack-save';
-import type { Candidate, Direction, Plan } from '@/lib/services/auto-stack';
-
-export const dynamic = 'force-dynamic';
+import { errorCors } from './cors.js';
+import type { ApiSession } from './auth.js';
+import { prisma } from '../session.js';
+import type { Candidate, Direction, Plan } from '../services/auto-stack.js';
 
 const VALID_DIRECTIONS = ['forward', 'backward', 'manual'] as const;
 
-export function OPTIONS(req: NextRequest): Response {
-  return corsPreflight(req);
+export interface ParsedAutoStackRequest {
+  candidate: Candidate;
+  companyId: string;
+  direction: Direction;
+  manualStartedAt?: Date;
+}
+
+export type ParseOutcome =
+  | { ok: true; value: ParsedAutoStackRequest }
+  | { ok: false; response: Response };
+
+/**
+ * Parse + validate an auto-stack request body and resolve the target entry
+ * for this user. Returns either the parsed inputs (entry resolved to an
+ * `edit` candidate) or a ready CORS error Response. A cross-company or
+ * unknown id resolves to a 404 `not_found` (no existence leak).
+ */
+export async function parseAutoStackRequest(
+  req: NextRequest,
+  session: ApiSession,
+  id: string,
+): Promise<ParseOutcome> {
+  let body: { direction?: unknown; startedAt?: unknown };
+  try {
+    body = await req.json();
+  } catch {
+    return { ok: false, response: errorCors(req, 400, 'invalid_json') };
+  }
+  if (!VALID_DIRECTIONS.includes(body.direction as (typeof VALID_DIRECTIONS)[number])) {
+    return { ok: false, response: errorCors(req, 400, 'invalid_input') };
+  }
+  const direction = body.direction as Direction;
+
+  const entry = await prisma().timeEntry.findFirst({
+    where: { id, userId: session.userId, deletedAt: null },
+    select: { companyId: true, startedAt: true, endedAt: true },
+  });
+  if (!entry || !entry.endedAt) {
+    return { ok: false, response: errorCors(req, 404, 'not_found') };
+  }
+
+  let manualStartedAt: Date | undefined;
+  if (direction === 'manual') {
+    if (typeof body.startedAt !== 'string') {
+      return { ok: false, response: errorCors(req, 400, 'invalid_input') };
+    }
+    manualStartedAt = new Date(body.startedAt);
+    if (Number.isNaN(manualStartedAt.getTime())) {
+      return { ok: false, response: errorCors(req, 400, 'invalid_input') };
+    }
+  }
+
+  return {
+    ok: true,
+    value: {
+      candidate: { kind: 'edit', id, startedAt: entry.startedAt, endedAt: entry.endedAt },
+      companyId: entry.companyId,
+      direction,
+      manualStartedAt,
+    },
+  };
 }
 
 export function planToWire(plan: Plan): unknown {
@@ -1195,75 +1252,19 @@ export function planToWire(plan: Plan): unknown {
     },
   };
 }
-
-export async function POST(
-  req: NextRequest,
-  { params }: { params: Promise<{ id: string }> },
-): Promise<Response> {
-  const session = await resolveApiSession(req);
-  if (!session) return errorCors(req, 401, 'unauthorized');
-  const { id } = await params;
-
-  let body: { direction?: unknown; startedAt?: unknown };
-  try {
-    body = await req.json();
-  } catch {
-    return errorCors(req, 400, 'invalid_json');
-  }
-  if (!VALID_DIRECTIONS.includes(body.direction as (typeof VALID_DIRECTIONS)[number])) {
-    return errorCors(req, 400, 'invalid_input');
-  }
-  const direction = body.direction as Direction;
-
-  const entry = await prisma().timeEntry.findFirst({
-    where: { id, userId: session.userId, deletedAt: null },
-    select: { companyId: true, startedAt: true, endedAt: true },
-  });
-  if (!entry || !entry.endedAt) return errorCors(req, 404, 'not_found');
-
-  let manualStartedAt: Date | undefined;
-  if (direction === 'manual') {
-    if (typeof body.startedAt !== 'string') return errorCors(req, 400, 'invalid_input');
-    manualStartedAt = new Date(body.startedAt);
-    if (Number.isNaN(manualStartedAt.getTime())) return errorCors(req, 400, 'invalid_input');
-  }
-
-  const candidate: Candidate = {
-    kind: 'edit',
-    id,
-    startedAt: entry.startedAt,
-    endedAt: entry.endedAt,
-  };
-  const result = await previewAutoStack(prisma(), {
-    actorUserId: session.userId,
-    companyId: entry.companyId,
-    candidate,
-    direction,
-    manualStartedAt,
-    now: new Date(),
-  });
-  if (!result.ok) {
-    if (result.reason === 'not_found') return errorCors(req, 404, 'not_found');
-    return errorCors(req, 422, result.reason);
-  }
-  return jsonCors(req, { ok: true, plan: planToWire(result.plan) });
-}
 ```
 
-Create `apps/web/src/app/api/v1/entries/[id]/auto-stack/route.ts` — identical except it imports `saveEntryWithAutoStack` and reuses `planToWire` from the preview route:
+Create `apps/web/src/app/api/v1/entries/[id]/auto-stack/preview/route.ts`:
 
 ```ts
 import type { NextRequest } from 'next/server';
 import { resolveApiSession } from '@/lib/api/auth';
 import { corsPreflight, errorCors, jsonCors } from '@/lib/api/cors';
 import { prisma } from '@/lib/session';
-import { saveEntryWithAutoStack } from '@/lib/services/auto-stack-save';
-import type { Candidate, Direction } from '@/lib/services/auto-stack';
-import { planToWire } from './preview/route';
+import { previewAutoStack } from '@/lib/services/auto-stack-save';
+import { parseAutoStackRequest, planToWire } from '@/lib/api/auto-stack-route-helpers';
 
 export const dynamic = 'force-dynamic';
-
-const VALID_DIRECTIONS = ['forward', 'backward', 'manual'] as const;
 
 export function OPTIONS(req: NextRequest): Response {
   return corsPreflight(req);
@@ -1276,40 +1277,13 @@ export async function POST(
   const session = await resolveApiSession(req);
   if (!session) return errorCors(req, 401, 'unauthorized');
   const { id } = await params;
+  const parsed = await parseAutoStackRequest(req, session, id);
+  if (!parsed.ok) return parsed.response;
+  const { candidate, companyId, direction, manualStartedAt } = parsed.value;
 
-  let body: { direction?: unknown; startedAt?: unknown };
-  try {
-    body = await req.json();
-  } catch {
-    return errorCors(req, 400, 'invalid_json');
-  }
-  if (!VALID_DIRECTIONS.includes(body.direction as (typeof VALID_DIRECTIONS)[number])) {
-    return errorCors(req, 400, 'invalid_input');
-  }
-  const direction = body.direction as Direction;
-
-  const entry = await prisma().timeEntry.findFirst({
-    where: { id, userId: session.userId, deletedAt: null },
-    select: { companyId: true, startedAt: true, endedAt: true },
-  });
-  if (!entry || !entry.endedAt) return errorCors(req, 404, 'not_found');
-
-  let manualStartedAt: Date | undefined;
-  if (direction === 'manual') {
-    if (typeof body.startedAt !== 'string') return errorCors(req, 400, 'invalid_input');
-    manualStartedAt = new Date(body.startedAt);
-    if (Number.isNaN(manualStartedAt.getTime())) return errorCors(req, 400, 'invalid_input');
-  }
-
-  const candidate: Candidate = {
-    kind: 'edit',
-    id,
-    startedAt: entry.startedAt,
-    endedAt: entry.endedAt,
-  };
-  const result = await saveEntryWithAutoStack(prisma(), {
+  const result = await previewAutoStack(prisma(), {
     actorUserId: session.userId,
-    companyId: entry.companyId,
+    companyId,
     candidate,
     direction,
     manualStartedAt,
@@ -1323,7 +1297,48 @@ export async function POST(
 }
 ```
 
-> Note: importing `planToWire` from a sibling `route.ts` is allowed (it's a plain exported function, not a route handler conflict). If the project's lint forbids cross-route imports, move `planToWire` to `apps/web/src/lib/api/auto-stack-wire.ts` and import from there in both routes.
+Create `apps/web/src/app/api/v1/entries/[id]/auto-stack/route.ts` — same shape, calling `saveEntryWithAutoStack`:
+
+```ts
+import type { NextRequest } from 'next/server';
+import { resolveApiSession } from '@/lib/api/auth';
+import { corsPreflight, errorCors, jsonCors } from '@/lib/api/cors';
+import { prisma } from '@/lib/session';
+import { saveEntryWithAutoStack } from '@/lib/services/auto-stack-save';
+import { parseAutoStackRequest, planToWire } from '@/lib/api/auto-stack-route-helpers';
+
+export const dynamic = 'force-dynamic';
+
+export function OPTIONS(req: NextRequest): Response {
+  return corsPreflight(req);
+}
+
+export async function POST(
+  req: NextRequest,
+  { params }: { params: Promise<{ id: string }> },
+): Promise<Response> {
+  const session = await resolveApiSession(req);
+  if (!session) return errorCors(req, 401, 'unauthorized');
+  const { id } = await params;
+  const parsed = await parseAutoStackRequest(req, session, id);
+  if (!parsed.ok) return parsed.response;
+  const { candidate, companyId, direction, manualStartedAt } = parsed.value;
+
+  const result = await saveEntryWithAutoStack(prisma(), {
+    actorUserId: session.userId,
+    companyId,
+    candidate,
+    direction,
+    manualStartedAt,
+    now: new Date(),
+  });
+  if (!result.ok) {
+    if (result.reason === 'not_found') return errorCors(req, 404, 'not_found');
+    return errorCors(req, 422, result.reason);
+  }
+  return jsonCors(req, { ok: true, plan: planToWire(result.plan) });
+}
+```
 
 - [ ] **Step 4: Run tests + typecheck**
 
@@ -1333,7 +1348,7 @@ Expected: PASS.
 - [ ] **Step 5: Commit**
 
 ```bash
-git add apps/web/src/app/api/v1/entries/[id]/auto-stack apps/web/tests/services/v1-auto-stack-routes.test.ts
+git add apps/web/src/lib/api/auto-stack-route-helpers.ts apps/web/src/app/api/v1/entries/[id]/auto-stack apps/web/tests/services/v1-auto-stack-routes.test.ts
 git commit -m "feat(api): auto-stack preview + apply REST routes (US-81, US-82, US-85, US-86)"
 ```
 
