@@ -1906,7 +1906,10 @@ export function AutoStackSheet({
               type="datetime-local"
               className="w-full rounded border border-zinc-300 bg-white px-2 py-1 dark:border-zinc-700 dark:bg-zinc-900"
               value={toLocalInput(manualStartedAt)}
-              onChange={(e) => setManualStartedAt(fromLocalInput(e.target.value))}
+              onChange={(e) => {
+                if (!e.target.value) return; // empty input → new Date('') throws; ignore
+                setManualStartedAt(fromLocalInput(e.target.value));
+              }}
               disabled={busy}
             />
           </label>
