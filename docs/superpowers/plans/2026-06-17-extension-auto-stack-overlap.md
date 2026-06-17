@@ -1996,6 +1996,7 @@ In `AppShell`'s returned tree, after the `EntrySheet` block (after line 479) and
 ```tsx
       {sync.pendingOverlap ? (
         <AutoStackSheet
+          key={sync.pendingOverlap.entryId}
           session={state.session}
           overlap={sync.pendingOverlap}
           onResolved={() => {
