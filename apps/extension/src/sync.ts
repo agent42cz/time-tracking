@@ -24,6 +24,7 @@ import {
   type ManualEntryApiInput,
   type OverlapInfo,
   type StartTimerInput,
+  type StopTimerResult,
   type UpdateEntryPatch,
 } from './api.js';
 import { OfflineQueue, type Mutation } from './queue.js';
@@ -125,7 +126,11 @@ export function useExtensionSync({ session, wsUrl, companyId, onRefresh }: UseSy
         try {
           const r = await replayMutation(session, m);
           if (m.kind === 'stopTimer' && r && r.overlap) {
-            await pendingOverlaps.add(r.overlap);
+            try {
+              await pendingOverlaps.add(r.overlap);
+            } catch {
+              /* non-fatal: the stop succeeded; surfacing the overlap is best-effort */
+            }
           }
           return { ok: true as const };
         } catch (err) {
@@ -236,14 +241,9 @@ export function useExtensionSync({ session, wsUrl, companyId, onRefresh }: UseSy
   const executeStop = useCallback(
     async (entryId: string): Promise<void> => {
       if (!session) return;
+      let res: StopTimerResult;
       try {
-        const res = await stopTimer(session, entryId);
-        nudgeServiceWorker();
-        await refreshRef.current();
-        if (res.overlap) {
-          await pendingOverlaps.add(res.overlap);
-          await refreshPendingOverlap();
-        }
+        res = await stopTimer(session, entryId);
       } catch (err) {
         if (isNetworkError(err)) {
           await queue.enqueue({
@@ -253,9 +253,18 @@ export function useExtensionSync({ session, wsUrl, companyId, onRefresh }: UseSy
           });
           setPending(await queue.size());
           await refreshRef.current();
-        } else {
-          throw err;
+          return;
         }
+        throw err;
+      }
+      // Stop committed server-side. Success-side effects run OUTSIDE the
+      // network try so a storage error here can never be misread as offline
+      // and enqueue a duplicate stop.
+      nudgeServiceWorker();
+      await refreshRef.current();
+      if (res.overlap) {
+        await pendingOverlaps.add(res.overlap);
+        await refreshPendingOverlap();
       }
     },
     [session, refreshPendingOverlap],
