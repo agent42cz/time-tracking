@@ -42,11 +42,17 @@ export function AutoStackPreviewDialog(props: AutoStackPreviewDialogProps): Reac
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
+  // Reset the manual start to the candidate's start when the dialog targets a
+  // (new) candidate. This must NOT depend on manualStartedAt, or each edit to
+  // the manual input would immediately revert the user's value.
+  useEffect(() => {
+    setManualStartedAt(candidate.startedAt);
+  }, [candidate]);
+
   useEffect(() => {
     if (!open) return;
     setError(null);
     setPlan(null);
-    setManualStartedAt(candidate.startedAt);
     const timer = setTimeout(() => {
       startTransition(async () => {
         const result = await previewAutoStackAction({

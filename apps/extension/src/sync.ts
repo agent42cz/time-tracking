@@ -263,8 +263,13 @@ export function useExtensionSync({ session, wsUrl, companyId, onRefresh }: UseSy
       nudgeServiceWorker();
       await refreshRef.current();
       if (res.overlap) {
-        await pendingOverlaps.add(res.overlap);
-        await refreshPendingOverlap();
+        try {
+          await pendingOverlaps.add(res.overlap);
+          await refreshPendingOverlap();
+        } catch {
+          /* non-fatal: the stop is committed and the UI already refreshed;
+             surfacing the overlap sheet is best-effort (mirrors drain). */
+        }
       }
     },
     [session, refreshPendingOverlap],
