@@ -368,4 +368,42 @@ describe('planAutoStack — manual', () => {
       }),
     ).toThrow(InvalidManualStartError);
   });
+
+  it('US-82: entries that end before the manual start are never moved', () => {
+    // E and F both end before manualStartedAt (13:00) and overlap each other,
+    // but neither overlaps the candidate window — so neither may move.
+    const existing: ClosedEntry[] = [
+      { id: 'E', startedAt: t('12:00'), endedAt: t('12:50') },
+      { id: 'F', startedAt: t('11:55'), endedAt: t('12:30') },
+    ];
+    const plan = planAutoStack({
+      candidate: { kind: 'stop', id: 'CAND', startedAt: t('13:30'), endedAt: t('14:00') },
+      existing,
+      now: t('23:59'),
+      direction: 'manual',
+      manualStartedAt: t('13:00'),
+    });
+    expect(plan.candidateAfter).toEqual({ startedAt: t('13:00'), endedAt: t('14:00') });
+    expect(plan.shifts).toEqual([]);
+  });
+
+  it('US-82: an entry that overlaps only the moved blocker still cascades', () => {
+    // G ends at 12:30 (before manualStart 13:00) so it does not overlap the
+    // window directly — but after BLOCK docks to 12:10–13:00, G overlaps it and
+    // must cascade back.
+    const existing: ClosedEntry[] = [
+      { id: 'BLOCK', startedAt: t('12:40'), endedAt: t('13:30') },
+      { id: 'G', startedAt: t('11:50'), endedAt: t('12:30') },
+    ];
+    const plan = planAutoStack({
+      candidate: { kind: 'stop', id: 'CAND', startedAt: t('13:00'), endedAt: t('14:00') },
+      existing,
+      now: t('23:59'),
+      direction: 'manual',
+      manualStartedAt: t('13:00'),
+    });
+    const byId = new Map(plan.shifts.map((s) => [s.entryId, s]));
+    expect(byId.get('BLOCK')!.after).toEqual({ startedAt: t('12:10'), endedAt: t('13:00') });
+    expect(byId.get('G')!.after).toEqual({ startedAt: t('11:30'), endedAt: t('12:10') });
+  });
 });

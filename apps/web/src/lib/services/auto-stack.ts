@@ -204,7 +204,9 @@ export function planAutoStack(input: {
         working[idx] = { id: entry.id, startedAt: newStart, endedAt: newEnd };
         anchor = newStart;
       } else {
-        anchor = entry.startedAt;
+        // Sorted by descending endedAt: this entry ends before the occupied
+        // region, so no remaining (earlier-ending) entry can overlap it either.
+        break;
       }
     }
 
