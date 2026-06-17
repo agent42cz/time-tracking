@@ -27,6 +27,7 @@ import {
 import { fmtDurationHM } from './format.js';
 import { useExtensionSync } from './sync.js';
 import { EntrySheet, type EntrySheetInitial } from './EntrySheet.js';
+import { AutoStackSheet } from './AutoStackSheet.js';
 import { NewProjectSheet } from './NewProjectSheet.js';
 import { groupRecentByDay, type RecentEntryInput } from './recent.js';
 import {
@@ -475,6 +476,19 @@ function AppShell({
           onClose={() => setSheet(null)}
           onSave={sync.executeUpdate}
           onCreate={sync.executeCreateManual}
+        />
+      ) : null}
+      {sync.pendingOverlap ? (
+        <AutoStackSheet
+          key={sync.pendingOverlap.entryId}
+          session={state.session}
+          overlap={sync.pendingOverlap}
+          onResolved={() => {
+            const id = sync.pendingOverlap!.entryId;
+            void sync.resolvePendingOverlap(id);
+            void onChange();
+          }}
+          onDismiss={() => void sync.resolvePendingOverlap(sync.pendingOverlap!.entryId)}
         />
       ) : null}
       {projectOpen ? (
