@@ -132,6 +132,8 @@ describe('auto-stack REST routes', () => {
       params(foreign.id),
     );
     expect(res.status).toBe(404);
+    const body = (await res.json()) as { error: string };
+    expect(body.error).toBe('not_found');
   });
 
   it('US-86: apply with manual start ≥ end returns 422 invalid_window', async () => {

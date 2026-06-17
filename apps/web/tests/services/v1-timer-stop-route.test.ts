@@ -97,6 +97,28 @@ describe('POST /api/v1/timer/[id]/stop', () => {
     });
   });
 
+  it('US-80: stop on a cross-company entry returns 404', async () => {
+    await withTx(async (tx) => {
+      ctx.db = tx;
+      const owner = await tx.user.create({ data: { email: 's4-own@x.test', fullName: 'O' } });
+      const company = await createCompany(tx, { name: 'S4', createdByUserId: owner.id });
+      const outsider = await tx.user.create({ data: { email: 's4-out@x.test', fullName: 'X' } });
+      const running = await tx.timeEntry.create({
+        data: {
+          userId: owner.id,
+          companyId: company.id,
+          description: '',
+          startedAt: new Date(Date.now() - HOUR),
+          endedAt: null,
+        },
+      });
+      ctx.userId = outsider.id;
+      ctx.autoStack = true;
+      const res = await POST(stopReq(running.id), params(running.id));
+      expect(res.status).toBe(404);
+    });
+  });
+
   it('US-88: setting OFF returns overlap: null even when entries overlap', async () => {
     await withTx(async (tx) => {
       ctx.db = tx;

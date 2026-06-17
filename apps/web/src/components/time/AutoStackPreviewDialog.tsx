@@ -153,7 +153,10 @@ export function AutoStackPreviewDialog(props: AutoStackPreviewDialogProps): Reac
             type="datetime-local"
             className="w-full rounded border border-zinc-300 bg-white px-2 py-1 dark:border-zinc-700 dark:bg-zinc-900"
             value={toLocalInput(manualStartedAt)}
-            onChange={(e) => setManualStartedAt(new Date(e.target.value).toISOString())}
+            onChange={(e) => {
+              if (!e.target.value) return;
+              setManualStartedAt(new Date(e.target.value).toISOString());
+            }}
             disabled={pending}
           />
         </label>
