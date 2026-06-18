@@ -303,17 +303,22 @@ test('US-84: manual (Ručně) tab is available and applies a manual rearrangemen
   await expect(manualInput).toBeVisible();
 
   // Editing the manual start must persist — regression guard: the dialog's
-  // preview effect must NOT reset the value on every change. Pick a valid
-  // same-day start (00:30 — after midnight, before the candidate window).
-  const initialValue = await manualInput.inputValue();
-  const editedValue = `${initialValue.split('T')[0]}T00:30`;
+  // preview effect must NOT reset the value on each change. Choose a start 45
+  // min after the candidate's own start, which lands AFTER the seed ends, so
+  // the preview yields a valid no-shift plan (the dialog stays interactive
+  // regardless of the time of day the suite runs — no cascade-window edge).
+  const datePart = (await manualInput.inputValue()).split('T')[0];
+  const [fromH, fromM] = slot.from.split(':').map(Number);
+  const startMin = fromH * 60 + fromM + 45;
+  const pad = (n: number): string => String(n).padStart(2, '0');
+  const editedValue = `${datePart}T${pad(Math.floor(startMin / 60))}:${pad(startMin % 60)}`;
   await manualInput.fill(editedValue);
   await expect(manualInput).toHaveValue(editedValue);
 
-  // Dismiss without saving. The manual APPLY path is covered by the integration
-  // test v1-auto-stack-routes.test.ts (US-82); this e2e verifies only the web
-  // tab parity + that the manual input is editable, and avoids the
-  // calendar-day-window sensitivity of a manual save run near midnight.
+  // Dismiss. The manual APPLY path is covered by the integration test
+  // v1-auto-stack-routes.test.ts (US-82); this e2e verifies only the web tab
+  // parity + that the manual input is editable. Playwright auto-waits for
+  // Zrušit to be enabled (the valid preview resolves the plan).
   await page.getByRole('button', { name: 'Zrušit' }).click();
   await expect(page.getByText('Tento záznam se překrývá s ostatními.')).toBeHidden();
 });
