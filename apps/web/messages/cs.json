@@ -125,10 +125,16 @@
     "subtotal": "Mezisoučet",
     "grandTotal": "Celkem",
     "export": {
-      "csv": "Stáhnout CSV",
-      "xlsx": "Export XLSX",
-      "pdf": "Stáhnout PDF",
-      "lastMonth": "Výkaz za minulý měsíc (PDF)"
+      "button": "Export",
+      "dialogTitle": "Exportovat výkaz",
+      "periodLabel": "Období",
+      "personLabel": "Osoba",
+      "allMembers": "Všichni členové",
+      "formatLabel": "Formát",
+      "groupingLabel": "Seskupení",
+      "submit": "Exportovat",
+      "invalidRange": "Datum „od“ nesmí být pozdější než „do“.",
+      "format": { "pdf": "PDF", "csv": "CSV" }
     },
     "pdf": {
       "title": "Výkaz práce",

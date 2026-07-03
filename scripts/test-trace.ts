@@ -7,7 +7,7 @@ import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 
 const ROOT = process.cwd();
-const TOTAL_US = 88;
+const TOTAL_US = 89;
 
 const USIDS = Array.from({ length: TOTAL_US }, (_, i) => `US-${i + 1}`);
 

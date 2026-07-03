@@ -20,6 +20,9 @@ export interface MultiSelectProps {
   placeholder?: string;
   /** Optional one-letter prefix shown before option labels (decorative). */
   emptyLabel?: string;
+  /** Optional: called with the selected ids whenever the selection changes.
+   *  Must be a stable reference (e.g. a useState setter). */
+  onChange?: (selectedIds: string[]) => void;
 }
 
 /**
@@ -32,12 +35,17 @@ export function MultiSelect({
   defaultValues = [],
   placeholder = 'Vyberte…',
   emptyLabel = 'Vše',
+  onChange,
 }: MultiSelectProps): ReactElement {
   const [selected, setSelected] = useState<Set<string>>(new Set(defaultValues));
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
   const containerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    onChange?.(Array.from(selected));
+  }, [selected, onChange]);
 
   useEffect(() => {
     if (!open) return;

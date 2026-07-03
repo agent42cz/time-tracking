@@ -6,6 +6,7 @@ import { PageHeader } from '@/components/PageHeader';
 import { buildGroupedReport, parseGroupBy, runReport } from '@/lib/services/reports';
 import { ReportFiltersForm } from './ReportFiltersForm';
 import { ReportGrouped } from './ReportGrouped';
+import { ExportDialog } from './ExportDialog';
 
 interface SP {
   from?: string;
@@ -82,39 +83,18 @@ export default async function ReportsPage({
     clampEnd: filters.to,
   });
 
-  const exportQS = new URLSearchParams();
-  for (const [k, v] of Object.entries(sp)) {
-    if (Array.isArray(v)) v.forEach((x) => exportQS.append(k, x));
-    else if (typeof v === 'string') exportQS.append(k, v);
-  }
-  exportQS.set('groupBy', groupBy);
-
   return (
     <div>
       <PageHeader
         title={t('title')}
         description={t('pageDescription')}
         actions={
-          <div className="flex flex-col items-stretch gap-2 sm:flex-row sm:items-center">
-            <a
-              href="/api/reports/export.pdf?preset=lastMonth&groupBy=project"
-              className="w-full rounded-md border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-4 py-2 text-center text-sm font-medium text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-700 sm:w-auto"
-            >
-              {t('export.lastMonth')}
-            </a>
-            <a
-              href={`/api/reports/export.csv?${exportQS.toString()}`}
-              className="w-full rounded-md border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-4 py-2 text-center text-sm font-medium text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-700 sm:w-auto"
-            >
-              {t('export.csv')}
-            </a>
-            <a
-              href={`/api/reports/export.pdf?${exportQS.toString()}`}
-              className="w-full rounded-md bg-zinc-900 dark:bg-zinc-100 px-4 py-2 text-center text-sm font-medium text-white dark:text-zinc-900 hover:bg-zinc-800 dark:hover:bg-zinc-200 sm:w-auto"
-            >
-              {t('export.pdf')}
-            </a>
-          </div>
+          <ExportDialog
+            isAdmin={isAdmin}
+            meId={s.userId}
+            members={members.map((m) => ({ id: m.userId, name: m.user.fullName }))}
+            initial={{ from: sp.from ?? '', to: sp.to ?? '', memberIds: asArray(sp.member) }}
+          />
         }
       />
       <div className="space-y-4">

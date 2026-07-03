@@ -89,4 +89,48 @@ describe('GET /api/reports/export.pdf', () => {
       expect(res.status).toBe(404);
     });
   });
+
+  it('US-89: exports a single member-scoped PDF', async () => {
+    await withTx(async (tx) => {
+      ctx.db = tx;
+      const admin = await tx.user.create({
+        data: { email: 'pdf-s-a@x.test', fullName: 'Scoped A' },
+      });
+      const company = await createCompany(tx, { name: 'Scoped Co', createdByUserId: admin.id });
+      await tx.timeEntry.create({
+        data: {
+          userId: admin.id,
+          companyId: company.id,
+          description: 'Květnová práce',
+          startedAt: new Date('2026-05-10T08:00:00Z'),
+          endedAt: new Date('2026-05-10T11:00:00Z'),
+        },
+      });
+      ctx.session = { userId: admin.id, activeCompanyId: company.id, activeRole: 'admin' };
+
+      const res = await GET(
+        reqUrl(`from=2026-05-01&to=2026-06-01&member=${admin.id}&groupBy=member`),
+      );
+      expect(res.status).toBe(200);
+      expect(res.headers.get('content-type')).toBe('application/pdf');
+      const buf = Buffer.from(await res.arrayBuffer());
+      expect(buf.subarray(0, 5).toString('latin1')).toBe('%PDF-');
+    });
+  });
+
+  it('US-89: returns 404 for a member-scoped export in a company the user does not belong to', async () => {
+    await withTx(async (tx) => {
+      ctx.db = tx;
+      const outsider = await tx.user.create({ data: { email: 'pdf-s-o@x.test', fullName: 'Out' } });
+      const founder = await tx.user.create({ data: { email: 'pdf-s-f@x.test', fullName: 'Fnd' } });
+      const foreign = await createCompany(tx, {
+        name: 'Foreign Scoped',
+        createdByUserId: founder.id,
+      });
+      ctx.session = { userId: outsider.id, activeCompanyId: foreign.id, activeRole: 'admin' };
+
+      const res = await GET(reqUrl(`from=2026-05-01&to=2026-06-01&member=${founder.id}`));
+      expect(res.status).toBe(404);
+    });
+  });
 });

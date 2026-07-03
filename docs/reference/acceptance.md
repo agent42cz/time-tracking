@@ -42,6 +42,10 @@ Each box maps to the file (and test name) that proves it. v1 was declared comple
 - [x] **Reports export to PDF (incl. last-month preset), cross-company 404.**
   - `apps/web/tests/services/report-pdf.test.ts`, `apps/web/tests/services/reports-export-pdf-route.test.ts` — US-78.
 
+- [x] **Reports Export dialog scopes exports to a chosen period + person(s); PDF/CSV; cross-company 404.**
+  - `apps/web/tests/services/export-url.test.ts`, `apps/web/tests/services/date-presets.test.ts` — US-89 (URL + grouping + presets).
+  - `apps/web/tests/services/reports-export-pdf-route.test.ts`, `apps/web/tests/services/reports-export-csv-route.test.ts` — US-89 (member-scoped export + cross-company 404).
+
 - [x] **Chrome extension supports login, multiple parallel timers, weekly view, edit/delete, real-time sync with web, and offline queue.**
   - `apps/extension/src/queue.test.ts` — US-29 (persistent session), US-30 (popup state load), US-32 (verbatim replay), US-33 ("play again" enqueues fresh), US-34 (in-order replay, conflict resolution, transient retry, browser-kill resume), US-35 (pending count = unsynced indicator).
   - `apps/ws/src/server.test.ts` — US-31 (1s sync between user clients, zero leak across companies).

@@ -1,4 +1,4 @@
-# Features (US-1 … US-88)
+# Features (US-1 … US-89)
 
 Feature catalogue keyed by user-story IDs from PRD §13. Test names embed the US ID so [`../../scripts/test-trace.ts`](../../scripts/test-trace.ts) can verify 100% coverage.
 
@@ -128,6 +128,7 @@ Feature catalogue keyed by user-story IDs from PRD §13. Test names embed the US
 
 - Reports group time entries by project / member / day, with per-group subtotals and a grand total (see US-77 tests in `report-grouped.test.ts`).
 - Reports export to PDF (filter-respecting + one-click previous calendar month), Europe/Prague (see US-78 tests in `report-pdf.test.ts`).
+- **US-89** — Reports **Export dialog**: one "Export" button opens a dialog to pick the **period**, the **person(s)** (or "Všichni členové"), and the **format** (PDF/CSV). The export is scoped to that selection instead of always dumping every member together, and the three old header export buttons are removed; grouping defaults to per-member sections when several/all people are exported (see US-89 tests in `export-url.test.ts`, `date-presets.test.ts`, `reports-export-csv-route.test.ts`).
 
 ## Coverage check
 
@@ -135,4 +136,4 @@ Feature catalogue keyed by user-story IDs from PRD §13. Test names embed the US
 pnpm test:trace
 ```
 
-Walks every test file (`*.test.{ts,tsx}`, `*.spec.{ts,tsx}`, `tests/**`) and looks for `\bUS-N\b`. Exits non-zero if any of US-1..US-88 has zero matches.
+Walks every test file (`*.test.{ts,tsx}`, `*.spec.{ts,tsx}`, `tests/**`) and looks for `\bUS-N\b`. Exits non-zero if any of US-1..US-89 has zero matches.

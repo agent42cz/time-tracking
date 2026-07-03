@@ -7,6 +7,7 @@ import { Button, Field } from '@tt/ui';
 import { useTranslations } from 'next-intl';
 import { MultiSelect } from '@/components/MultiSelect';
 import type { GroupBy } from '@/lib/services/reports';
+import { PRESETS, preset } from './date-presets';
 
 interface Option {
   id: string;
@@ -25,60 +26,7 @@ interface Initial {
   groupBy: GroupBy;
 }
 
-function ymdLocal(d: Date): string {
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, '0');
-  const day = String(d.getDate()).padStart(2, '0');
-  return `${y}-${m}-${day}`;
-}
-
-type PresetKey = 'today' | 'yesterday' | 'thisWeek' | 'lastWeek' | 'thisMonth' | 'lastMonth';
-
-function preset(kind: PresetKey): { from: string; to: string } {
-  const now = new Date();
-  const start = new Date(now);
-  const end = new Date(now);
-  switch (kind) {
-    case 'today':
-      break;
-    case 'yesterday':
-      start.setDate(start.getDate() - 1);
-      end.setDate(end.getDate() - 1);
-      break;
-    case 'thisWeek': {
-      const dow = (start.getDay() + 6) % 7; // Mon=0..Sun=6
-      start.setDate(start.getDate() - dow);
-      end.setDate(start.getDate() + 6);
-      break;
-    }
-    case 'lastWeek': {
-      const dow = (start.getDay() + 6) % 7;
-      start.setDate(start.getDate() - dow - 7);
-      end.setDate(start.getDate() + 6);
-      break;
-    }
-    case 'thisMonth':
-      start.setDate(1);
-      end.setMonth(end.getMonth() + 1, 0);
-      break;
-    case 'lastMonth':
-      start.setMonth(start.getMonth() - 1, 1);
-      end.setMonth(start.getMonth() + 1, 0);
-      break;
-  }
-  return { from: ymdLocal(start), to: ymdLocal(end) };
-}
-
 const GROUP_KEYS = ['project', 'member', 'day'] as const;
-
-const PRESETS: { key: PresetKey; label: string }[] = [
-  { key: 'today', label: 'Dnes' },
-  { key: 'yesterday', label: 'Včera' },
-  { key: 'thisWeek', label: 'Tento týden' },
-  { key: 'lastWeek', label: 'Minulý týden' },
-  { key: 'thisMonth', label: 'Tento měsíc' },
-  { key: 'lastMonth', label: 'Minulý měsíc' },
-];
 
 interface Props {
   isAdmin: boolean;
@@ -112,7 +60,7 @@ export function ReportFiltersForm({
   const activePreset = ((): string | null => {
     if (!from || !to) return null;
     for (const { key, label } of PRESETS) {
-      const r = preset(key);
+      const r = preset(key, new Date());
       if (r.from === from && r.to === to) return label;
     }
     return null;
@@ -141,7 +89,7 @@ export function ReportFiltersForm({
                 key={p.key}
                 type="button"
                 onClick={() => {
-                  const r = preset(p.key);
+                  const r = preset(p.key, new Date());
                   setFrom(r.from);
                   setTo(r.to);
                 }}
