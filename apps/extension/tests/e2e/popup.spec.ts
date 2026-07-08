@@ -52,4 +52,33 @@ test.describe('extension popup', () => {
 
     await expect(startTime).toHaveValue('08:15');
   });
+
+  test('US-90: an idle popup prefills manual entry with the time the sheet opened', async ({
+    page,
+  }) => {
+    // Install the faked clock at the real current time (before navigating)
+    // so the seeded session (expiresAt = now + 30d) is still valid inside
+    // the page once we fast-forward it.
+    await page.clock.install({ time: new Date() });
+    await openPopup(page, buildApiFixture({ running: false }));
+
+    // With no running timer, AppShell's tick effect (gated on hasRunning)
+    // never starts, so `now` stays frozen at whatever it was at mount. Only
+    // a sheet that captures its own open-time nowIso — not the frozen tick —
+    // will prefill the correct (post-fast-forward) start time.
+    await page.clock.fastForward('10:00');
+
+    await page.getByTitle('Více').click();
+    await page.getByRole('menuitem', { name: 'Přidat ručně' }).click();
+
+    // Derive the expected value the same way src/datetime.ts's toTimeInput
+    // does (pad(getHours()):pad(getMinutes()), browser-local zone) from
+    // inside the page, so we compare the faked clock against itself.
+    const expected = await page.evaluate(() => {
+      const d = new Date();
+      const pad = (n: number) => String(n).padStart(2, '0');
+      return `${pad(d.getHours())}:${pad(d.getMinutes())}`;
+    });
+    await expect(page.locator('input[type="time"]').first()).toHaveValue(expected);
+  });
 });

@@ -58,13 +58,17 @@ export interface ApiFixture {
  * `01:01:01` once seconds are restored (US-90).
  * `historyCount` defaults to 25 — enough rows to make the 600px-tall popup
  * scroll, which US-97 depends on.
+ * `running` defaults to `true` (one seeded running entry, matching prior
+ * behaviour). Pass `false` to model an idle popup with no running timer —
+ * needed to exercise the tick-gating-on-`hasRunning` codepath (US-90).
  */
 export function buildApiFixture(
-  opts: { runningStartedAt?: string; historyCount?: number } = {},
+  opts: { runningStartedAt?: string; historyCount?: number; running?: boolean } = {},
 ): ApiFixture {
   const now = Date.now();
   const runningStartedAt = opts.runningStartedAt ?? new Date(now - 3_661_000).toISOString();
   const historyCount = opts.historyCount ?? 25;
+  const includeRunning = opts.running ?? true;
 
   const history = Array.from({ length: historyCount }, (_, i) => {
     const endedAt = new Date(now - (i + 1) * 3_600_000);
@@ -104,20 +108,22 @@ export function buildApiFixture(
     },
     timer: {
       companyId: COMPANY_ID,
-      running: [
-        {
-          id: 'run-1',
-          description: 'Běžící úkol',
-          note: '',
-          clientId: null,
-          clientName: null,
-          projectId: null,
-          projectName: null,
-          startedAt: runningStartedAt,
-          endedAt: null,
-          tags: [],
-        },
-      ],
+      running: includeRunning
+        ? [
+            {
+              id: 'run-1',
+              description: 'Běžící úkol',
+              note: '',
+              clientId: null,
+              clientName: null,
+              projectId: null,
+              projectName: null,
+              startedAt: runningStartedAt,
+              endedAt: null,
+              tags: [],
+            },
+          ]
+        : [],
       history,
       summary: { weekMs: 0, monthMs: 0, lastMonthMs: 0 },
     },
