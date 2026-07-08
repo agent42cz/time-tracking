@@ -87,6 +87,18 @@ the same as removing the mechanism that makes drift dangerous.
   the live database's `_prisma_migrations` table disagree (e.g. a
   hand-edited production DB) — a recovery step (`prisma migrate resolve`)
   may be needed once, when this is first adopted.
+- **Production has no migration history at all**, so this is not the one-line
+  Dockerfile edit the follow-up below implies. `prisma db push` never creates
+  `_prisma_migrations` (verified: pushing this schema into an empty database
+  yields 19 tables and no such table), and `db push` is the only thing that has
+  ever touched the production database. The first `prisma migrate deploy` there
+  will therefore see a populated schema with no history and abort with **P3005 —
+  "The database schema is not empty"**, before running any SQL. Production must
+  be baselined first: `prisma migrate resolve --applied <name>` for **all seven**
+  migrations in `packages/db/prisma/migrations/`, oldest first. The oldest,
+  `20260507164251_add_client_project_sort_order`, is a squashed init that issues
+  17 `CREATE TABLE`s — replaying it against live data would fail even if P3005
+  did not stop it first.
 
 ### Neutral
 
@@ -97,6 +109,10 @@ the same as removing the mechanism that makes drift dangerous.
 
 ## Follow-ups
 
+- [ ] **First**, baseline production: run `prisma migrate resolve --applied` once
+      per migration, oldest first, against the production database. Without this
+      the next step aborts with P3005 on the first deploy. See the second Negative
+      consequence above.
 - [ ] Change `docker/web.Dockerfile:40` to run
       `prisma migrate deploy` instead of `db push --skip-generate --accept-data-loss`.
 - [ ] Decide whether `.github/workflows/ci.yml:95` should switch to
