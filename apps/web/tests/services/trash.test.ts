@@ -6,10 +6,10 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { Prisma } from '@prisma/client';
 import { getTestPrisma, stopTestPrisma, withTx } from '@tt/db/test';
 import { createCompany } from '../../src/lib/services/companies.js';
-// Task 9 appends `purgeOldDeleted` to this import list.
 import {
   listTrash,
   purgeEntry,
+  purgeOldDeleted,
   restoreEntry,
   softDeleteEntry,
   startTimer,
@@ -254,6 +254,46 @@ describe('trash', () => {
       if (!e.ok) throw new Error('setup');
 
       expect(await purgeEntry(tx, w.admin, e.value.id)).toEqual({ ok: false, reason: 'not_found' });
+    });
+  });
+
+  it('US-96: the daily purge hard-deletes >30-day-old entries and audits each one', async () => {
+    await withTx(async (tx) => {
+      const w = await bootstrap(tx, 'us96');
+      const old = await startTimer(tx, w.user, { companyId: w.company, description: 'old' });
+      const fresh = await startTimer(tx, w.user, { companyId: w.company, description: 'fresh' });
+      if (!old.ok || !fresh.ok) throw new Error('setup');
+
+      const now = new Date('2026-05-03T00:00:00Z');
+      const longAgo = new Date(now.getTime() - 31 * 24 * 3_600_000);
+      const recently = new Date(now.getTime() - 29 * 24 * 3_600_000);
+      await softDeleteEntry(tx, w.user, old.value.id, longAgo);
+      await softDeleteEntry(tx, w.user, fresh.value.id, recently);
+
+      const before = await tx.auditLog.count({ where: { companyId: w.company } });
+      const result = await purgeOldDeleted(tx, now);
+      expect(result.purged).toBe(1);
+
+      expect(await tx.timeEntry.findUnique({ where: { id: old.value.id } })).toBeNull();
+      expect(await tx.timeEntry.findUnique({ where: { id: fresh.value.id } })).not.toBeNull();
+
+      // Exactly one audit row per purged entry, actor-less (system-initiated).
+      const after = await tx.auditLog.count({ where: { companyId: w.company } });
+      expect(after - before).toBe(1);
+      const row = await tx.auditLog.findFirstOrThrow({
+        where: { entityId: old.value.id, action: 'purge' },
+      });
+      expect(row.actorUserId).toBeNull();
+      expect(row.before).toMatchObject({ description: 'old' });
+    });
+  });
+
+  it('US-96: a purge run with nothing to purge writes no audit rows', async () => {
+    await withTx(async (tx) => {
+      const w = await bootstrap(tx, 'us96b');
+      const before = await tx.auditLog.count({ where: { companyId: w.company } });
+      expect((await purgeOldDeleted(tx, new Date())).purged).toBe(0);
+      expect(await tx.auditLog.count({ where: { companyId: w.company } })).toBe(before);
     });
   });
 });

@@ -378,7 +378,6 @@ export async function purgeEntry(
   if (!role || role !== 'admin') return { ok: false, reason: 'not_found' };
 
   const before = snapshotOf(entry);
-  await db.timeEntry.delete({ where: { id: entryId } });
   await writeAudit(db, {
     companyId: entry.companyId,
     actorUserId,
@@ -387,14 +386,40 @@ export async function purgeEntry(
     entityId: entryId,
     before: before as never,
   });
+  await db.timeEntry.delete({ where: { id: entryId } });
   return { ok: true, value: true };
 }
 
-/** Daily cron — purges anything soft-deleted >30 days ago. */
+/**
+ * Daily cron — hard-deletes anything soft-deleted >30 days ago.
+ *
+ * Writes one `purge` audit row per entry (`actorUserId: null`, system-initiated)
+ * before deleting, because the snapshot is the entry's only surviving trace.
+ * Audit-then-delete is deliberate: a crash between the two leaves audit rows for
+ * entries that still exist and the next run re-audits them, whereas
+ * delete-then-audit would lose the trace entirely.
+ */
 export async function purgeOldDeleted(db: Db, now: Date = new Date()): Promise<{ purged: number }> {
   const cutoff = new Date(now.getTime() - TRASH_RETENTION_MS);
-  const { count } = await db.timeEntry.deleteMany({
+  const doomed = await db.timeEntry.findMany({
     where: { deletedAt: { lt: cutoff } },
+    include: { tags: true },
+  });
+  if (doomed.length === 0) return { purged: 0 };
+
+  for (const entry of doomed) {
+    await writeAudit(db, {
+      companyId: entry.companyId,
+      actorUserId: null,
+      action: 'purge',
+      entityType: 'TimeEntry',
+      entityId: entry.id,
+      before: snapshotOf(entry) as never,
+    });
+  }
+
+  const { count } = await db.timeEntry.deleteMany({
+    where: { id: { in: doomed.map((e) => e.id) } },
   });
   return { purged: count };
 }

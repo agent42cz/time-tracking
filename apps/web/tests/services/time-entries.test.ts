@@ -467,7 +467,7 @@ describe('time entries', () => {
     });
   });
 
-  it('purge cron deletes only entries soft-deleted >30 days ago', async () => {
+  it('US-96: purge cron deletes only entries soft-deleted >30 days ago', async () => {
     await withTx(async (tx) => {
       const w = await bootstrap(tx, 'purge');
       const old = await tx.timeEntry.create({
