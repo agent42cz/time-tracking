@@ -259,8 +259,11 @@ Also:
 - `scripts/test-trace.ts:10` — `TOTAL_US = 99`.
 - `docs/gotchas.md` — two entries: the `ALTER TYPE … ADD VALUE` / Prisma-transaction trap,
   and `absolute inset-0` inside a document-tall `relative` root.
-- `docs/reference/acceptance.md:27` — currently claims `time-entries.test.ts` asserts via
-  `auditCount()`. That helper does not exist in that file. Correct it while in the audit tests.
+- `docs/reference/acceptance.md:27` — claims **every** US-19..28 test asserts the audit row
+  count via `auditCount()`. Correct it. (This spec originally asserted the helper did not
+  exist in `time-entries.test.ts` at all — that was wrong. It does, at `:63`, with a third
+  distinct signature `(tx, entryId)`. The false part of the doc is "every": six of those
+  tests assert no audit row. Verified during Task 10.)
 - `apps/extension/src/DESCRIPTION.md` — record that e2e now exists.
 
 ## Commits
