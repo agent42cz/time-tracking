@@ -385,8 +385,20 @@ export async function restoreEntry(
 /**
  * Hard-delete a soft-deleted entry. Admin-only, irreversible.
  *
- * The audit row's `before` snapshot is the entry's only surviving trace, so it
- * is captured *before* the delete cascades `TimeEntryTag` away (US-95).
+ * Audits *before* deleting — and must stay in sync with `purgeOldDeleted`,
+ * which makes the same trade for the same reason. The `before` snapshot is the
+ * entry's only surviving trace, and it has to be captured before the delete
+ * cascades `TimeEntryTag` away (US-95). The cost is that a purge that then
+ * loses the race below leaves an audit row for an entry that still exists;
+ * that is the acceptable direction of failure. Delete-then-audit would lose
+ * the snapshot outright.
+ *
+ * The delete restates `deletedAt: { not: null }` because the owner can restore
+ * the entry from their own /trash between the `findUnique` above and the write.
+ * Under READ COMMITTED Postgres re-evaluates the predicate against the current
+ * row version, so a concurrent restore wins and we report `not_found`.
+ * `deleteMany` also returns a count where `delete()` would throw `P2025` at a
+ * caller that has no `catch`.
  */
 export async function purgeEntry(
   db: Db,
@@ -410,7 +422,10 @@ export async function purgeEntry(
     entityId: entryId,
     before: before as never,
   });
-  await db.timeEntry.delete({ where: { id: entryId } });
+  const { count } = await db.timeEntry.deleteMany({
+    where: { id: entryId, deletedAt: { not: null } },
+  });
+  if (count === 0) return { ok: false, reason: 'not_found' };
   return { ok: true, value: true };
 }
 
@@ -419,9 +434,13 @@ export async function purgeEntry(
  *
  * Writes one `purge` audit row per entry (`actorUserId: null`, system-initiated)
  * before deleting, because the snapshot is the entry's only surviving trace.
- * Audit-then-delete is deliberate: a crash between the two leaves audit rows for
- * entries that still exist and the next run re-audits them, whereas
- * delete-then-audit would lose the trace entirely.
+ * Audit-then-delete is deliberate: an entry that survives the delete below
+ * keeps a `purge` audit row it did not earn, and the next run re-audits it,
+ * whereas delete-then-audit would lose the trace entirely. Keep in sync with
+ * `purgeEntry`.
+ *
+ * The caller (`/api/cron/purge`) wraps this in one transaction; the service
+ * itself never opens one, so `withTx`-based tests can drive it directly.
  */
 export async function purgeOldDeleted(db: Db, now: Date = new Date()): Promise<{ purged: number }> {
   const cutoff = new Date(now.getTime() - TRASH_RETENTION_MS);
@@ -431,19 +450,29 @@ export async function purgeOldDeleted(db: Db, now: Date = new Date()): Promise<{
   });
   if (doomed.length === 0) return { purged: 0 };
 
-  for (const entry of doomed) {
-    await writeAudit(db, {
-      companyId: entry.companyId,
-      actorUserId: null,
-      action: 'purge',
-      entityType: 'TimeEntry',
-      entityId: entry.id,
-      before: snapshotOf(entry) as never,
-    });
-  }
+  // One INSERT, not one per doomed entry: the first production run sees every
+  // entry ever soft-deleted, and N sequential round-trips would blow the
+  // transaction's timeout. `source` falls back to its schema default (`web`)
+  // and the omitted `after` stores SQL NULL — both match what `writeAudit`
+  // would have written.
+  const auditRows: Prisma.AuditLogCreateManyInput[] = doomed.map((e) => ({
+    companyId: e.companyId,
+    actorUserId: null,
+    action: 'purge',
+    entityType: 'TimeEntry',
+    entityId: e.id,
+    before: snapshotOf(e),
+  }));
+  await db.auditLog.createMany({ data: auditRows });
 
+  // `deletedAt < cutoff` MUST stay on the DELETE, not just on the SELECT above.
+  // Under READ COMMITTED Postgres re-evaluates a DELETE's predicate against the
+  // current row version, so an entry a user restored while we were auditing is
+  // skipped rather than destroyed. A transaction alone does not give us this —
+  // it would re-evaluate the DELETE, not the earlier SELECT. The row keeps the
+  // unearned `purge` audit row written above; see the note on ordering.
   const { count } = await db.timeEntry.deleteMany({
-    where: { id: { in: doomed.map((e) => e.id) } },
+    where: { id: { in: doomed.map((e) => e.id) }, deletedAt: { lt: cutoff } },
   });
   return { purged: count };
 }

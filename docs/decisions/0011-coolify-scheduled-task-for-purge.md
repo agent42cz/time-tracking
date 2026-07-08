@@ -34,7 +34,9 @@ by admitting it exists.
 
 Matches the already-documented intent and the existing dependency. Needs a
 `NEXT_RUNTIME === 'nodejs'` guard and an HMR double-register guard. The purge is
-idempotent (`deletedAt < cutoff`), so concurrent replicas would be harmless.
+idempotent because `deletedAt < cutoff` is restated on the `deleteMany` itself,
+so concurrent replicas would be harmless — at worst they duplicate `purge` audit
+rows, never a delete.
 
 Rejected because the job would be invisible: no run history, no logs surfaced
 anywhere, and no way to trigger it by hand when investigating. It would have
@@ -61,10 +63,15 @@ to schedule one daily query.
 
 - One more secret to manage (`CRON_SECRET`). Unset ⇒ the endpoint is inert
   (rejects everything), which fails closed but silently.
-- The purge is not wrapped in a transaction, so a crash mid-run can leave
-  `purge` audit rows for entries that still exist. The next run re-audits them.
-  Duplicate audit rows were judged strictly better than losing the snapshot of
-  an entry that is already gone.
+- The route wraps the whole purge in one interactive transaction with a 30 s
+  timeout, so a crash mid-run rolls back both the audit rows and the deletes.
+  The first production run has to load every entry ever soft-deleted, which is
+  why the audit rows go in via a single `createMany` rather than one insert per
+  entry.
+- The purge still audits _before_ deleting, so an entry a user restores while the
+  run is in flight survives the `deletedAt < cutoff` DELETE but keeps a `purge`
+  audit row it did not earn. An unearned audit row was judged strictly better
+  than losing the snapshot of an entry that is already gone.
 
 ### Neutral
 

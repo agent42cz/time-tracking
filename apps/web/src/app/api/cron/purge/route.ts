@@ -27,6 +27,13 @@ export async function POST(req: NextRequest): Promise<Response> {
   if (!authorized(req)) {
     return Response.json({ error: 'unauthorized' }, { status: 401 });
   }
-  const result = await purgeOldDeleted(prisma());
+  // One transaction: the `purge` audit rows and the hard deletes commit
+  // together, so a crash mid-run cannot leave audit rows for entries that
+  // still exist. Prisma's default interactive-transaction timeout is 5 s,
+  // which the first production run — every entry ever soft-deleted — would
+  // blow through.
+  const result = await prisma().$transaction((tx) => purgeOldDeleted(tx, new Date()), {
+    timeout: 30_000,
+  });
   return Response.json(result);
 }

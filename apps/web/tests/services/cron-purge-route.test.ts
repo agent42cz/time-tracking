@@ -8,7 +8,12 @@ import { NextRequest } from 'next/server';
 import { getTestPrisma, stopTestPrisma, withTx } from '@tt/db/test';
 
 const ctx = vi.hoisted(() => ({ db: null as unknown as Prisma.TransactionClient }));
-vi.mock('@/lib/session', () => ({ prisma: () => ctx.db, SESSION_COOKIE: 'tt-session' }));
+// The route only ever touches `$transaction`, and the test's `withTx` client is
+// already inside one. Hand the callback that client instead of nesting.
+vi.mock('@/lib/session', () => ({
+  prisma: () => ({ $transaction: (fn: (tx: unknown) => unknown) => fn(ctx.db) }),
+  SESSION_COOKIE: 'tt-session',
+}));
 
 const { POST } = await import('../../src/app/api/cron/purge/route.js');
 

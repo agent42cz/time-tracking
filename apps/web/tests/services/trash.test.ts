@@ -259,6 +259,56 @@ describe('trash', () => {
     });
   });
 
+  it('US-95: purging an entry the owner already restored returns not_found, not a throw', async () => {
+    await withTx(async (tx) => {
+      const w = await bootstrap(tx, 'us95e');
+      const e = await startTimer(tx, w.user, { companyId: w.company });
+      if (!e.ok) throw new Error('setup');
+      await softDeleteEntry(tx, w.user, e.value.id);
+      await restoreEntry(tx, w.user, e.value.id);
+
+      // The live row survives, and the admin is told so rather than seeing a
+      // Prisma P2025 escape to the nearest error boundary.
+      expect(await purgeEntry(tx, w.admin, e.value.id)).toEqual({ ok: false, reason: 'not_found' });
+      expect(await tx.timeEntry.findUnique({ where: { id: e.value.id } })).not.toBeNull();
+      expect(await tx.auditLog.count({ where: { entityId: e.value.id, action: 'purge' } })).toBe(0);
+    });
+  });
+
+  it('US-96: the daily purge audits every doomed entry in one write', async () => {
+    await withTx(async (tx) => {
+      const w = await bootstrap(tx, 'us96c');
+      const a = await startTimer(tx, w.user, { companyId: w.company, description: 'a' });
+      const b = await startTimer(tx, w.other, { companyId: w.company, description: 'b' });
+      if (!a.ok || !b.ok) throw new Error('setup');
+
+      const now = new Date('2026-05-03T00:00:00Z');
+      const longAgo = new Date(now.getTime() - 31 * 24 * 3_600_000);
+      await softDeleteEntry(tx, w.user, a.value.id, longAgo);
+      await softDeleteEntry(tx, w.other, b.value.id, longAgo);
+
+      expect((await purgeOldDeleted(tx, now)).purged).toBe(2);
+
+      const rows = await tx.auditLog.findMany({
+        where: { entityId: { in: [a.value.id, b.value.id] }, action: 'purge' },
+      });
+      expect(rows).toHaveLength(2);
+      // `createMany` must reproduce what `writeAudit` wrote: the schema default
+      // for `source`, and SQL NULL for the omitted `after`.
+      for (const row of rows) {
+        expect(row.actorUserId).toBeNull();
+        expect(row.source).toBe('web');
+        expect(row.after).toBeNull();
+      }
+      // The snapshot names the entry's owner — `actorUserId` is null here, so
+      // it is the only record of whose entry was destroyed.
+      const rowA = rows.find((r) => r.entityId === a.value.id);
+      expect(rowA?.before).toMatchObject({ description: 'a', userId: w.user });
+      const rowB = rows.find((r) => r.entityId === b.value.id);
+      expect(rowB?.before).toMatchObject({ description: 'b', userId: w.other });
+    });
+  });
+
   it('US-96: the daily purge hard-deletes >30-day-old entries and audits each one', async () => {
     await withTx(async (tx) => {
       const w = await bootstrap(tx, 'us96');

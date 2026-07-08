@@ -129,9 +129,19 @@ covering system-initiated mutations, and was approved as such.
 
 - Undo after the 10 s window: the Alert is gone; `/trash` is the recovery path.
 - Undo on an entry purged in between: `restoreEntry` returns `not_found` → error Alert.
-- Concurrent purge and restore: both gate on `deletedAt`'s state, so one loses cleanly.
+- Concurrent purge and restore: the `deletedAt` predicate is restated **on the
+  write** (`deleteMany({ id, deletedAt: { not: null } })`), not just on the read.
+  Under READ COMMITTED Postgres re-evaluates a DELETE's predicate against the
+  current row version, so the restore wins and the purge reports `not_found`.
+  Reading `deletedAt` and then deleting unconditionally would destroy the
+  restored row; a transaction alone does not help, since it re-evaluates the
+  DELETE and not the earlier SELECT.
 - Two concurrent cron runs: the transaction plus the `deletedAt < cutoff` filter
-  makes the job idempotent.
+  **on the `deleteMany`** makes the job idempotent. Both may write `purge` audit
+  rows for the same entry, but only one DELETE matches. Audit-before-delete means
+  an entry restored mid-run keeps an audit row it did not earn — the accepted
+  direction of failure, since the alternative loses the snapshot of an entry that
+  is already gone.
 - Restoring an entry whose client or project was archived: `archived` is a boolean,
   the FK still resolves, the entry restores intact. A _hard-deleted_ client is also
   safe — `TimeEntry.client` and `.project` are `onDelete: SetNull`
