@@ -215,8 +215,10 @@ describe('trash', () => {
       const row = await tx.auditLog.findFirstOrThrow({
         where: { entityId: e.value.id, action: 'purge' },
       });
-      // The snapshot is the entry's only surviving trace.
-      expect(row.before).toMatchObject({ description: 'doomed', tagIds: [tag.id] });
+      // The snapshot is the entry's only surviving trace, so it has to name the
+      // entry's owner: `actorUserId` records the admin who pressed the button.
+      expect(row.actorUserId).toBe(w.admin);
+      expect(row.before).toMatchObject({ description: 'doomed', tagIds: [tag.id], userId: w.user });
       expect(row.after).toBeNull();
     });
   });

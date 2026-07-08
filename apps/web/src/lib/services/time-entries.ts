@@ -69,9 +69,33 @@ function validateWindow(
 
 type EntryWithTags = Prisma.TimeEntryGetPayload<{ include: { tags: true } }>;
 
-/** The audit `before`/`after` shape. userId/companyId live on the audit row itself. */
-function snapshotOf(e: EntryWithTags): Record<string, unknown> {
+/**
+ * The audit `before`/`after` shape.
+ *
+ * `companyId` lives on the audit row itself. `userId` does **not** — the row's
+ * `actorUserId` is *who performed the action*, which for a `purge` is an admin
+ * or (for the cron) nobody at all. Since the `before` snapshot is a purged
+ * entry's only surviving trace, the owner has to be recorded here.
+ *
+ * Declared as a type alias rather than an interface so TypeScript infers an
+ * implicit index signature and the value is assignable to Prisma's
+ * `InputJsonValue` without a cast.
+ */
+type EntrySnapshot = {
+  userId: string;
+  description: string;
+  note: string;
+  clientId: string | null;
+  projectId: string | null;
+  startedAt: string;
+  endedAt: string | null;
+  tagIds: string[];
+  deletedAt: string | null;
+};
+
+function snapshotOf(e: EntryWithTags): EntrySnapshot {
   return {
+    userId: e.userId,
     description: e.description,
     note: e.note,
     clientId: e.clientId,
@@ -83,7 +107,7 @@ function snapshotOf(e: EntryWithTags): Record<string, unknown> {
   };
 }
 
-async function snapshot(db: Db, id: string): Promise<Record<string, unknown> | null> {
+async function snapshot(db: Db, id: string): Promise<EntrySnapshot | null> {
   const e = await db.timeEntry.findUnique({ where: { id }, include: { tags: true } });
   if (!e) return null;
   return snapshotOf(e);
