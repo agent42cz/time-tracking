@@ -29,9 +29,12 @@ export async function POST(req: NextRequest): Promise<Response> {
   }
   // One transaction: the `purge` audit rows and the hard deletes commit
   // together, so a crash mid-run cannot leave audit rows for entries that
-  // still exist. Prisma's default interactive-transaction timeout is 5 s,
-  // which the first production run — every entry ever soft-deleted — would
-  // blow through.
+  // still exist. Prisma's default interactive-transaction timeout is 5 s, which
+  // a full `PURGE_BATCH_SIZE` batch would blow through.
+  //
+  // A run purges at most `PURGE_BATCH_SIZE` entries (see `purgeOldDeleted`), so
+  // `{ purged: PURGE_BATCH_SIZE }` means a backlog remains. The endpoint is
+  // idempotent — `curl` it again to keep draining.
   const result = await prisma().$transaction((tx) => purgeOldDeleted(tx, new Date()), {
     timeout: 30_000,
   });

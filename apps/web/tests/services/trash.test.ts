@@ -8,6 +8,7 @@ import { getTestPrisma, stopTestPrisma, withTx } from '@tt/db/test';
 import { callsTo, recordingDb, soleCallArg } from '../_helpers/recording-db.js';
 import { createCompany } from '../../src/lib/services/companies.js';
 import {
+  PURGE_BATCH_SIZE,
   listTrash,
   purgeEntry,
   purgeOldDeleted,
@@ -361,6 +362,13 @@ describe('trash', () => {
       // production run.
       expect(callsTo(calls, 'auditLog', 'createMany')).toHaveLength(1);
       expect(callsTo(calls, 'auditLog', 'create')).toHaveLength(0);
+
+      // …and that one INSERT is what forces the SELECT to be bounded: ~8 bound
+      // parameters per audit row against Postgres's 65 535-parameter ceiling.
+      expect(soleCallArg(calls, 'timeEntry', 'findMany')).toMatchObject({
+        take: PURGE_BATCH_SIZE,
+        orderBy: { deletedAt: 'asc' },
+      });
 
       const rows = await tx.auditLog.findMany({
         where: { entityId: { in: [a.value.id, b.value.id] }, action: 'purge' },

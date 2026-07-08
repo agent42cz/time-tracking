@@ -65,9 +65,21 @@ to schedule one daily query.
   (rejects everything), which fails closed but silently.
 - The route wraps the whole purge in one interactive transaction with a 30 s
   timeout, so a crash mid-run rolls back both the audit rows and the deletes.
-  The first production run has to load every entry ever soft-deleted, which is
-  why the audit rows go in via a single `createMany` rather than one insert per
-  entry.
+  The audit rows go in via a single `createMany` rather than one insert per
+  entry, because N sequential round-trips would exhaust that timeout.
+- **The run is incremental: `purgeOldDeleted` bounds its SELECT with
+  `take: PURGE_BATCH_SIZE` (5 000), oldest-deleted first.** Postgres caps a
+  statement at 65 535 bind parameters. The single `createMany` binds ~8 columns
+  per audit row and so blows first, at roughly 8 000 rows — well before the
+  `deleteMany`'s one-parameter-per-id `in` list does. The first production run,
+  which sees every entry ever soft-deleted, would therefore have failed hard.
+  Chunking only the DELETE was rejected: it leaves `createMany` to hit the
+  ceiling first, and that INSERT cannot itself be chunked without reintroducing
+  the round-trip cost above. Bounding the SELECT bounds both writes at once.
+  A backlog now drains at 5 000 entries per run in retention order; a response of
+  `{ purged: 5000 }` means more is waiting, and the endpoint is idempotent, so an
+  operator can `curl` it repeatedly to drain faster. The `id: { in: … }` clause
+  stays on the DELETE so that _audited ⊇ deleted_ holds.
 - The purge still audits _before_ deleting, so an entry a user restores while the
   run is in flight survives the `deletedAt < cutoff` DELETE but keeps a `purge`
   audit row it did not earn. An unearned audit row was judged strictly better

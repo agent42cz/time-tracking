@@ -468,7 +468,31 @@ export async function purgeEntry(
 }
 
 /**
- * Daily cron — hard-deletes anything soft-deleted >30 days ago.
+ * How many entries one cron run may purge. The run is therefore **incremental**:
+ * a backlog larger than this drains over successive runs, oldest first.
+ *
+ * Postgres caps a statement at 65 535 bind parameters (the wire protocol counts
+ * them in an int16). Both of the writes below scale with the batch:
+ *
+ *  - `auditLog.createMany` binds ~8 columns per row — the tighter ceiling by far,
+ *    blowing first at roughly 8 000 rows. It has to stay a single INSERT (N
+ *    sequential round-trips would exhaust the caller's 30 s transaction), so it
+ *    cannot be chunked out of the problem.
+ *  - `timeEntry.deleteMany` binds one parameter per id in `id: { in: … }`.
+ *
+ * Bounding the SELECT bounds both, keeps the audit write to one INSERT, and keeps
+ * the run inside its transaction timeout. Chunking only the DELETE would leave
+ * `createMany` to hit the ceiling first — the very failure this guards against.
+ * 5 000 × ~8 ≈ 40 000 bound parameters, comfortably under the cap.
+ *
+ * A run returning `purged === PURGE_BATCH_SIZE` has more work waiting; the
+ * endpoint is idempotent and safe to `curl` again immediately. See ADR-0011.
+ */
+export const PURGE_BATCH_SIZE = 5_000;
+
+/**
+ * Daily cron — hard-deletes anything soft-deleted >30 days ago, up to
+ * `PURGE_BATCH_SIZE` entries per run, oldest first.
  *
  * Writes one `purge` audit row per entry (`actorUserId: null`, system-initiated)
  * before deleting, because the snapshot is the entry's only surviving trace.
@@ -485,14 +509,17 @@ export async function purgeOldDeleted(db: Db, now: Date = new Date()): Promise<{
   const doomed = await db.timeEntry.findMany({
     where: { deletedAt: { lt: cutoff } },
     include: { tags: true },
+    // Oldest first, so a backlog drains in retention order and each run is
+    // deterministic. `take` bounds every bind-parameter count below.
+    orderBy: { deletedAt: 'asc' },
+    take: PURGE_BATCH_SIZE,
   });
   if (doomed.length === 0) return { purged: 0 };
 
-  // One INSERT, not one per doomed entry: the first production run sees every
-  // entry ever soft-deleted, and N sequential round-trips would blow the
-  // transaction's timeout. `source` falls back to its schema default (`web`)
-  // and the omitted `after` stores SQL NULL — both match what `writeAudit`
-  // would have written.
+  // One INSERT, not one per doomed entry: a run sees up to `PURGE_BATCH_SIZE`
+  // entries, and N sequential round-trips would blow the transaction's timeout.
+  // `source` falls back to its schema default (`web`) and the omitted `after`
+  // stores SQL NULL — both match what `writeAudit` would have written.
   const auditRows: Prisma.AuditLogCreateManyInput[] = doomed.map((e) => ({
     companyId: e.companyId,
     actorUserId: null,
