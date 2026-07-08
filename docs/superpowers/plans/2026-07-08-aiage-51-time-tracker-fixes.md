@@ -40,6 +40,7 @@ Every task's requirements implicitly include this section. These come from [`doc
 | `apps/extension/playwright.config.ts`                     | Extension e2e config — builds the bundle, serves `dist/popup.html` via `vite preview`      |
 | `apps/extension/tests/e2e/fixtures.ts`                    | `chrome.*` stub + API route stubs + seed data. The only place e2e knows about storage keys |
 | `apps/extension/tests/e2e/popup.spec.ts`                  | Extension popup e2e — smoke, US-90, US-97                                                  |
+| `apps/extension/src/useBodyScrollLock.ts`                 | Locks `<body>` scroll while a sheet is mounted. Shared by both sheets.                     |
 | `packages/shared/src/time/duration.ts`                    | Pure duration arithmetic. **Zero imports.**                                                |
 | `packages/shared/src/time/duration.test.ts`               | Unit tests for the above                                                                   |
 | `apps/web/tests/services/trash.test.ts`                   | US-91, US-92, US-93, US-95, US-96 service tests                                            |
@@ -780,6 +781,7 @@ Two consequences of `absolute` on a document-tall parent, both fixed here:
 
 **Files:**
 
+- Create: `apps/extension/src/useBodyScrollLock.ts`
 - Modify: `apps/extension/src/EntrySheet.tsx:137,151`
 - Modify: `apps/extension/src/NewProjectSheet.tsx:36,48`
 - Modify: `apps/extension/tests/e2e/popup.spec.ts` (add US-97)
@@ -787,7 +789,7 @@ Two consequences of `absolute` on a document-tall parent, both fixed here:
 **Interfaces:**
 
 - Consumes: `openPopup`, `buildApiFixture` from `./fixtures.js` (Task 1).
-- Produces: nothing importable.
+- Produces: `useBodyScrollLock(): void` from `apps/extension/src/useBodyScrollLock.ts`.
 
 - [ ] **Step 1: Write the failing test**
 
@@ -840,32 +842,43 @@ pnpm test:e2e:ext
 
 Expected: `US-97: opening an entry while scrolled…` FAILS with `expect(box.y).toBeGreaterThanOrEqual(0)` receiving a negative number (roughly `-scrollY`). `US-97: the body does not scroll…` FAILS with `expect('').toBe('hidden')`.
 
-- [ ] **Step 3: Pin `EntrySheet` to the viewport**
+- [ ] **Step 3: Extract the body scroll lock into a shared hook**
 
-In `apps/extension/src/EntrySheet.tsx`, change the import at `:2`:
+Both sheets need the lock, so it lives in one place rather than being copied into each. Create `apps/extension/src/useBodyScrollLock.ts`:
 
 ```ts
-import { useMemo, useState } from 'react';
+import { useEffect } from 'react';
+
+/**
+ * Lock `<body>` scrolling for as long as the caller is mounted.
+ *
+ * The popup's root is document-tall, so an open sheet (`fixed inset-0`) covers
+ * the viewport while the history list behind it is still scrollable. Locking
+ * the body stops the list sliding around underneath.
+ */
+export function useBodyScrollLock(): void {
+  useEffect(() => {
+    const previous = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = previous;
+    };
+  }, []);
+}
 ```
 
-to:
+- [ ] **Step 4: Pin `EntrySheet` to the viewport**
+
+In `apps/extension/src/EntrySheet.tsx`, add the hook to the local imports (beside `./format.js`):
 
 ```ts
-import { useEffect, useMemo, useState } from 'react';
+import { useBodyScrollLock } from './useBodyScrollLock.js';
 ```
 
-Add this effect immediately after the `const wasRunning = …` line (`:66`):
+Call it immediately after the `const wasRunning = …` line (`:66`):
 
 ```ts
-// The popup's root is document-tall, so an open sheet must own the viewport
-// (see AutoStackSheet). Lock the body so the history can't scroll behind it.
-useEffect(() => {
-  const previous = document.body.style.overflow;
-  document.body.style.overflow = 'hidden';
-  return () => {
-    document.body.style.overflow = previous;
-  };
-}, []);
+useBodyScrollLock();
 ```
 
 Then change `:137`:
@@ -894,18 +907,16 @@ to:
 
 `min-h-0` is required: a flex child's default `min-height: auto` refuses to shrink below its content, which would defeat `overflow-y-auto`.
 
-- [ ] **Step 4: Pin `NewProjectSheet` the same way**
+- [ ] **Step 5: Pin `NewProjectSheet` the same way**
 
-`NewProjectSheet.tsx:36` carries the identical latent bug. In `apps/extension/src/NewProjectSheet.tsx`, add `useEffect` to the React import, then add the same body-lock effect immediately before the `return (`:
+`NewProjectSheet.tsx:36` carries the identical latent bug. In `apps/extension/src/NewProjectSheet.tsx`, import the same hook and call it immediately before the `return (`:
 
 ```ts
-useEffect(() => {
-  const previous = document.body.style.overflow;
-  document.body.style.overflow = 'hidden';
-  return () => {
-    document.body.style.overflow = previous;
-  };
-}, []);
+import { useBodyScrollLock } from './useBodyScrollLock.js';
+```
+
+```ts
+useBodyScrollLock();
 ```
 
 Change `:36`:
@@ -932,7 +943,7 @@ to:
       <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-4">
 ```
 
-- [ ] **Step 5: Run the tests**
+- [ ] **Step 6: Run the tests**
 
 ```bash
 pnpm test:e2e:ext
@@ -942,10 +953,12 @@ pnpm lint
 
 Expected: PASS. Also confirm `AutoStackSheet` (`z-50`) still renders **above** an open `EntrySheet` (`z-40`) — the auto-stack sheet must win when a stop produces an overlap while a sheet is open.
 
-- [ ] **Step 6: Commit**
+`AutoStackSheet` is deliberately **not** converted to `useBodyScrollLock` in this task: it is already `fixed inset-0` and its scroll behaviour is out of scope. It is the hook's likely third caller later.
+
+- [ ] **Step 7: Commit**
 
 ```bash
-git add apps/extension/src/EntrySheet.tsx apps/extension/src/NewProjectSheet.tsx apps/extension/tests/e2e/popup.spec.ts
+git add apps/extension/src/useBodyScrollLock.ts apps/extension/src/EntrySheet.tsx apps/extension/src/NewProjectSheet.tsx apps/extension/tests/e2e/popup.spec.ts
 git commit -m "fix(ext): entry + new-project sheets pin to the viewport (US-97)
 
 AppShell's root is relative and document-tall, so \`absolute inset-0\` stretched
@@ -1859,7 +1872,7 @@ interface Entry {
 }
 
 /** A running entry can be soft-deleted, so `endedAt` may be null. */
-function window(e: Entry): string {
+function timeRange(e: Entry): string {
   const start = fmtTime(new Date(e.startedAt));
   return e.endedAt ? `${start}–${fmtTime(new Date(e.endedAt))}` : `${start}–…`;
 }
@@ -1917,7 +1930,7 @@ export function TrashList({
                 <Td className="text-zinc-700 dark:text-zinc-300">
                   {e.clientName ?? '—'} {e.projectName ? `· ${e.projectName}` : ''}
                 </Td>
-                <Td className="font-mono text-xs tabular-nums">{window(e)}</Td>
+                <Td className="font-mono text-xs tabular-nums">{timeRange(e)}</Td>
                 <Td className="font-mono text-xs font-semibold tabular-nums">{duration(e)}</Td>
                 <Td className="font-mono text-xs">
                   {new Date(e.deletedAt).toLocaleString('cs-CZ')}
@@ -1948,7 +1961,7 @@ export function TrashList({
                 </span>
               </DataCardRow>
               <DataCardRow label="Kdy">
-                <span className="font-mono text-xs tabular-nums">{window(e)}</span>
+                <span className="font-mono text-xs tabular-nums">{timeRange(e)}</span>
               </DataCardRow>
               <DataCardRow label="Trvání">
                 <span className="font-mono text-xs font-semibold tabular-nums">{duration(e)}</span>
