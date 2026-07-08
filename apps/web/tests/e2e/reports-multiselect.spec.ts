@@ -63,6 +63,38 @@ test.describe('US-98: reports client filter', () => {
     await expect(last).toBeInViewport();
   });
 
+  test('US-98: a short viewport clamps the popover inside the viewport', async ({ page }) => {
+    // At 300px the click auto-scrolls the trigger to y≈131, which leaves 131px
+    // below it — under ESTIMATED_POPOVER_HEIGHT, but not less than the space
+    // above, so `reposition()` anchors *below* and must clamp. Without the
+    // clamp the popover measures 223px and overruns the viewport by 96px; it is
+    // `position: fixed`, so that overrun extends no scroll region and is simply
+    // unreachable.
+    await page.setViewportSize({ width: 1280, height: 300 });
+    await page.goto('/reports');
+
+    await page.getByRole('button', { name: /všichni klienti/i }).click();
+    const popover = page.getByTestId('multiselect-popover');
+    await expect(popover).toBeVisible();
+
+    const viewport = page.viewportSize();
+    if (!viewport) throw new Error('no viewport');
+    const box = await popover.boundingBox();
+    if (!box) throw new Error('popover not visible');
+
+    expect(box.y).toBeGreaterThanOrEqual(0);
+    expect(box.y + box.height).toBeLessThanOrEqual(viewport.height);
+    expect(box.x).toBeGreaterThanOrEqual(0);
+    expect(box.x + box.width).toBeLessThanOrEqual(viewport.width);
+
+    // The clamp is worthless if it hides the controls: the search input must
+    // still be on screen, and every option still reachable by scrolling.
+    await expect(popover.getByPlaceholder('Hledat…')).toBeInViewport();
+    const last = popover.getByText(`${PREFIX} ${EXTRA - 1}`);
+    await last.scrollIntoViewIfNeeded();
+    await expect(last).toBeInViewport();
+  });
+
   test('US-98: the popover repositions when the trigger grows from chip wrap', async ({ page }) => {
     // A tall viewport keeps the popover anchored *below* the trigger (`top:
     // trigger.bottom + GAP`) instead of flipping above it. The flip-up anchor

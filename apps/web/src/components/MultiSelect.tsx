@@ -29,12 +29,15 @@ export interface MultiSelectProps {
 /** Roughly the popover's tallest realistic height: search + 16rem list + footer. */
 const ESTIMATED_POPOVER_HEIGHT = 340;
 const GAP = 4;
+/** Breathing room between the clamped popover and the viewport edge. */
+const VIEWPORT_MARGIN = 8;
 
 interface PopoverPos {
   left: number;
   width: number;
   top?: number;
   bottom?: number;
+  maxHeight: number;
 }
 
 /**
@@ -72,10 +75,19 @@ export function MultiSelect({
     const r = el.getBoundingClientRect();
     const spaceBelow = window.innerHeight - r.bottom;
     const flipUp = spaceBelow < ESTIMATED_POPOVER_HEIGHT && r.top > spaceBelow;
+    // Choosing the roomier side is not enough: on a short viewport neither side
+    // fits. `position: fixed` extends no scroll region, so anything past the
+    // edge is simply unreachable — clamp to the space the chosen side has.
+    const maxHeight = Math.max(0, (flipUp ? r.top : spaceBelow) - GAP - VIEWPORT_MARGIN);
     setPos(
       flipUp
-        ? { left: r.left, width: r.width, bottom: window.innerHeight - r.top + GAP }
-        : { left: r.left, width: r.width, top: r.bottom + GAP },
+        ? {
+            left: r.left,
+            width: r.width,
+            bottom: window.innerHeight - r.top + GAP,
+            maxHeight,
+          }
+        : { left: r.left, width: r.width, top: r.bottom + GAP, maxHeight },
     );
   }, []);
 
@@ -160,11 +172,16 @@ export function MultiSelect({
               position: 'fixed',
               left: pos.left,
               width: pos.width,
+              maxHeight: pos.maxHeight,
               ...(pos.top !== undefined ? { top: pos.top } : {}),
               ...(pos.bottom !== undefined ? { bottom: pos.bottom } : {}),
             }}
-            /* z-[60] clears ConfirmModal's z-50 (the US-89 export dialog). */
-            className="z-[60] overflow-hidden rounded-md border border-zinc-200 bg-white shadow-lg dark:border-zinc-700 dark:bg-zinc-800"
+            /* z-[60] clears ConfirmModal's z-50 (the US-89 export dialog).
+               `flex flex-col` + `min-h-0` on the list below let the list absorb
+               the clamp, so its scrollport stays fully visible instead of being
+               cropped by `overflow-hidden` — a cropped scrollport hides options
+               that scrolling can no longer bring into view. */
+            className="z-[60] flex flex-col overflow-hidden rounded-md border border-zinc-200 bg-white shadow-lg dark:border-zinc-700 dark:bg-zinc-800"
           >
             <div className="flex items-center gap-2 border-b border-zinc-100 px-2 py-1.5 dark:border-zinc-700/60">
               <input
@@ -188,7 +205,7 @@ export function MultiSelect({
                 and these are checkbox labels. A testid avoids a false a11y contract. */}
             <ul
               data-testid="multiselect-listbox"
-              className="max-h-[min(16rem,60vh)] overflow-y-auto py-1"
+              className="max-h-[min(16rem,60vh)] min-h-0 overflow-y-auto py-1"
             >
               {filtered.length === 0 ? (
                 <li className="px-3 py-2 text-sm text-zinc-400 dark:text-zinc-500">{emptyLabel}</li>
