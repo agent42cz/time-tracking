@@ -2934,6 +2934,30 @@ export async function purgeOldDeleted(db: Db, now: Date = new Date()): Promise<{
 }
 ```
 
+- [ ] **Step 3b: Reconcile `purgeEntry`'s ordering with the same rule**
+
+> **Plan defect, caught in Task 8's review.** Task 8 shipped `purgeEntry` as snapshot → **delete** → `writeAudit`. Step 3 above argues the opposite ordering for `purgeOldDeleted`, on the grounds that the audit row is the entry's only surviving trace and a crash between the two steps must not lose it. Both functions destroy the same thing for the same reason; they must not disagree about this.
+
+In `apps/web/src/lib/services/time-entries.ts`, reorder `purgeEntry` so the audit row is written **before** the delete:
+
+```ts
+const before = snapshotOf(entry);
+await writeAudit(db, {
+  companyId: entry.companyId,
+  actorUserId,
+  action: 'purge',
+  entityType: 'TimeEntry',
+  entityId: entryId,
+  before: before as never,
+});
+await db.timeEntry.delete({ where: { id: entryId } });
+return { ok: true, value: true };
+```
+
+The existing US-95 tests already assert exactly one `purge` audit row, that the row is gone, and that `timeEntryTag.count === 0`. They must stay green unchanged — reordering two awaits inside a non-transactional service changes no observable outcome on the happy path. If any of them fails, stop: it means something depended on the delete happening first.
+
+Note this deliberately diverges from `softDeleteEntry` / `restoreEntry`, which mutate then audit. That is correct: those two leave the row in the database either way, so a lost audit row is recoverable from the row itself. A purged row is not.
+
 - [ ] **Step 4: Add the route**
 
 Create `apps/web/src/app/api/cron/purge/route.ts`:
