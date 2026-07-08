@@ -36,9 +36,19 @@ export function NewProjectSheet({
   useBodyScrollLock();
 
   return (
-    <div className="fixed inset-0 z-40 flex flex-col bg-white dark:bg-zinc-900">
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="new-project-sheet-title"
+      className="fixed inset-0 z-40 flex flex-col bg-white dark:bg-zinc-900"
+    >
       <div className="flex items-center justify-between border-b border-zinc-100 px-4 py-3 dark:border-zinc-700/60">
-        <span className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">Nový projekt</span>
+        <span
+          id="new-project-sheet-title"
+          className="text-sm font-semibold text-zinc-900 dark:text-zinc-100"
+        >
+          Nový projekt
+        </span>
         <button
           type="button"
           onClick={onClose}

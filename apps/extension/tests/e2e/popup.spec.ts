@@ -106,11 +106,10 @@ test.describe('extension popup', () => {
     expect(box.y).toBeGreaterThanOrEqual(0);
     expect(box.y + box.height).toBeLessThanOrEqual(600);
 
-    // The title field must be visible too, not just the header. `.last()`
-    // disambiguates: the always-mounted StartRow description input
-    // (popup.tsx:901) shares this placeholder with the sheet's Název field,
-    // and the sheet mounts after StartRow in AppShell's JSX.
-    await expect(page.getByPlaceholder('Co děláte?').last()).toBeInViewport();
+    // The title field must be visible too, not just the header. Scope to the
+    // dialog: the always-mounted StartRow description input (popup.tsx:901)
+    // shares this placeholder with the sheet's Název field.
+    await expect(page.getByRole('dialog').getByPlaceholder('Co děláte?')).toBeInViewport();
   });
 
   test('US-97: the body does not scroll behind an open sheet', async ({ page }) => {

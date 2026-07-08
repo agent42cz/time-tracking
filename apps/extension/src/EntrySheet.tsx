@@ -136,9 +136,17 @@ export function EntrySheet(props: EntrySheetProps): ReactElement {
   }
 
   return (
-    <div className="fixed inset-0 z-40 flex flex-col bg-white dark:bg-zinc-900">
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="entry-sheet-title"
+      className="fixed inset-0 z-40 flex flex-col bg-white dark:bg-zinc-900"
+    >
       <div className="flex items-center justify-between border-b border-zinc-100 px-4 py-3 dark:border-zinc-700/60">
-        <span className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+        <span
+          id="entry-sheet-title"
+          className="text-sm font-semibold text-zinc-900 dark:text-zinc-100"
+        >
           {mode === 'create' ? 'Nový záznam' : 'Upravit záznam'}
         </span>
         <button
