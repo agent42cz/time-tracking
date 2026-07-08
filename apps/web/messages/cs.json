@@ -56,6 +56,11 @@
     "confirm": {
       "deleteEntryTitle": "Smazat záznam?",
       "deleteEntryDescription": "Záznam přesuneme do koše. Můžeš jej do 30 dní obnovit."
+    },
+    "undo": {
+      "deleted": "Záznam byl smazán.",
+      "action": "Vrátit zpět",
+      "failed": "Záznam se nepodařilo obnovit."
     }
   },
   "timeEntry": {
