@@ -5,6 +5,7 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { Prisma } from '@prisma/client';
 import { getTestPrisma, stopTestPrisma, withTx } from '@tt/db/test';
+import { callsTo, recordingDb, soleCallArg } from '../_helpers/recording-db.js';
 import { createCompany } from '../../src/lib/services/companies.js';
 import {
   listTrash,
@@ -14,6 +15,8 @@ import {
   softDeleteEntry,
   startTimer,
 } from '../../src/lib/services/time-entries.js';
+
+const RETENTION_MS = 30 * 24 * 3_600_000;
 
 beforeAll(async () => {
   await getTestPrisma();
@@ -223,6 +226,31 @@ describe('trash', () => {
     });
   });
 
+  it('US-95: the purge restates deletedAt on the DELETE itself, not just on the read', async () => {
+    await withTx(async (tx) => {
+      const w = await bootstrap(tx, 'us95f');
+      const e = await startTimer(tx, w.user, { companyId: w.company });
+      if (!e.ok) throw new Error('setup');
+      await softDeleteEntry(tx, w.user, e.value.id);
+
+      const { db, calls } = recordingDb(tx);
+      expect(await purgeEntry(db, w.admin, e.value.id)).toEqual({ ok: true, value: true });
+
+      // The owner can restore the entry from their own /trash between the
+      // `findUnique` and this write. Under READ COMMITTED Postgres re-evaluates a
+      // DELETE's predicate against the current row version, so restating
+      // `deletedAt` here — and only here — is what keeps a live entry alive.
+      // A `delete()` on `{ id }` alone would also throw P2025 at a caller with no
+      // catch. The race itself cannot be staged inside `withTx` (one transaction,
+      // a second writer deadlocks); the predicate can be, and it is the thing a
+      // one-token edit removes.
+      expect(soleCallArg(calls, 'timeEntry', 'deleteMany')).toMatchObject({
+        where: { id: e.value.id, deletedAt: { not: null } },
+      });
+      expect(await tx.timeEntry.findUnique({ where: { id: e.value.id } })).toBeNull();
+    });
+  });
+
   it('US-95: a member cannot purge their own entry', async () => {
     await withTx(async (tx) => {
       const w = await bootstrap(tx, 'us95b');
@@ -259,7 +287,7 @@ describe('trash', () => {
     });
   });
 
-  it('US-95: purging an entry the owner already restored returns not_found, not a throw', async () => {
+  it('US-95: purging an entry restored out of the trash before the read returns not_found', async () => {
     await withTx(async (tx) => {
       const w = await bootstrap(tx, 'us95e');
       const e = await startTimer(tx, w.user, { companyId: w.company });
@@ -267,8 +295,15 @@ describe('trash', () => {
       await softDeleteEntry(tx, w.user, e.value.id);
       await restoreEntry(tx, w.user, e.value.id);
 
-      // The live row survives, and the admin is told so rather than seeing a
-      // Prisma P2025 escape to the nearest error boundary.
+      // The restore is already committed when `purgeEntry` reads the row, so the
+      // `!entry.deletedAt` pre-check short-circuits and control never reaches
+      // `writeAudit` or the DELETE. That is why no `purge` row exists here.
+      //
+      // This says nothing about the *race*, where the restore lands after the
+      // pre-check: there the audit row is written and the DELETE finds no
+      // matching row — the accepted direction of failure (ADR-0011). The
+      // predicate that makes that safe is asserted directly on the write, in
+      // 'US-95: the purge restates deletedAt on the DELETE itself'.
       expect(await purgeEntry(tx, w.admin, e.value.id)).toEqual({ ok: false, reason: 'not_found' });
       expect(await tx.timeEntry.findUnique({ where: { id: e.value.id } })).not.toBeNull();
       expect(await tx.auditLog.count({ where: { entityId: e.value.id, action: 'purge' } })).toBe(0);
@@ -287,7 +322,14 @@ describe('trash', () => {
       await softDeleteEntry(tx, w.user, a.value.id, longAgo);
       await softDeleteEntry(tx, w.other, b.value.id, longAgo);
 
-      expect((await purgeOldDeleted(tx, now)).purged).toBe(2);
+      const { db, calls } = recordingDb(tx);
+      expect((await purgeOldDeleted(db, now)).purged).toBe(2);
+
+      // "One write" is the point: N doomed entries, one INSERT. N sequential
+      // round-trips would blow the cron transaction's 30 s timeout on the first
+      // production run.
+      expect(callsTo(calls, 'auditLog', 'createMany')).toHaveLength(1);
+      expect(callsTo(calls, 'auditLog', 'create')).toHaveLength(0);
 
       const rows = await tx.auditLog.findMany({
         where: { entityId: { in: [a.value.id, b.value.id] }, action: 'purge' },
@@ -337,6 +379,42 @@ describe('trash', () => {
       });
       expect(row.actorUserId).toBeNull();
       expect(row.before).toMatchObject({ description: 'old' });
+    });
+  });
+
+  it('US-96: the daily purge restates deletedAt < cutoff on the DELETE, not just the SELECT', async () => {
+    await withTx(async (tx) => {
+      const w = await bootstrap(tx, 'us96d');
+      const old = await startTimer(tx, w.user, { companyId: w.company, description: 'old' });
+      if (!old.ok) throw new Error('setup');
+
+      const now = new Date('2026-05-03T00:00:00Z');
+      const cutoff = new Date(now.getTime() - RETENTION_MS);
+      await softDeleteEntry(
+        tx,
+        w.user,
+        old.value.id,
+        new Date(now.getTime() - 31 * 24 * 3_600_000),
+      );
+
+      const { db, calls } = recordingDb(tx);
+      expect((await purgeOldDeleted(db, now)).purged).toBe(1);
+
+      // `id: { in: doomed }` is NOT enough. The job audits every doomed entry and
+      // only then deletes; a user who restores one of them in that window would be
+      // inside the id list and get hard-deleted, irreversibly. Restating
+      // `deletedAt < cutoff` on the DELETE makes Postgres re-check the *current*
+      // row version under READ COMMITTED and skip it. A transaction does not give
+      // us this — it would re-evaluate the DELETE, never the earlier SELECT.
+      //
+      // No black-box assertion can see this: every entry a test can set up as
+      // "restored" is absent from `doomed`, so the id clause alone excludes it and
+      // the suite stays green with the predicate deleted. Hence the assertion on
+      // the write itself.
+      expect(soleCallArg(calls, 'timeEntry', 'deleteMany')).toMatchObject({
+        where: { id: { in: [old.value.id] }, deletedAt: { lt: cutoff } },
+      });
+      expect(await tx.timeEntry.findUnique({ where: { id: old.value.id } })).toBeNull();
     });
   });
 
