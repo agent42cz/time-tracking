@@ -5,6 +5,7 @@ import { parseAppZoneInput } from '@tt/shared/time';
 import { requireActiveCompany, prisma } from '../session.js';
 import {
   createManualEntry,
+  purgeEntry,
   restoreEntry,
   softDeleteEntry,
   startTimer,
@@ -188,6 +189,14 @@ export async function restoreEntryAction(entryId: string): Promise<ActionResult>
   revalidatePath('/trash');
   // Undo (US-94) restores from /timer, which must re-render too.
   revalidatePath('/timer');
+  return { ok: true };
+}
+
+export async function purgeEntryAction(entryId: string): Promise<ActionResult> {
+  const s = await requireActiveCompany();
+  const result = await purgeEntry(prisma(), s.userId, entryId);
+  if (!result.ok) return { ok: false, error: 'Nelze trvale smazat' };
+  revalidatePath('/trash');
   return { ok: true };
 }
 

@@ -13,8 +13,9 @@ import {
   DataCard,
   DataCardRow,
   DataCardActions,
+  useConfirm,
 } from '@tt/ui';
-import { restoreEntryAction } from '@/lib/actions/time';
+import { restoreEntryAction, purgeEntryAction } from '@/lib/actions/time';
 import { fmtDur, fmtTime } from '@/lib/time-format';
 
 interface Entry {
@@ -54,6 +55,24 @@ export function TrashList({
       const r = await restoreEntryAction(id);
       if (!r.ok) setError(r.error);
     });
+
+  const confirm = useConfirm();
+
+  const purge = (id: string): void => {
+    void (async () => {
+      const ok = await confirm({
+        title: 'Trvale smazat záznam?',
+        description: 'Tuto akci nelze vrátit zpět. Záznam bude nenávratně odstraněn.',
+        confirmLabel: 'Trvale smazat',
+        tone: 'danger',
+      });
+      if (!ok) return;
+      startTransition(async () => {
+        const r = await purgeEntryAction(id);
+        if (!r.ok) setError(r.error);
+      });
+    })();
+  };
 
   return (
     <div>
@@ -96,6 +115,17 @@ export function TrashList({
                   <Button size="sm" variant="ghost" loading={pending} onClick={() => restore(e.id)}>
                     Obnovit
                   </Button>
+                  {isAdmin ? (
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      loading={pending}
+                      onClick={() => purge(e.id)}
+                      className="text-red-600 hover:text-red-700 dark:text-red-400"
+                    >
+                      Trvale smazat
+                    </Button>
+                  ) : null}
                 </Td>
               </Tr>
             ))}
@@ -137,6 +167,17 @@ export function TrashList({
                 <Button size="sm" variant="ghost" loading={pending} onClick={() => restore(e.id)}>
                   Obnovit
                 </Button>
+                {isAdmin ? (
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    loading={pending}
+                    onClick={() => purge(e.id)}
+                    className="text-red-600 hover:text-red-700 dark:text-red-400"
+                  >
+                    Trvale smazat
+                  </Button>
+                ) : null}
               </DataCardActions>
             </DataCard>
           </li>

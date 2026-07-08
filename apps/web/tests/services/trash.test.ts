@@ -6,9 +6,10 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { Prisma } from '@prisma/client';
 import { getTestPrisma, stopTestPrisma, withTx } from '@tt/db/test';
 import { createCompany } from '../../src/lib/services/companies.js';
-// Tasks 8 and 9 append `purgeEntry` and `purgeOldDeleted` to this import list.
+// Task 9 appends `purgeOldDeleted` to this import list.
 import {
   listTrash,
+  purgeEntry,
   restoreEntry,
   softDeleteEntry,
   startTimer,
@@ -183,6 +184,76 @@ describe('trash', () => {
       const result = await listTrash(tx, w.user, w.company);
       expect(result.ok).toBe(true);
       if (result.ok) expect(result.value[0]?.endedAt).toBeNull();
+    });
+  });
+
+  it('US-95: an admin purges an entry permanently, leaving exactly one purge audit row', async () => {
+    await withTx(async (tx) => {
+      const w = await bootstrap(tx, 'us95');
+      const tag = await tx.tag.create({
+        data: { companyId: w.company, name: 'T', color: '#fff' },
+      });
+      const e = await startTimer(tx, w.user, {
+        companyId: w.company,
+        description: 'doomed',
+        tagIds: [tag.id],
+      });
+      if (!e.ok) throw new Error('setup');
+      await softDeleteEntry(tx, w.user, e.value.id);
+
+      const before = await tx.auditLog.count({ where: { companyId: w.company } });
+      const result = await purgeEntry(tx, w.admin, e.value.id);
+      expect(result.ok).toBe(true);
+
+      // The row is gone, and so are its tag joins (onDelete: Cascade).
+      expect(await tx.timeEntry.findUnique({ where: { id: e.value.id } })).toBeNull();
+      expect(await tx.timeEntryTag.count({ where: { timeEntryId: e.value.id } })).toBe(0);
+
+      const after = await tx.auditLog.count({ where: { companyId: w.company } });
+      expect(after - before).toBe(1);
+
+      const row = await tx.auditLog.findFirstOrThrow({
+        where: { entityId: e.value.id, action: 'purge' },
+      });
+      // The snapshot is the entry's only surviving trace.
+      expect(row.before).toMatchObject({ description: 'doomed', tagIds: [tag.id] });
+      expect(row.after).toBeNull();
+    });
+  });
+
+  it('US-95: a member cannot purge their own entry', async () => {
+    await withTx(async (tx) => {
+      const w = await bootstrap(tx, 'us95b');
+      const e = await startTimer(tx, w.user, { companyId: w.company });
+      if (!e.ok) throw new Error('setup');
+      await softDeleteEntry(tx, w.user, e.value.id);
+
+      expect(await purgeEntry(tx, w.user, e.value.id)).toEqual({ ok: false, reason: 'not_found' });
+      expect(await tx.timeEntry.findUnique({ where: { id: e.value.id } })).not.toBeNull();
+    });
+  });
+
+  it('US-95: purging a cross-company entry returns not_found', async () => {
+    await withTx(async (tx) => {
+      const w = await bootstrap(tx, 'us95c');
+      const e = await startTimer(tx, w.user, { companyId: w.company });
+      if (!e.ok) throw new Error('setup');
+      await softDeleteEntry(tx, w.user, e.value.id);
+
+      expect(await purgeEntry(tx, w.outsider, e.value.id)).toEqual({
+        ok: false,
+        reason: 'not_found',
+      });
+    });
+  });
+
+  it('US-95: purging an entry that is not in the trash returns not_found', async () => {
+    await withTx(async (tx) => {
+      const w = await bootstrap(tx, 'us95d');
+      const e = await startTimer(tx, w.user, { companyId: w.company });
+      if (!e.ok) throw new Error('setup');
+
+      expect(await purgeEntry(tx, w.admin, e.value.id)).toEqual({ ok: false, reason: 'not_found' });
     });
   });
 });

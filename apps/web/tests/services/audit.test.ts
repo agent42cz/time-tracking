@@ -4,7 +4,7 @@
  */
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { Prisma } from '@prisma/client';
-import type { AuditSource } from '@prisma/client';
+import { AuditAction, type AuditSource } from '@prisma/client';
 import { getTestPrisma, stopTestPrisma, withTx } from '@tt/db/test';
 import { createCompany } from '../../src/lib/services/companies.js';
 import {
@@ -15,6 +15,7 @@ import {
 } from '../../src/lib/services/time-entries.js';
 import { listAuditLog } from '../../src/lib/services/audit-query.js';
 import { writeAudit } from '../../src/lib/services/audit.js';
+import { ALL_ACTIONS } from '../../src/app/(authenticated)/audit/audit-actions.js';
 
 beforeAll(async () => {
   await getTestPrisma();
@@ -178,5 +179,11 @@ describe('audit log', () => {
       const src = fs.readFileSync(f, 'utf8');
       expect(src).not.toMatch(/\.auditLog\.(update|delete|deleteMany|updateMany)\(/);
     }
+  });
+});
+
+describe('audit action filter', () => {
+  it('US-99: the filter offers every AuditAction value', () => {
+    expect(new Set(ALL_ACTIONS)).toEqual(new Set(Object.values(AuditAction)));
   });
 });

@@ -12,6 +12,7 @@
  *  - softDelete / restore: owners can soft-delete their own; admins can
  *    soft-delete any. Both produce an audit row. Soft-deleted entries
  *    are hidden from normal queries (US-25, US-47).
+ *  - purgeEntry: admin-only hard delete from the trash; one `purge` audit row.
  *  - listForUser / listWeek: deleted entries are filtered out by default.
  *  - listTrash: deleted entries; admins see the company, members see their own.
  *  - purgeOldDeleted: hard-deletes anything soft-deleted >30 days ago
@@ -353,6 +354,38 @@ export async function restoreEntry(
     userId: entry.userId,
     companyId: entry.companyId,
     entryId,
+  });
+  return { ok: true, value: true };
+}
+
+/**
+ * Hard-delete a soft-deleted entry. Admin-only, irreversible.
+ *
+ * The audit row's `before` snapshot is the entry's only surviving trace, so it
+ * is captured *before* the delete cascades `TimeEntryTag` away (US-95).
+ */
+export async function purgeEntry(
+  db: Db,
+  actorUserId: string,
+  entryId: string,
+): Promise<Result<true>> {
+  const entry = await db.timeEntry.findUnique({
+    where: { id: entryId },
+    include: { tags: true },
+  });
+  if (!entry || !entry.deletedAt) return { ok: false, reason: 'not_found' };
+  const role = await getMembership(db, actorUserId, entry.companyId);
+  if (!role || role !== 'admin') return { ok: false, reason: 'not_found' };
+
+  const before = snapshotOf(entry);
+  await db.timeEntry.delete({ where: { id: entryId } });
+  await writeAudit(db, {
+    companyId: entry.companyId,
+    actorUserId,
+    action: 'purge',
+    entityType: 'TimeEntry',
+    entityId: entryId,
+    before: before as never,
   });
   return { ok: true, value: true };
 }
