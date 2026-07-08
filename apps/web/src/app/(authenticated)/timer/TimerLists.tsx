@@ -4,6 +4,7 @@ import type { ReactElement } from 'react';
 import { useEffect, useState } from 'react';
 import { Alert, Button } from '@tt/ui';
 import { useTranslations } from 'next-intl';
+import { unstable_rethrow } from 'next/navigation';
 import {
   TIMER_CHANGED_EVENT,
   TimerStateResponseSchema,
@@ -133,13 +134,22 @@ export function TimerLists({
     if (!id) return;
     setUndoId(null);
     void (async () => {
-      const result = await restoreEntryAction(id);
-      if (!result.ok) {
-        // e.g. the entry was purged from the trash in the meantime.
+      try {
+        const result = await restoreEntryAction(id);
+        if (!result.ok) {
+          // e.g. the entry was purged from the trash in the meantime.
+          setUndoError(t('failed'));
+          return;
+        }
+        notifyTimerChanged();
+      } catch (err) {
+        // Next control-flow "errors" (redirect() from requireActiveCompany
+        // on session expiry, notFound(), etc.) are thrown as rejections of
+        // this promise — rethrow so Next's own machinery still handles the
+        // navigation instead of us reporting it as an undo failure.
+        unstable_rethrow(err);
         setUndoError(t('failed'));
-        return;
       }
-      notifyTimerChanged();
     })();
   };
 
