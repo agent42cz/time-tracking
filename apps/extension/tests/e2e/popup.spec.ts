@@ -81,4 +81,44 @@ test.describe('extension popup', () => {
     });
     await expect(page.locator('input[type="time"]').first()).toHaveValue(expected);
   });
+
+  test('US-97: opening an entry while scrolled keeps the sheet header on screen', async ({
+    page,
+  }) => {
+    await openPopup(page, buildApiFixture({ historyCount: 25 }));
+
+    // Scroll to the bottom of the popup document.
+    await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
+    await expect.poll(async () => page.evaluate(() => window.scrollY)).toBeGreaterThan(100);
+
+    // Open the last history row's edit sheet.
+    await page.getByText('Historický záznam 24').click();
+
+    const header = page.getByText('Upravit záznam');
+    await expect(header).toBeVisible();
+
+    const box = await header.boundingBox();
+    if (!box) throw new Error('sheet header has no bounding box');
+
+    // boundingBox() is relative to the viewport. With `absolute inset-0` on a
+    // document-tall parent, the header sits at document y≈0, i.e. a negative
+    // viewport y once scrolled.
+    expect(box.y).toBeGreaterThanOrEqual(0);
+    expect(box.y + box.height).toBeLessThanOrEqual(600);
+
+    // The title field must be visible too, not just the header. `.last()`
+    // disambiguates: the always-mounted StartRow description input
+    // (popup.tsx:901) shares this placeholder with the sheet's Název field,
+    // and the sheet mounts after StartRow in AppShell's JSX.
+    await expect(page.getByPlaceholder('Co děláte?').last()).toBeInViewport();
+  });
+
+  test('US-97: the body does not scroll behind an open sheet', async ({ page }) => {
+    await openPopup(page, buildApiFixture({ historyCount: 25 }));
+    await page.getByText('Historický záznam 0').click();
+    await expect(page.getByText('Upravit záznam')).toBeVisible();
+
+    const overflow = await page.evaluate(() => document.body.style.overflow);
+    expect(overflow).toBe('hidden');
+  });
 });
