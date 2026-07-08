@@ -276,9 +276,26 @@ value).
 5. `fix(web): MultiSelect popover escapes clipping ancestors (US-98)`
 6. `feat(trash): owners restore their own entries; trash scoped by role (US-91, US-92, US-93)`
 7. `feat(timer): undo affordance after deleting an entry (US-94)`
-8. `feat(trash): permanent purge + purge audit action (US-95, US-99)` — includes the migration
+8. `fix(db): add the missing time_entries.note migration` + `feat(trash): permanent purge + purge audit action (US-95, US-99)`
 9. `feat(ops): daily purge endpoint + Coolify scheduled task (US-96)` — includes ADR-0011
-10. `chore(ext): bump to 1.6.0` + `docs: record US-90…US-99, bump TOTAL_US`
+10. `chore(ext): bump to 1.6.0` + `docs: record US-90…US-99, bump TOTAL_US` + ADR-0012 (propose `prisma migrate deploy`)
+
+## Discovered during execution (amendments)
+
+Two things the design did not know, both approved mid-run:
+
+1. **Nothing applies `packages/db/prisma/migrations/`.** Production runs
+   `prisma db push --skip-generate --accept-data-loss` on every container start
+   (`docker/web.Dockerfile:40`); CI (`ci.yml:95`) and testcontainers
+   (`packages/db/src/test/index.ts:40`) do the same. The directory had already drifted —
+   `b4d9c98` added `TimeEntry.note` to the schema with no migration. Task 8 now repairs
+   that drift in its own commit before generating the `purge` migration, because
+   `prisma migrate dev` refuses to build cleanly on top of drift.
+2. **`--accept-data-loss` on every production boot is a silent-data-loss hazard.** A field
+   removed from `schema.prisma` would drop its column, and its data, at container start
+   with no review step. Task 10 adds **ADR-0012** proposing a move to
+   `prisma migrate deploy`, with `db push` confined to tests and local dev. The ADR is
+   `Proposed`, not `Accepted`; `docker/web.Dockerfile` is not changed by this branch.
 
 ## User stories
 

@@ -2442,7 +2442,40 @@ pnpm --filter @tt/web exec vitest run tests/services/trash.test.ts tests/service
 
 Expected: FAIL. `purgeEntry` is not exported (`TypeError: purgeEntry is not a function`); `US-99` fails because `ALL_ACTIONS` is not exported, and once exported it would still be missing `reorder`, `shift`, `purge`.
 
-- [ ] **Step 3: Add `purge` to the enum and migrate**
+- [ ] **Step 3a: Repair the migration drift FIRST (separate commit)**
+
+> **Discovered during execution.** Nothing in this project applies `packages/db/prisma/migrations/`. Production runs `prisma db push --skip-generate --accept-data-loss` on every container start (`docker/web.Dockerfile:40`); CI does the same (`.github/workflows/ci.yml:95`); and testcontainers do too (`packages/db/src/test/index.ts:40`). Because `db push` treats `schema.prisma` as the source of truth, the migrations directory has silently drifted: commit `b4d9c98 feat(time-entries): add a separate 'note' field` added `TimeEntry.note` to the schema and shipped no migration. No migration anywhere creates that column.
+>
+> This blocks Step 3b: `prisma migrate dev` diffs migration history against `schema.prisma`, will detect the missing `note`, and will either fold it into our migration or demand a dev-DB reset.
+
+Repair the record before adding to it. Create `packages/db/prisma/migrations/<timestamp>_add_time_entry_note/migration.sql` containing exactly:
+
+```sql
+-- AlterTable
+ALTER TABLE "time_entries" ADD COLUMN "note" TEXT NOT NULL DEFAULT '';
+```
+
+Use a timestamp that sorts **after** `20260611123000_add_email_send_attempts` and **before** the migration you generate in Step 3b. Then mark it as already applied to your local dev DB (which `db push` already gave the column):
+
+```bash
+pnpm db:up
+pnpm --filter @tt/db exec prisma migrate resolve --applied <timestamp>_add_time_entry_note
+```
+
+Verify `prisma migrate status` no longer reports drift for `note`. Commit this on its own:
+
+```bash
+git add packages/db/prisma/migrations/
+git commit -m "fix(db): add the missing time_entries.note migration
+
+b4d9c98 added TimeEntry.note to schema.prisma and shipped no migration. Nothing
+caught it because db push — which is what CI, testcontainers and the production
+container start all use — treats the schema as the source of truth. The
+migrations directory has been lying since then, and prisma migrate dev refuses
+to generate a clean migration on top of the drift."
+```
+
+- [ ] **Step 3b: Add `purge` to the enum and migrate**
 
 In `packages/db/prisma/schema.prisma`, add `purge` to `AuditAction` immediately after `restore`:
 
@@ -2475,9 +2508,11 @@ pnpm --filter @tt/db exec prisma migrate dev --name add_purge_audit_action
 pnpm prisma:generate
 ```
 
-Expected: `migration.sql` contains `ALTER TYPE "AuditAction" ADD VALUE 'purge';`.
+Expected: `migration.sql` contains `ALTER TYPE "AuditAction" ADD VALUE 'purge';` **and nothing else** — if it also contains the `note` column, Step 3a was not done correctly.
 
 > Postgres 16 permits `ALTER TYPE … ADD VALUE` inside a transaction **as long as the new value is not used in the same transaction**. Prisma's generated migration satisfies that. This gets a `docs/gotchas.md` entry in Task 10.
+>
+> Note the migration is, today, **documentation only** — `db push` is what actually applies the enum value in tests, CI and production. It is still worth having: it keeps the historical record truthful, and ADR-0012 (Task 10) proposes moving the deploy to `prisma migrate deploy`, at which point these files start to matter.
 
 - [ ] **Step 4: Implement `purgeEntry`**
 
@@ -3111,6 +3146,7 @@ ADR-0011."
 - Modify: `docs/reference/data-model.md:48-53,80-84`
 - Modify: `docs/reference/acceptance.md:27`
 - Modify: `docs/gotchas.md`
+- Create: `docs/decisions/0012-prisma-migrate-deploy-over-db-push.md`
 - Modify: `apps/extension/src/DESCRIPTION.md`
 
 - [ ] **Step 1: Bump the extension version**
@@ -3200,6 +3236,24 @@ scrolled, because its flex parent had no bounded height.
 default `min-height: auto` refuses to shrink below its content — without
 `min-h-0`, `overflow-y-auto` is inert.
 ```
+
+- [ ] **Step 5b: Write ADR-0012 — propose `prisma migrate deploy`**
+
+> **Discovered during execution.** `docker/web.Dockerfile:40` runs `prisma db push --skip-generate --accept-data-loss` on every production container start. `db push` reconciles the live database to `schema.prisma` with no review step, and `--accept-data-loss` means a schema change that removes or narrows a column drops that column's data silently, on deploy. The flag's name says it out loud. CI (`ci.yml:95`) and testcontainers (`packages/db/src/test/index.ts:40`) use the same mechanism — which is why the `TimeEntry.note` migration gap (repaired in Task 8, Step 3a) went unnoticed for so long.
+
+Create `docs/decisions/0012-prisma-migrate-deploy-over-db-push.md` using [`_template.md`](../../decisions/_template.md). It **proposes** the change; it does not implement it. Status: `Proposed`.
+
+Content requirements:
+
+- **Context:** cite `docker/web.Dockerfile:40`, `.github/workflows/ci.yml:95`, `packages/db/src/test/index.ts:40`. State the concrete hazard: `--accept-data-loss` will drop a column's data on the next container start if a field is removed from `schema.prisma`, with no migration review and no operator confirmation. Note the observed consequence: the migrations directory drifted (`b4d9c98`) and nothing failed.
+- **Decision:** propose that the production container run `prisma migrate deploy`, and that `db push` be confined to tests and local development, where a disposable database makes it the right tool.
+- **Alternatives considered** (at least two, each with a real rationale for rejection — "no time" is not one):
+  - _Keep `db push` everywhere._ It is genuinely simpler and has worked. Rejected because the failure mode is silent data loss, not a broken deploy.
+  - _`db push` plus a pre-deploy `migrate diff` check in CI._ Would surface drift without changing the deploy. Weaker: it detects the drift but still applies the destructive change at boot.
+- **Consequences:** migrations become load-bearing, so every schema change must ship one (`pnpm prisma:migrate`), and a failed migration halts the deploy instead of silently reshaping the DB. Note that the migrations directory is only now truthful again, as of Task 8's Step 3a.
+- **Follow-ups:** an unchecked box to change `docker/web.Dockerfile:40`, plus one to decide whether CI should switch too.
+
+Do **not** change `docker/web.Dockerfile` in this task. ADRs are append-only and this one is `Proposed`, not `Accepted`.
 
 - [ ] **Step 6: Update the extension DESCRIPTION**
 
