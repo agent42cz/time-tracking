@@ -35,7 +35,7 @@ export const navGroups: NavGroup[] = [
     label: 'Systém',
     items: [
       { href: '/audit', label: 'Audit', admin: true, icon: 'audit' },
-      { href: '/trash', label: 'Koš', admin: true, icon: 'trash' },
+      { href: '/trash', label: 'Koš', icon: 'trash' },
     ],
   },
   {

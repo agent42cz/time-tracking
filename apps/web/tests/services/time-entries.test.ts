@@ -495,7 +495,7 @@ describe('time entries', () => {
     });
   });
 
-  it('admin sees deleted entries in trash; non-admin does not', async () => {
+  it('US-92: admin sees deleted entries in trash; owning member sees their own too', async () => {
     await withTx(async (tx) => {
       const w = await bootstrap(tx, 'trash');
       const a = await startTimer(tx, w.user, { companyId: w.company });
@@ -505,7 +505,8 @@ describe('time entries', () => {
       expect(trash.ok).toBe(true);
       if (trash.ok) expect(trash.value.find((e) => e.id === a.value.id)).toBeTruthy();
       const userView = await listTrash(tx, w.user, w.company);
-      expect(userView.ok).toBe(false);
+      expect(userView.ok).toBe(true);
+      if (userView.ok) expect(userView.value.find((e) => e.id === a.value.id)).toBeTruthy();
     });
   });
 

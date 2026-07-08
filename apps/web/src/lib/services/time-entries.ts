@@ -13,7 +13,7 @@
  *    soft-delete any. Both produce an audit row. Soft-deleted entries
  *    are hidden from normal queries (US-25, US-47).
  *  - listForUser / listWeek: deleted entries are filtered out by default.
- *  - listTrash: admin-only view of deleted entries within the 30-day window.
+ *  - listTrash: deleted entries; admins see the company, members see their own.
  *  - purgeOldDeleted: hard-deletes anything soft-deleted >30 days ago
  *    (called by the daily cron job).
  *  - getHistory: returns the audit rows for a single entry (US-27, US-45).
@@ -66,9 +66,10 @@ function validateWindow(
   return { ok: true };
 }
 
-async function snapshot(db: Db, id: string): Promise<Record<string, unknown> | null> {
-  const e = await db.timeEntry.findUnique({ where: { id }, include: { tags: true } });
-  if (!e) return null;
+type EntryWithTags = Prisma.TimeEntryGetPayload<{ include: { tags: true } }>;
+
+/** The audit `before`/`after` shape. userId/companyId live on the audit row itself. */
+function snapshotOf(e: EntryWithTags): Record<string, unknown> {
   return {
     description: e.description,
     note: e.note,
@@ -79,6 +80,12 @@ async function snapshot(db: Db, id: string): Promise<Record<string, unknown> | n
     tagIds: e.tags.map((t) => t.tagId).sort(),
     deletedAt: e.deletedAt?.toISOString() ?? null,
   };
+}
+
+async function snapshot(db: Db, id: string): Promise<Record<string, unknown> | null> {
+  const e = await db.timeEntry.findUnique({ where: { id }, include: { tags: true } });
+  if (!e) return null;
+  return snapshotOf(e);
 }
 
 // --- Start / stop ---
@@ -328,7 +335,8 @@ export async function restoreEntry(
   const entry = await db.timeEntry.findUnique({ where: { id: entryId } });
   if (!entry || !entry.deletedAt) return { ok: false, reason: 'not_found' };
   const role = await getMembership(db, actorUserId, entry.companyId);
-  if (!role || role !== 'admin') return { ok: false, reason: 'not_found' };
+  if (!role) return { ok: false, reason: 'not_found' };
+  if (entry.userId !== actorUserId && role !== 'admin') return { ok: false, reason: 'not_found' };
 
   const before = await snapshot(db, entryId);
   await db.timeEntry.update({ where: { id: entryId }, data: { deletedAt: null } });
@@ -359,20 +367,52 @@ export async function purgeOldDeleted(db: Db, now: Date = new Date()): Promise<{
 }
 
 // --- Reads ---
+export interface TrashEntryView {
+  id: string;
+  userId: string;
+  userName: string;
+  description: string;
+  clientName: string | null;
+  projectName: string | null;
+  startedAt: Date;
+  /** null when a *running* entry was soft-deleted. */
+  endedAt: Date | null;
+  deletedAt: Date;
+}
+
+/**
+ * Deleted entries within the 30-day window. Admins see the whole company;
+ * a member sees only their own (US-92).
+ */
 export async function listTrash(
   db: Db,
   actorUserId: string,
   companyId: string,
-): Promise<Result<{ id: string; userId: string; deletedAt: Date }[]>> {
+): Promise<Result<TrashEntryView[]>> {
   const role = await getMembership(db, actorUserId, companyId);
-  if (!role || role !== 'admin') return { ok: false, reason: 'not_found' };
+  if (!role) return { ok: false, reason: 'not_found' };
   const rows = await db.timeEntry.findMany({
-    where: { companyId, deletedAt: { not: null } },
+    where: {
+      companyId,
+      deletedAt: { not: null },
+      ...(role === 'admin' ? {} : { userId: actorUserId }),
+    },
+    include: { user: true, client: true, project: true },
     orderBy: { deletedAt: 'desc' },
   });
   return {
     ok: true,
-    value: rows.map((r) => ({ id: r.id, userId: r.userId, deletedAt: r.deletedAt! })),
+    value: rows.map((r) => ({
+      id: r.id,
+      userId: r.userId,
+      userName: r.user.fullName,
+      description: r.description,
+      clientName: r.client?.name ?? null,
+      projectName: r.project?.name ?? null,
+      startedAt: r.startedAt,
+      endedAt: r.endedAt,
+      deletedAt: r.deletedAt!,
+    })),
   };
 }
 
