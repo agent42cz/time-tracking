@@ -134,12 +134,17 @@ export function TimerLists({
     const id = undoId;
     if (!id) return;
     setUndoId(null);
-    // The action MUST run inside a transition, as it does in TrashList. React 19
-    // routes a rejected async transition to the nearest error boundary, which is
+    // The action MUST run inside the `startTransition` returned by
+    // `useTransition()` above — as it does in TrashList. React 19 routes *that*
+    // transition's rejected async action to the nearest error boundary, which is
     // the only way `unstable_rethrow`'s re-thrown redirect digest can reach
     // `RedirectBoundary`. From a bare `void (async () => …)()` the rejection
     // belongs to a promise nobody holds, so it surfaces as an
     // `unhandledrejection` — no navigation, and no error Alert either.
+    //
+    // The top-level `startTransition` imported from 'react' is NOT a substitute:
+    // it passes the rejection to `reportGlobalError`, reinstating the same bug
+    // with an identical-looking call site. See docs/gotchas.md.
     startTransition(async () => {
       try {
         const result = await restoreEntryAction(id);

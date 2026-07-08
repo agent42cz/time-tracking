@@ -98,17 +98,26 @@ in the public export statement, in 15.1.3.
 **Half a fix is worse than none.** `unstable_rethrow` only helps when the
 re-thrown digest can reach a boundary. `RedirectBoundary` is a React _error
 boundary_: it catches throws on React's own error path, not `unhandledrejection`
-events. So the action has to be awaited somewhere React owns — inside
-`startTransition(async () => …)` (React 19 surfaces a rejected async transition
-to the nearest error boundary), or in a render/event path React is tracking.
-Call it from a bare `void (async () => { … })()` and the re-thrown digest just
-rejects a promise nobody holds: no navigation happens, **and** the statement
-after `unstable_rethrow` never runs, so the error branch is dead too. The user
-clicks and absolutely nothing happens.
+events. So the action has to be awaited somewhere React owns — inside the
+`startTransition` returned by **`useTransition()`** (React 19 surfaces a rejected
+async transition to the nearest error boundary), or in a render/event path React
+is tracking. Call it from a bare `void (async () => { … })()` and the re-thrown
+digest just rejects a promise nobody holds: no navigation happens, **and** the
+statement after `unstable_rethrow` never runs, so the error branch is dead too.
+The user clicks and absolutely nothing happens.
+
+**Which `startTransition`?** There are two, and only one of them works here. The
+hook's — `const [pending, startTransition] = useTransition()` — routes a rejected
+async transition to the nearest error boundary. The **top-level
+`startTransition` imported from `'react'`** does not: it hands the rejection to
+`reportGlobalError`, which reintroduces exactly this bug while looking identical
+at the call site. `TimerLists.tsx` and `TrashList.tsx` both use the hook. If you
+see `import { startTransition } from 'react'` wrapping a server action whose
+errors must reach a boundary, that is the bug.
 
 This bit us twice in `TimerLists.tsx`'s undo handler: `requireActiveCompany()`
 calls `redirect('/companies')` when the session expires, and the undo window
 stays open for ten seconds — a realistic window for that to happen. First we had
 no `unstable_rethrow`; then we had one inside a discarded promise, which was
-inert. `TrashList.tsx`'s `startTransition(async () => …)` was the correct shape
-all along.
+inert. `TrashList.tsx`'s `useTransition()`-provided `startTransition(async () => …)`
+was the correct shape all along.

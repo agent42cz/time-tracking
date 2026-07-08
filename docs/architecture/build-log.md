@@ -32,7 +32,7 @@ Tests: **9**. US covered: 13, 14, 15, 16, 17, 18.
 
 ## Phase 5 — Time entries (2026-05-03)
 
-Parallel timer start/stop, manual entry validation (`end > start`, no future), owner+admin edit, soft-delete + admin restore, 30-day purge cron, per-entry `getEntryHistory`. Every mutation calls `writeAudit()` exactly once.
+Parallel timer start/stop, manual entry validation (`end > start`, no future), owner+admin edit, soft-delete + admin restore, 30-day purge cron, per-entry `getEntryHistory`. Every mutation produces exactly one audit row — usually via `writeAudit()`, though the daily purge batches its rows into a single `auditLog.createMany` (ADR-0011).
 
 Tests: **12**. US covered: 19, 20, 21, 22, 23, 24, 25, 26, 27, 28.
 
