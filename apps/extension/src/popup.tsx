@@ -24,6 +24,7 @@ import {
   setStoredSession,
   updateTheme,
 } from './api.js';
+import { formatDurationHMS } from '@tt/shared/time/duration';
 import { fmtDurationHM } from './format.js';
 import { useExtensionSync } from './sync.js';
 import { EntrySheet, type EntrySheetInitial } from './EntrySheet.js';
@@ -48,6 +49,9 @@ const storage: StorageAdapter =
   typeof chrome !== 'undefined' && chrome?.storage?.local
     ? createChromeStorageAdapter()
     : new InMemoryStorageAdapter();
+
+/** Running timers re-render once a second so the seconds field advances (US-90). */
+export const RUNNING_TICK_MS = 1000;
 
 type View = 'loading' | 'login' | 'app';
 
@@ -354,11 +358,14 @@ function AppShell({
   onChange: () => void | Promise<void>;
   onLogout: () => void | Promise<void>;
 }): ReactElement {
-  const [now, setNow] = useState(Date.now());
+  const hasRunning = (state.timer.running?.length ?? 0) > 0;
+  const [now, setNow] = useState(() => Date.now());
   useEffect(() => {
-    const t = setInterval(() => setNow(Date.now()), 30_000);
+    if (!hasRunning) return;
+    setNow(Date.now());
+    const t = setInterval(() => setNow(Date.now()), RUNNING_TICK_MS);
     return () => clearInterval(t);
-  }, []);
+  }, [hasRunning]);
 
   const [theme, setThemeState] = useState<ThemePreference>(
     () => state.me.theme ?? readStoredTheme(),
@@ -408,6 +415,8 @@ function AppShell({
 
   const [sheet, setSheet] = useState<{
     mode: 'edit' | 'create';
+    /** Captured when the sheet opens — `now` is frozen while no timer runs. */
+    nowIso: string;
     initial?: EntrySheetInitial;
   } | null>(null);
   const [projectOpen, setProjectOpen] = useState(false);
@@ -422,6 +431,7 @@ function AppShell({
     if (!e) return;
     setSheet({
       mode: 'edit',
+      nowIso: new Date().toISOString(),
       initial: {
         id: e.id,
         description: e.description,
@@ -446,7 +456,7 @@ function AppShell({
         refreshing={refreshing}
         theme={theme}
         showStats={showStats}
-        onManualEntry={() => setSheet({ mode: 'create' })}
+        onManualEntry={() => setSheet({ mode: 'create', nowIso: new Date().toISOString() })}
         onNewProject={isAdmin ? () => setProjectOpen(true) : null}
         onRefresh={() => void onChange()}
         onSetTheme={handleSetTheme}
@@ -471,7 +481,7 @@ function AppShell({
         <EntrySheet
           mode={sheet.mode}
           catalog={state.catalog}
-          nowIso={new Date(now).toISOString()}
+          nowIso={sheet.nowIso}
           initial={sheet.initial}
           onClose={() => setSheet(null)}
           onSave={sync.executeUpdate}
@@ -994,8 +1004,11 @@ function RunningList({
             </div>
           </button>
           <div className="flex items-center gap-2">
-            <span className="font-mono text-xs font-semibold tabular-nums text-zinc-900 dark:text-zinc-100">
-              {fmtDurationHM(now - new Date(e.startedAt).getTime())}
+            <span
+              data-testid="running-duration"
+              className="font-mono text-xs font-semibold tabular-nums text-zinc-900 dark:text-zinc-100"
+            >
+              {formatDurationHMS(now - new Date(e.startedAt).getTime())}
             </span>
             <button
               type="button"
