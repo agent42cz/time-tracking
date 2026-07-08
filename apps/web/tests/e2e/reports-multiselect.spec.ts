@@ -112,3 +112,76 @@ test.describe('US-98: reports client filter', () => {
     expect(gap).toBeLessThanOrEqual(GAP + TOLERANCE);
   });
 });
+
+test.describe('US-98: export dialog MultiSelect escapes ConfirmModal', () => {
+  const EXTRA_MEMBER_NAME = 'ZZZ MultiSelect Member';
+  const EXTRA_MEMBER_EMAIL = 'zzz-multiselect-member@example.test';
+  let extraMemberUserId: string;
+
+  test.beforeAll(async () => {
+    const world = JSON.parse(await readFile(join(__dirname, '.auth', 'world.json'), 'utf8')) as {
+      companyId: string;
+    };
+    const user = await prisma.user.create({
+      data: { email: EXTRA_MEMBER_EMAIL, fullName: EXTRA_MEMBER_NAME },
+    });
+    extraMemberUserId = user.id;
+    await prisma.membership.create({
+      data: { userId: user.id, companyId: world.companyId, role: 'user' },
+    });
+  });
+
+  test.afterAll(async () => {
+    await prisma.membership.deleteMany({ where: { userId: extraMemberUserId } });
+    await prisma.user.delete({ where: { id: extraMemberUserId } });
+  });
+
+  test('US-98: the export dialog popover paints above the modal and stays interactive', async ({
+    page,
+  }) => {
+    await page.goto('/reports');
+
+    await page.getByRole('button', { name: 'Export', exact: true }).click();
+    const dialog = page.getByRole('dialog', { name: 'Exportovat výkaz' });
+    await expect(dialog).toBeVisible();
+
+    // The person MultiSelect inside the modal — its accessible name is the
+    // pre-selected admin's chip, not the "Osoba" placeholder, so locate it
+    // structurally instead (the only aria-expanded button inside the dialog).
+    const trigger = dialog.locator('button[aria-expanded]');
+    await trigger.click();
+    const popover = page.getByTestId('multiselect-popover');
+    await expect(popover).toBeVisible();
+
+    // 1. Portalled to <body> — not a descendant of the modal's DOM subtree.
+    const parentIsBody = await popover.evaluate((el) => el.parentElement === document.body);
+    expect(parentIsBody).toBe(true);
+
+    // 2. Paints above the ConfirmModal overlay (z-50): a real hit test, not a
+    //    z-index string comparison — a comparison would pass even if a
+    //    stacking context trapped the popover visually behind the overlay.
+    const box = await popover.boundingBox();
+    if (!box) throw new Error('popover not visible');
+    const center: [number, number] = [box.x + box.width / 2, box.y + box.height / 2];
+    const hitsPopover = await popover.evaluate((el, [x, y]) => {
+      const hit = document.elementFromPoint(x, y);
+      return hit !== null && el.contains(hit);
+    }, center);
+    expect(hitsPopover).toBe(true);
+
+    // 3. Clicking an option toggles it without closing the popover or
+    //    cancelling the modal — the actual trap this task exists around:
+    //    ConfirmModal's `e.target === e.currentTarget` cancel guard and
+    //    MultiSelect's own click-outside handler must both exempt the
+    //    portalled popover, which sits outside the modal's DOM subtree.
+    const optionLabel = popover
+      .getByTestId('multiselect-listbox')
+      .locator('label', { hasText: EXTRA_MEMBER_NAME });
+    const checkbox = optionLabel.locator('input[type="checkbox"]');
+    await expect(checkbox).not.toBeChecked();
+    await checkbox.click();
+    await expect(checkbox).toBeChecked();
+    await expect(popover).toBeVisible();
+    await expect(dialog).toBeVisible();
+  });
+});
