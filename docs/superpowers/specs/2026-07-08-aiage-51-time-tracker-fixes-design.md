@@ -55,16 +55,17 @@ everywhere and widened the tick to 30 s.
   so this is the first real consumer and the bundling path is unproven. The barrel
   (`packages/shared/src/index.ts`) re-exports `validators` (pulls **zod**) and `ws`
   (pulls the WS client), and even the `./time` subpath imports `date-fns-tz` at module
-  scope — none of which belongs in an MV3 popup bundle. But `pad2`, `formatDurationHMS`
-  and `durationMs` (`time/index.ts:80-92`) are pure arithmetic that merely happens to be
-  co-located with date-fns code.
+  scope — none of which belongs in an MV3 popup bundle. But `pad2` and `formatDurationHMS`
+  (`time/index.ts:84-92`) are pure arithmetic that merely happens to be co-located with
+  date-fns code. (`durationMs` at `:80` stays put — it calls the overridable `now()`.)
 
-  Therefore: extract those three into a new leaf `packages/shared/src/time/duration.ts`
+  Therefore: extract those two into a new leaf `packages/shared/src/time/duration.ts`
   with **zero imports**, re-export them from `time/index.ts` (so the barrel is unchanged
   and nothing breaks), and add `"./time/duration": "./src/time/duration.ts"` to
   `packages/shared/package.json` `exports`. The extension imports
-  `@tt/shared/time/duration`. This also lays the groundwork for eventually collapsing
-  the five formatters.
+  `@tt/shared/time/duration`. A bare re-export suffices: `pad2`'s only caller inside
+  `index.ts` was `formatDurationHMS`, and both move together. This also lays the
+  groundwork for eventually collapsing the five formatters.
 
   Because the extension's Vite build has never resolved a workspace package, commit 1
   (the e2e harness) lands first and will catch a bundling regression before the
@@ -223,15 +224,20 @@ unpacked-extension load nor a running web app:
 
 Real Chromium and real Tailwind, so `boundingBox()` geometry assertions are meaningful.
 
-| US             | Where                                                           | Assertion                                                                                        |
-| -------------- | --------------------------------------------------------------- | ------------------------------------------------------------------------------------------------ |
-| 90             | `apps/extension/tests/e2e/popup.spec.ts`                        | Running row matches `/^\d{2}:\d{2}:\d{2}$/` and changes within 2 s; a history row stays `HH:MM`  |
-| 91, 92, 93, 95 | new `apps/web/tests/services/trash.test.ts`                     | Owner restore; per-role scoping; enriched payload; purge. Cross-company `not_found` per mutation |
-| 94             | `apps/web/tests/e2e/trash-undo.spec.ts`                         | Delete → "Vrátit zpět" → row returns                                                             |
-| 96             | `trash.test.ts` + `apps/web/tests/api/cron-purge-route.test.ts` | >30 d purged, ≤30 d kept, one `purge` audit row each; missing/bad secret → 401                   |
-| 97             | `apps/extension/tests/e2e/popup.spec.ts`                        | Scroll to bottom, click a row, assert the `Upravit záznam` header's `boundingBox().y >= 0`       |
-| 98             | `apps/web/tests/e2e/reports-multiselect.spec.ts`                | Popover bottom exceeds the Card's bottom edge; last option reachable by scrolling the listbox    |
-| 99             | `apps/web/tests/services/audit.test.ts`                         | `new Set(ALL_ACTIONS)` equals `new Set(Object.values(AuditAction))`                              |
+| US             | Where                                                                | Assertion                                                                                              |
+| -------------- | -------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------ |
+| 90             | `apps/extension/tests/e2e/popup.spec.ts`                             | Running row matches `/^\d{2}:\d{2}:\d{2}$/` and changes within 2 s; a history row stays `HH:MM`        |
+| 91, 92, 93, 95 | new `apps/web/tests/services/trash.test.ts`                          | Owner restore; per-role scoping; enriched payload; purge. Cross-company `not_found` per mutation       |
+| 94             | `apps/web/tests/e2e/trash-undo.spec.ts`                              | Delete → "Vrátit zpět" → row returns                                                                   |
+| 96             | `trash.test.ts` + `apps/web/tests/services/cron-purge-route.test.ts` | >30 d purged, ≤30 d kept, one `purge` audit row each; missing/bad secret → 401                         |
+| 97             | `apps/extension/tests/e2e/popup.spec.ts`                             | Scroll to bottom, click a row, assert the `Upravit záznam` header's `boundingBox().y >= 0`             |
+| 98             | `apps/web/tests/e2e/reports-multiselect.spec.ts`                     | Popover is portalled to `<body>` and `position: fixed`; its option list scrolls; last option reachable |
+| 99             | `apps/web/tests/services/audit.test.ts`                              | `new Set(ALL_ACTIONS)` equals `new Set(Object.values(AuditAction))`                                    |
+
+Route-handler tests live in `apps/web/tests/services/*-route.test.ts` (see
+`v1-timer-stop-route.test.ts`), not in a `tests/api/` directory — there isn't one.
+`ALL_ACTIONS` therefore ships in a pure `audit/audit-actions.ts` module, because
+importing `audit/page.tsx` from vitest would drag in `next/headers` via `@/lib/session`.
 
 Also:
 
