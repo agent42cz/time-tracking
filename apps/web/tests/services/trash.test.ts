@@ -84,6 +84,37 @@ describe('trash', () => {
     });
   });
 
+  it('US-91: the restore restates deletedAt on the UPDATE itself, not just on the read', async () => {
+    await withTx(async (tx) => {
+      const w = await bootstrap(tx, 'us91d');
+      const e = await startTimer(tx, w.user, { companyId: w.company });
+      if (!e.ok) throw new Error('setup');
+      await softDeleteEntry(tx, w.user, e.value.id);
+
+      const { db, calls } = recordingDb(tx);
+      expect(await restoreEntry(db, w.user, e.value.id)).toEqual({ ok: true, value: true });
+
+      // The mirror image of the purge's predicate. An admin (or the cron's 30 s
+      // transaction) can hard-delete the row between the `findUnique` and this
+      // write; an unconditional `update({ where: { id } })` would throw P2025 into
+      // `restoreEntryAction`, which has no catch, blanking /trash. `updateMany`
+      // returns a count instead, and the restated `deletedAt` keeps the write
+      // idempotent against a concurrent restore.
+      expect(soleCallArg(calls, 'timeEntry', 'updateMany')).toMatchObject({
+        where: { id: e.value.id, deletedAt: { not: null } },
+        data: { deletedAt: null },
+      });
+      expect(callsTo(calls, 'timeEntry', 'update')).toHaveLength(0);
+
+      const reread = await tx.timeEntry.findUniqueOrThrow({ where: { id: e.value.id } });
+      expect(reread.deletedAt).toBeNull();
+      // Still exactly one audit row, and only because the UPDATE matched.
+      expect(await tx.auditLog.count({ where: { entityId: e.value.id, action: 'restore' } })).toBe(
+        1,
+      );
+    });
+  });
+
   it("US-91: a member cannot restore another member's entry", async () => {
     await withTx(async (tx) => {
       const w = await bootstrap(tx, 'us91b');

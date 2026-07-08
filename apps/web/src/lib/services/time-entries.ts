@@ -321,6 +321,20 @@ export async function updateEntry(
 }
 
 // --- Soft delete / restore / purge ---
+
+/**
+ * Soft-delete an entry. Owner or company admin (US-25, US-47).
+ *
+ * The write restates `deletedAt: null` for the same reason `purgeEntry`'s DELETE
+ * restates `deletedAt: { not: null }`: an admin can hard-purge the row between
+ * the `findUnique` and the write, and an unconditional `update({ where: { id } })`
+ * would throw `P2025` at a caller with no `catch`. `updateMany` reports a count
+ * instead. It also stops a second concurrent delete from overwriting `deletedAt`
+ * and silently restarting the 30-day retention clock.
+ *
+ * Audits *after* mutating: the row survives either way, so a lost audit row is
+ * recoverable from it. The purge paths make the opposite trade — see `purgeEntry`.
+ */
 export async function softDeleteEntry(
   db: Db,
   actorUserId: string,
@@ -334,7 +348,11 @@ export async function softDeleteEntry(
   if (entry.userId !== actorUserId && role !== 'admin') return { ok: false, reason: 'not_found' };
 
   const before = await snapshot(db, entryId);
-  await db.timeEntry.update({ where: { id: entryId }, data: { deletedAt: now } });
+  const { count } = await db.timeEntry.updateMany({
+    where: { id: entryId, deletedAt: null },
+    data: { deletedAt: now },
+  });
+  if (count === 0) return { ok: false, reason: 'not_found' };
   await writeAudit(db, {
     companyId: entry.companyId,
     actorUserId,
@@ -352,6 +370,22 @@ export async function softDeleteEntry(
   return { ok: true, value: true };
 }
 
+/**
+ * Restore a soft-deleted entry from the trash. Owner or company admin (US-91).
+ *
+ * The mirror image of `purgeEntry`. The `findUnique` stays — the authorization
+ * check and the audit row both need `entry.companyId` / `entry.userId` — but the
+ * write restates `deletedAt: { not: null }` rather than trusting that read. An
+ * admin's purge, or the cron's 30-second transaction, can hard-delete the row in
+ * between; an unconditional `update({ where: { id } })` would then throw `P2025`
+ * into `restoreEntryAction`, which has no `catch`, and blank `/trash`.
+ * `updateMany` returns a count, so the loser of the race reports `not_found`.
+ *
+ * Whichever write lands first wins. Audits *after* mutating — deliberately the
+ * opposite of the purge paths: here the row survives either way, so an audit row
+ * lost to a crash is recoverable from the row itself, whereas a purge's `before`
+ * snapshot is the entry's only surviving trace.
+ */
 export async function restoreEntry(
   db: Db,
   actorUserId: string,
@@ -364,7 +398,11 @@ export async function restoreEntry(
   if (entry.userId !== actorUserId && role !== 'admin') return { ok: false, reason: 'not_found' };
 
   const before = await snapshot(db, entryId);
-  await db.timeEntry.update({ where: { id: entryId }, data: { deletedAt: null } });
+  const { count } = await db.timeEntry.updateMany({
+    where: { id: entryId, deletedAt: { not: null } },
+    data: { deletedAt: null },
+  });
+  if (count === 0) return { ok: false, reason: 'not_found' };
   await writeAudit(db, {
     companyId: entry.companyId,
     actorUserId,

@@ -8,6 +8,7 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { Prisma } from '@prisma/client';
 import { getTestPrisma, stopTestPrisma, withTx } from '@tt/db/test';
+import { callsTo, recordingDb, soleCallArg } from '../_helpers/recording-db.js';
 import { createCompany } from '../../src/lib/services/companies.js';
 import { createClient, createTag } from '../../src/lib/services/catalog.js';
 import {
@@ -260,6 +261,33 @@ describe('time entries', () => {
       const list = await listRecentEntries(tx, w.user, w.company, 50);
       expect(list.ok).toBe(true);
       if (list.ok) expect(list.value.find((e) => e.id === a.value.id)).toBeUndefined();
+    });
+  });
+
+  it('US-25: the soft delete restates deletedAt on the UPDATE itself, not just on the read', async () => {
+    await withTx(async (tx) => {
+      const w = await bootstrap(tx, 'us25b');
+      const a = await startTimer(tx, w.user, { companyId: w.company });
+      if (!a.ok) throw new Error('setup');
+
+      const { db, calls } = recordingDb(tx);
+      expect(await softDeleteEntry(db, w.user, a.value.id)).toEqual({ ok: true, value: true });
+
+      // Same shape as `restoreEntry` / `purgeEntry`: an admin can hard-purge the
+      // row between the `findUnique` and this write, and an unconditional
+      // `update({ where: { id } })` would throw P2025 at a caller with no catch.
+      // Restating `deletedAt: null` also stops a second concurrent delete from
+      // overwriting `deletedAt` and restarting the 30-day retention clock.
+      expect(soleCallArg(calls, 'timeEntry', 'updateMany')).toMatchObject({
+        where: { id: a.value.id, deletedAt: null },
+      });
+      expect(callsTo(calls, 'timeEntry', 'update')).toHaveLength(0);
+
+      const reread = await tx.timeEntry.findUniqueOrThrow({ where: { id: a.value.id } });
+      expect(reread.deletedAt).not.toBeNull();
+      expect(await tx.auditLog.count({ where: { entityId: a.value.id, action: 'delete' } })).toBe(
+        1,
+      );
     });
   });
 

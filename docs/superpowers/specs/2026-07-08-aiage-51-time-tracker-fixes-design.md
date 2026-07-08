@@ -130,12 +130,15 @@ covering system-initiated mutations, and was approved as such.
 - Undo after the 10 s window: the Alert is gone; `/trash` is the recovery path.
 - Undo on an entry purged in between: `restoreEntry` returns `not_found` → error Alert.
 - Concurrent purge and restore: the `deletedAt` predicate is restated **on the
-  write** (`deleteMany({ id, deletedAt: { not: null } })`), not just on the read.
-  Under READ COMMITTED Postgres re-evaluates a DELETE's predicate against the
-  current row version, so the restore wins and the purge reports `not_found`.
-  Reading `deletedAt` and then deleting unconditionally would destroy the
-  restored row; a transaction alone does not help, since it re-evaluates the
-  DELETE and not the earlier SELECT.
+  write** — on both sides. The purge does `deleteMany({ id, deletedAt: { not: null } })`
+  and the restore does `updateMany({ id, deletedAt: { not: null } }, { deletedAt: null })`.
+  Under READ COMMITTED Postgres re-evaluates a write's predicate against the
+  current row version, so **whichever write lands first wins, and the loser
+  reports `not_found`** — not "the restore always wins". Reading `deletedAt` and
+  then writing unconditionally would destroy the restored row in one direction and
+  throw `P2025` at a caller with no `catch` in the other; a transaction alone does
+  not help, since it re-evaluates the write and not the earlier SELECT.
+  `softDeleteEntry` restates `deletedAt: null` for the same reason.
 - Two concurrent cron runs: the transaction plus the `deletedAt < cutoff` filter
   **on the `deleteMany`** makes the job idempotent. Both may write `purge` audit
   rows for the same entry, but only one DELETE matches. Audit-before-delete means
