@@ -90,11 +90,13 @@ export function buildApiFixture(
       fullName: 'E2E User',
       totpEnabled: false,
       theme: 'light',
-      memberships: [{ companyId: COMPANY_ID, companyName: 'E2E Co', role: 'admin' }],
+      memberships: [
+        { companyId: COMPANY_ID, companyName: 'E2E Co', companySlug: 'e2e-co', role: 'admin' },
+      ],
       // null => sync.ts:158 returns early, no WebSocket in tests.
       wsUrl: null,
       autoStackOverlaps: false,
-    } as MeResponse,
+    },
     catalog: {
       companyId: COMPANY_ID,
       clients: [{ id: 'cli-1', name: 'Klient A', projects: [{ id: 'prj-1', name: 'Projekt A' }] }],
