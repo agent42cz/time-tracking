@@ -1,7 +1,7 @@
 'use client';
 
 import type { ReactElement } from 'react';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useTransition } from 'react';
 import { Alert, Button } from '@tt/ui';
 import { useTranslations } from 'next-intl';
 import { unstable_rethrow } from 'next/navigation';
@@ -69,6 +69,7 @@ export function TimerLists({
   const t = useTranslations('timer.undo');
   const [undoId, setUndoId] = useState<string | null>(null);
   const [undoError, setUndoError] = useState<string | null>(null);
+  const [, startTransition] = useTransition();
   const hasRunning = running.length > 0;
 
   useEffect(() => {
@@ -133,7 +134,13 @@ export function TimerLists({
     const id = undoId;
     if (!id) return;
     setUndoId(null);
-    void (async () => {
+    // The action MUST run inside a transition, as it does in TrashList. React 19
+    // routes a rejected async transition to the nearest error boundary, which is
+    // the only way `unstable_rethrow`'s re-thrown redirect digest can reach
+    // `RedirectBoundary`. From a bare `void (async () => …)()` the rejection
+    // belongs to a promise nobody holds, so it surfaces as an
+    // `unhandledrejection` — no navigation, and no error Alert either.
+    startTransition(async () => {
       try {
         const result = await restoreEntryAction(id);
         if (!result.ok) {
@@ -143,14 +150,13 @@ export function TimerLists({
         }
         notifyTimerChanged();
       } catch (err) {
-        // Next control-flow "errors" (redirect() from requireActiveCompany
-        // on session expiry, notFound(), etc.) are thrown as rejections of
-        // this promise — rethrow so Next's own machinery still handles the
-        // navigation instead of us reporting it as an undo failure.
+        // Re-throws Next's control-flow digests (redirect() from
+        // requireActiveCompany on session expiry, notFound(), …) and returns for
+        // everything else, so a genuine failure still reaches the Alert below.
         unstable_rethrow(err);
         setUndoError(t('failed'));
       }
-    })();
+    });
   };
 
   return (

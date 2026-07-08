@@ -95,6 +95,20 @@ prefix it is public API: `next/navigation.d.ts` is a one-line re-export
 `next/dist/client/components/navigation.d.ts:126`, that lists `unstable_rethrow`
 in the public export statement, in 15.1.3.
 
-This bit us in `TimerLists.tsx`'s undo handler: `requireActiveCompany()` calls
-`redirect('/companies')` when the session expires, and the undo window stays open
-for ten seconds — a realistic window for that to happen.
+**Half a fix is worse than none.** `unstable_rethrow` only helps when the
+re-thrown digest can reach a boundary. `RedirectBoundary` is a React _error
+boundary_: it catches throws on React's own error path, not `unhandledrejection`
+events. So the action has to be awaited somewhere React owns — inside
+`startTransition(async () => …)` (React 19 surfaces a rejected async transition
+to the nearest error boundary), or in a render/event path React is tracking.
+Call it from a bare `void (async () => { … })()` and the re-thrown digest just
+rejects a promise nobody holds: no navigation happens, **and** the statement
+after `unstable_rethrow` never runs, so the error branch is dead too. The user
+clicks and absolutely nothing happens.
+
+This bit us twice in `TimerLists.tsx`'s undo handler: `requireActiveCompany()`
+calls `redirect('/companies')` when the session expires, and the undo window
+stays open for ten seconds — a realistic window for that to happen. First we had
+no `unstable_rethrow`; then we had one inside a discarded promise, which was
+inert. `TrashList.tsx`'s `startTransition(async () => …)` was the correct shape
+all along.
