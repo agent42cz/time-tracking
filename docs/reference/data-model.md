@@ -47,7 +47,7 @@ TimeEntry
 
 AuditLog
 ├── id, company_id, actor_user_id
-├── action (create | update | delete | restore | invite | remove_member | role_change | login | …)
+├── action (create | update | delete | restore | purge | invite | remove_member | role_change | login | …)
 ├── entity_type, entity_id
 ├── before (jsonb), after (jsonb)
 └── created_at — immutable; no service may update or delete rows
@@ -80,8 +80,8 @@ The "last admin" guard blocks any role change, removal, or self-leave that would
 ## Soft delete + trash
 
 - TimeEntry deletion sets `deleted_at` to `now()`. Entries with non-null `deleted_at` are hidden from normal queries and reports (US-47).
-- The `/trash` page (Admin only) lists soft-deleted entries and allows restore.
-- A daily `node-cron` job purges any TimeEntry with `deleted_at < now() - 30 days`.
+- The `/trash` page lists soft-deleted entries and allows restore, scoped by role: a member sees only their own; an admin sees every member's in the active company (US-92).
+- A daily Coolify scheduled task calls `POST /api/cron/purge`, which hard-deletes any TimeEntry with `deleted_at < now() - 30 days` and writes one actor-less `purge` audit row per entry. See [ADR-0011](../decisions/0011-coolify-scheduled-task-for-purge.md).
 
 ## Multi-tenant scoping
 

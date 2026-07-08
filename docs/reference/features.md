@@ -1,4 +1,4 @@
-# Features (US-1 … US-89)
+# Features (US-1 … US-99)
 
 Feature catalogue keyed by user-story IDs from PRD §13. Test names embed the US ID so [`../../scripts/test-trace.ts`](../../scripts/test-trace.ts) can verify 100% coverage.
 
@@ -130,10 +130,23 @@ Feature catalogue keyed by user-story IDs from PRD §13. Test names embed the US
 - Reports export to PDF (filter-respecting + one-click previous calendar month), Europe/Prague (see US-78 tests in `report-pdf.test.ts`).
 - **US-89** — Reports **Export dialog**: one "Export" button opens a dialog to pick the **period**, the **person(s)** (or "Všichni členové"), and the **format** (PDF/CSV). The export is scoped to that selection instead of always dumping every member together, and the three old header export buttons are removed; grouping defaults to per-member sections when several/all people are exported (see US-89 tests in `export-url.test.ts`, `date-presets.test.ts`, `reports-export-csv-route.test.ts`).
 
+## Time tracker fixes (AIAGE-51)
+
+- **US-90** — The extension's running row renders `HH:MM:SS` and updates every second; stopped rows, day totals and summary cards stay `HH:MM`. Partial revert of AIAGE-28, which had removed seconds everywhere in the extension. Because the tick is now gated on a running timer, a sheet captures `nowIso` when it opens.
+- **US-91** — A non-admin owner restores their own soft-deleted entry, producing exactly one `restore` audit row. Another member's entry, or a cross-company entry, returns `not_found`.
+- **US-92** — `/trash` is scoped by role: a member sees only their own deleted entries; an admin sees every member's in the active company; a non-member gets `not_found`.
+- **US-93** — Trash rows expose start, end and duration, so an entry with no description is identifiable. A soft-deleted _running_ entry shows a null end.
+- **US-94** — After deleting an entry, an undo affordance restores it; letting it expire (10 s) leaves the entry in the trash.
+- **US-95** — An admin purges an entry permanently from the trash. The row is hard-deleted (cascading its tag joins) and exactly one `purge` audit row survives, carrying the `before` snapshot. Members cannot purge; cross-company returns `not_found`.
+- **US-96** — `POST /api/cron/purge` hard-deletes entries soft-deleted more than 30 days ago, writing one actor-less `purge` audit row each; entries younger than 30 days are kept. A missing or incorrect `CRON_SECRET` returns 401. Driven by a Coolify scheduled task (ADR-0011).
+- **US-97** — Opening an entry sheet in the extension while the popup is scrolled shows the sheet's header and `Název` field, because the sheet is pinned to the viewport (`fixed`, not `absolute`, which stretched it across the document-tall root).
+- **US-98** — The `MultiSelect` popover renders above its clipping ancestors (`Card`'s `overflow-hidden`, `ConfirmModal`'s `overflow-y-auto`) and scrolls when its options exceed its max height.
+- **US-99** — The audit action filter offers every `AuditAction` value, derived from the Prisma enum so it cannot drift.
+
 ## Coverage check
 
 ```bash
 pnpm test:trace
 ```
 
-Walks every test file (`*.test.{ts,tsx}`, `*.spec.{ts,tsx}`, `tests/**`) and looks for `\bUS-N\b`. Exits non-zero if any of US-1..US-89 has zero matches.
+Walks every test file (`*.test.{ts,tsx}`, `*.spec.{ts,tsx}`, `tests/**`) and looks for `\bUS-N\b`. Exits non-zero if any of US-1..US-99 has zero matches.

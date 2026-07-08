@@ -45,3 +45,56 @@ Append-only log of 20-minute-surprise bugs, integration quirks, and other unexpe
 **Fix.** Derive the overlap window from `now` so the candidate always ends in the past, via the `pastOverlapWindow()` helper in `apps/web/tests/e2e/auto-stack.spec.ts` (seed `[now-120m, now-60m]`, candidate `[now-90m, now-30m]`). Robust at any run time except ~00:00–02:00 Prague, which would cross midnight.
 
 **See also.** Commits `f40581c`, `35d58a7` — earlier attempts to stabilize the same suite by pinning TZ and widening timeouts (symptom, not the future-timestamp root cause).
+
+### 2026-07-08 — `ALTER TYPE … ADD VALUE` fails inside a Prisma migration transaction
+
+**Symptom.** Adding a value to a Postgres enum and using it in the same
+migration aborts with `unsafe use of new value of enum type`.
+
+**Cause.** Postgres will not let a newly-added enum value be _used_ in the same
+transaction that adds it. Prisma wraps each migration in a transaction.
+
+**Fix.** Adding the value alone is fine (that is all
+`add_purge_audit_action` does). If a migration ever needs to add a value _and_
+write rows using it, split it into two migration files.
+
+### 2026-07-08 — `absolute inset-0` inside a document-tall `relative` root
+
+**Symptom.** The Chrome extension's edit sheet opened with its header and title
+field above the fold; scrolled down, the first visible element was the
+description textarea.
+
+**Cause.** `AppShell`'s root is `relative` and grows to the full document height
+(header + lists + entire history). `absolute inset-0` therefore spans the whole
+document, not the popup viewport. The sheet's inner `overflow-y-auto` also never
+scrolled, because its flex parent had no bounded height.
+
+**Fix.** `fixed inset-0` (which `AutoStackSheet` already used), plus
+`min-h-0 flex-1` on the inner scroller and a body scroll lock. A flex child's
+default `min-height: auto` refuses to shrink below its content — without
+`min-h-0`, `overflow-y-auto` is inert.
+
+### 2026-07-08 — `catch` around a Server Action swallows `redirect()`
+
+**Symptom.** Wrapping a Server Action call in `try/catch` on the client makes
+`redirect()` inside that action stop working. The user sees the catch branch's
+error message instead of being navigated.
+
+**Cause.** `redirect()` does not navigate from the server. Next rejects the
+client-side action promise with a redirect error so `RedirectBoundary` can
+handle it — see `next/dist/client/components/router-reducer/reducers/server-action-reducer.js:250`,
+`reject(getRedirectError(...))`, whose own comment says so. A `catch` therefore
+intercepts control flow, not just failure. `notFound()`, `forbidden()` and
+`unauthorized()` behave the same way.
+
+**Fix.** Call `unstable_rethrow(err)` from `next/navigation` as the **first**
+statement of the `catch`. It re-throws Next's control-flow digests and returns
+for everything else, so genuine errors still reach your handler. Despite the
+prefix it is public API: `next/navigation.d.ts` is a one-line re-export
+(`export * from './dist/client/components/navigation'`), and it's that target,
+`next/dist/client/components/navigation.d.ts:126`, that lists `unstable_rethrow`
+in the public export statement, in 15.1.3.
+
+This bit us in `TimerLists.tsx`'s undo handler: `requireActiveCompany()` calls
+`redirect('/companies')` when the session expires, and the undo window stays open
+for ten seconds — a realistic window for that to happen.
