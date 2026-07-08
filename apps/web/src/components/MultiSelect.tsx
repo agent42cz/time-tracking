@@ -110,6 +110,22 @@ export function MultiSelect({
     };
   }, [open, reposition]);
 
+  useEffect(() => {
+    if (!open) return;
+    const el = triggerRef.current;
+    if (!el) return;
+    // The trigger is `flex-wrap` with `min-h-[38px]` — a *minimum*, not a fixed
+    // height. Ticking enough options wraps the chips onto a second line, which
+    // grows the trigger's height without firing a window `scroll` or `resize`
+    // event. The popover is `position: fixed` and only measures the trigger at
+    // open time, so without this observer it goes stale and overlaps the
+    // now-taller trigger. This also covers container-width changes (e.g. the
+    // `xl:grid-cols-4` field narrowing) that a window `resize` listener misses.
+    const ro = new ResizeObserver(() => reposition());
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [open, reposition]);
+
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     if (!q) return options;
