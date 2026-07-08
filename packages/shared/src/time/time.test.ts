@@ -24,10 +24,8 @@ describe('time helpers', () => {
     expect(range.start.toISOString()).toBe('2026-04-26T22:00:00.000Z');
   });
 
-  it('formats durations as HH:MM:SS', () => {
-    expect(formatDurationHMS(0)).toBe('00:00:00');
+  it('re-exports the pure duration formatters from the barrel', () => {
     expect(formatDurationHMS(3_661_000)).toBe('01:01:01');
-    expect(formatDurationHMS(-5)).toBe('00:00:00');
   });
 
   it('US-23: parses manual-entry form input as Europe/Prague wall-clock time', () => {
