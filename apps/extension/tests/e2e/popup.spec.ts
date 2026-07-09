@@ -85,14 +85,19 @@ test.describe('extension popup', () => {
   test('US-99: opening an entry while scrolled keeps the sheet header on screen', async ({
     page,
   }) => {
-    await openPopup(page, buildApiFixture({ historyCount: 25 }));
+    // 60 rows so the document is far taller than the 600px viewport in ANY
+    // environment — CI's headless Linux renders rows much shorter than macOS,
+    // so a smaller count left too little scroll headroom and this test flaked.
+    await openPopup(page, buildApiFixture({ historyCount: 60 }));
 
-    // Scroll to the bottom of the popup document.
+    // Scroll to the bottom of the popup document. We only need to be scrolled
+    // (scrollY > 0) — under the old `absolute` bug the header's viewport y would
+    // then be negative; the real assertion below is box.y >= 0.
     await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
-    await expect.poll(async () => page.evaluate(() => window.scrollY)).toBeGreaterThan(100);
+    await expect.poll(async () => page.evaluate(() => window.scrollY)).toBeGreaterThan(0);
 
     // Open the last history row's edit sheet.
-    await page.getByText('Historický záznam 24').click();
+    await page.getByText('Historický záznam 59').click();
 
     const header = page.getByText('Upravit záznam');
     await expect(header).toBeVisible();
