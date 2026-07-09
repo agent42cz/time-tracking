@@ -137,6 +137,12 @@ model Client {
   name      String
   archived  Boolean  @default(false)
   sortOrder Int      @default(0) @map("sort_order")
+
+  fundInDashboard   Boolean  @default(false) @map("fund_in_dashboard")
+  weeklyFundMinutes Int?     @map("weekly_fund_minutes")
+  weekStartsOn      Int?     @map("week_starts_on")
+  workingDays       Int[]    @default([]) @map("working_days")
+
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
