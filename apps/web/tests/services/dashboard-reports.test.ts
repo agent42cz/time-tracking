@@ -248,6 +248,31 @@ describe('dashboard widgets', () => {
       }
     });
   });
+
+  it('US-91: null client/project render Czech unassigned labels, not English', async () => {
+    await withTx(async (tx) => {
+      const w = await buildWorld(tx, 'unassigned');
+      // an entry with no client and no project, inside the range
+      await tx.timeEntry.create({
+        data: {
+          userId: w.user,
+          companyId: w.company,
+          clientId: null,
+          projectId: null,
+          description: 'loose',
+          startedAt: new Date('2026-05-01T09:00:00Z'),
+          endedAt: new Date('2026-05-01T10:00:00Z'),
+        },
+      });
+      const share = await clientShare(tx, w.admin, w.company, w.range);
+      const top = await topProjects(tx, w.admin, w.company, w.range);
+      if (!share.ok || !top.ok) throw new Error('unexpected');
+      expect(share.value.some((r) => r.clientName === 'Nepřiřazený klient')).toBe(true);
+      expect(share.value.some((r) => r.clientName === '(deleted client)')).toBe(false);
+      expect(top.value.some((r) => r.projectName === 'Nepřiřazený projekt')).toBe(true);
+      expect(top.value.some((r) => r.projectName === '(deleted project)')).toBe(false);
+    });
+  });
 });
 
 describe('reports', () => {

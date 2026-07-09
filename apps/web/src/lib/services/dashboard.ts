@@ -119,7 +119,7 @@ export async function clientShare(
       existing.totalMs += dur;
     } else {
       buckets.set(key, {
-        name: e.client?.name ?? '(deleted client)',
+        name: e.client?.name ?? 'Nepřiřazený klient',
         totalMs: dur,
       });
     }
@@ -156,7 +156,7 @@ export async function topProjects(
     const dur = durationMs(e);
     const existing = buckets.get(e.projectId);
     if (existing) existing.totalMs += dur;
-    else buckets.set(e.projectId, { name: e.project?.name ?? '(deleted project)', totalMs: dur });
+    else buckets.set(e.projectId, { name: e.project?.name ?? 'Nepřiřazený projekt', totalMs: dur });
   }
   const list = Array.from(buckets.entries())
     .map(([id, b]) => ({ projectId: id, projectName: b.name, totalMs: b.totalMs }))
@@ -218,7 +218,7 @@ export async function dailyBreakdown(
   for (const e of entries) {
     const day = dayKey(e.startedAt);
     const key = groupBy === 'client' ? (e.clientId ?? 'none') : e.userId;
-    const label = groupBy === 'client' ? (e.client?.name ?? '(deleted client)') : e.user.fullName;
+    const label = groupBy === 'client' ? (e.client?.name ?? 'Nepřiřazený klient') : e.user.fullName;
     const k = `${day}|${key}`;
     const existing = out.get(k);
     if (existing) existing.totalMs += durationMs(e);
