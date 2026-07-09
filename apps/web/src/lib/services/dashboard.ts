@@ -14,6 +14,7 @@ import { dayKey } from '../time-format';
 import {
   weekRangeFor,
   isoWorkingDayCountInMonth,
+  isoWorkingDaysToDateInMonth,
   daysInMonthCount,
   getPeriodRange,
   now,
@@ -239,15 +240,19 @@ export async function dailyBreakdown(
 
 // 7. Client work-fund progress (team-wide weekly/monthly bars + day breakdown).
 export interface FundBar {
-  targetMinutes: number;
-  workedMinutes: number;
+  targetMinutes: number; // full period target (week/month) — the bar's width
+  workedMinutes: number; // worked so far → green
+  // How much of the target should already be done by now (arrived working days ×
+  // daily target, clamped to target). Shortfall = max(0, expected − worked) → red.
+  expectedToDateMinutes: number;
 }
 export interface FundDay {
   isoWeekday: number; // 1..7
   date: string; // 'YYYY-MM-DD' Prague
   targetMinutes: number; // dailyTarget
-  allocatedMinutes: number; // greedy fill
+  allocatedMinutes: number; // greedy fill → green
   isPast: boolean; // day is strictly before today (Prague)
+  hasArrived: boolean; // day is today or earlier → its shortfall shows red
 }
 export interface ClientFund {
   clientId: string;
@@ -311,19 +316,18 @@ export async function clientFundProgress(
     const weekWorked = Math.round(weekEntries.reduce((a, e) => a + durationMs(e), 0) / MIN);
     const monthWorked = Math.round(monthEntries.reduce((a, e) => a + durationMs(e), 0) / MIN);
 
-    // monthly target
-    let monthlyTarget: number;
-    if (wd.length > 0) {
-      const dailyTarget = Math.round(weeklyTarget / wd.length);
-      monthlyTarget = isoWorkingDayCountInMonth(wd, reference) * dailyTarget;
-    } else {
-      monthlyTarget = Math.round((weeklyTarget * daysInMonthCount(reference)) / 7);
-    }
+    const dailyTarget = wd.length > 0 ? Math.round(weeklyTarget / wd.length) : 0;
+
+    // monthly target (calendar-driven: it changes every month)
+    const monthlyTarget =
+      wd.length > 0
+        ? isoWorkingDayCountInMonth(wd, reference) * dailyTarget
+        : Math.round((weeklyTarget * daysInMonthCount(reference)) / 7);
 
     // per-day greedy allocation (working-days clients only)
     const days: FundDay[] = [];
+    let arrivedWeekWorkingDays = 0;
     if (wd.length > 0) {
-      const dailyTarget = Math.round(weeklyTarget / wd.length);
       let remaining = weekWorked;
       const ordered = [...wd].sort((a, b) => {
         const da = (a - weekStartsOn + 7) % 7;
@@ -336,33 +340,72 @@ export async function clientFundProgress(
         const allocated = Math.min(remaining, dailyTarget);
         remaining -= allocated;
         const key = dateKeyPrague(dayDate);
+        const hasArrived = key <= todayKey;
+        if (hasArrived) arrivedWeekWorkingDays += 1;
         days.push({
           isoWeekday: iso,
           date: key,
           targetMinutes: dailyTarget,
           allocatedMinutes: allocated,
           isPast: key < todayKey,
+          hasArrived,
         });
       }
+    }
+
+    // "Expected to date" — how much of the fund should already be done by now.
+    // The shortfall (expected − worked) is what renders red. For working-days
+    // clients each arrived working day counts its full daily target (today
+    // included); hours-only clients prorate by elapsed calendar days.
+    let weekExpected: number;
+    let monthExpected: number;
+    if (wd.length > 0) {
+      weekExpected = Math.min(weeklyTarget, arrivedWeekWorkingDays * dailyTarget);
+      monthExpected = Math.min(
+        monthlyTarget,
+        isoWorkingDaysToDateInMonth(wd, reference) * dailyTarget,
+      );
+    } else {
+      let arrivedWeekDays = 0;
+      for (let i = 0; i < 7; i += 1) {
+        if (dateKeyPrague(fromAppZone(addDays(toAppZone(week.start), i))) <= todayKey) {
+          arrivedWeekDays += 1;
+        }
+      }
+      const dayOfMonth = Number(todayKey.slice(8, 10));
+      weekExpected = Math.round((weeklyTarget * arrivedWeekDays) / 7);
+      monthExpected = Math.round((monthlyTarget * dayOfMonth) / daysInMonthCount(reference));
     }
 
     out.push({
       clientId: c.id,
       clientName: c.name,
-      weekly: { targetMinutes: weeklyTarget, workedMinutes: weekWorked },
-      monthly: { targetMinutes: monthlyTarget, workedMinutes: monthWorked },
+      weekly: {
+        targetMinutes: weeklyTarget,
+        workedMinutes: weekWorked,
+        expectedToDateMinutes: weekExpected,
+      },
+      monthly: {
+        targetMinutes: monthlyTarget,
+        workedMinutes: monthWorked,
+        expectedToDateMinutes: monthExpected,
+      },
       days,
     });
   }
 
+  const sum = (pick: (c: ClientFund) => FundBar, field: keyof FundBar): number =>
+    out.reduce((a, c) => a + pick(c)[field], 0);
   const combined = {
     weekly: {
-      targetMinutes: out.reduce((a, c) => a + c.weekly.targetMinutes, 0),
-      workedMinutes: out.reduce((a, c) => a + c.weekly.workedMinutes, 0),
+      targetMinutes: sum((c) => c.weekly, 'targetMinutes'),
+      workedMinutes: sum((c) => c.weekly, 'workedMinutes'),
+      expectedToDateMinutes: sum((c) => c.weekly, 'expectedToDateMinutes'),
     },
     monthly: {
-      targetMinutes: out.reduce((a, c) => a + c.monthly.targetMinutes, 0),
-      workedMinutes: out.reduce((a, c) => a + c.monthly.workedMinutes, 0),
+      targetMinutes: sum((c) => c.monthly, 'targetMinutes'),
+      workedMinutes: sum((c) => c.monthly, 'workedMinutes'),
+      expectedToDateMinutes: sum((c) => c.monthly, 'expectedToDateMinutes'),
     },
   };
   return { ok: true, value: { clients: out, combined } };

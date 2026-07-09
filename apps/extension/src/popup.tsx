@@ -522,7 +522,7 @@ function AppShell({
                         d.targetMinutes > 0
                           ? Math.min(100, (d.allocatedMinutes / d.targetMinutes) * 100)
                           : 0;
-                      const r = d.isPast ? 100 - g : 0;
+                      const r = d.hasArrived ? 100 - g : 0;
                       return (
                         <div
                           key={d.date}
@@ -700,15 +700,19 @@ function Header({
 }
 
 function FundMiniBar({ bar, label }: { bar: ExtFundBar; label?: string }): ReactElement {
-  const pct =
+  // Green = worked, red = shortfall against what should be done by now.
+  const green =
     bar.targetMinutes > 0 ? Math.min(100, (bar.workedMinutes / bar.targetMinutes) * 100) : 0;
+  const shortfall = Math.max(0, bar.expectedToDateMinutes - bar.workedMinutes);
+  const red = bar.targetMinutes > 0 ? Math.min(100, (shortfall / bar.targetMinutes) * 100) : 0;
   return (
     <div className="flex items-center gap-1.5">
       {label ? (
         <span className="shrink-0 text-[10px] text-zinc-500 dark:text-zinc-400">{label}</span>
       ) : null}
-      <div className="h-1 flex-1 overflow-hidden rounded-full bg-zinc-200 dark:bg-zinc-700">
-        <div className="h-full bg-blue-500" style={{ width: `${pct}%` }} />
+      <div className="flex h-1 flex-1 overflow-hidden rounded-full bg-zinc-200 dark:bg-zinc-700">
+        <div className="h-full bg-emerald-500" style={{ width: `${green}%` }} />
+        <div className="h-full bg-red-500" style={{ width: `${red}%` }} />
       </div>
       <span className="shrink-0 text-[10px] tabular-nums text-zinc-500 dark:text-zinc-400">
         {(bar.workedMinutes / 60).toFixed(1)}/{(bar.targetMinutes / 60).toFixed(0)} h

@@ -1,35 +1,40 @@
 'use client';
 import { useEffect, useState } from 'react';
 import { Card, CardBody, CardHeader, CardTitle } from '@tt/ui';
-import type { FundProgress, ClientFund } from '@/lib/services/dashboard';
+import type { FundProgress, ClientFund, FundBar } from '@/lib/services/dashboard';
 
 const fmtH = (min: number) => `${(min / 60).toFixed(1)} h`;
-const pct = (worked: number, target: number) =>
-  target > 0 ? Math.min(100, (worked / target) * 100) : 0;
+const pct = (part: number, whole: number) => (whole > 0 ? Math.min(100, (part / whole) * 100) : 0);
 
-function Bar({ worked, target }: { worked: number; target: number }): React.ReactElement {
+// Green = worked so far. Red = how far behind schedule we are right now
+// (expected-to-date minus worked). The rest of the track stays neutral.
+function Bar({ bar }: { bar: FundBar }): React.ReactElement {
+  const green = pct(bar.workedMinutes, bar.targetMinutes);
+  const shortfall = Math.max(0, bar.expectedToDateMinutes - bar.workedMinutes);
+  const red = pct(shortfall, bar.targetMinutes);
   return (
     <div className="flex items-center gap-2">
-      <div className="h-2 flex-1 overflow-hidden rounded-full bg-zinc-100 dark:bg-zinc-700">
-        <div
-          className="h-full bg-blue-500 dark:bg-blue-400"
-          style={{ width: `${pct(worked, target)}%` }}
-        />
+      <div className="flex h-2 flex-1 overflow-hidden rounded-full bg-zinc-100 dark:bg-zinc-700">
+        <div className="h-full bg-emerald-500" style={{ width: `${green}%` }} />
+        <div className="h-full bg-red-500" style={{ width: `${red}%` }} />
       </div>
       <span className="w-24 text-right text-xs tabular-nums text-zinc-500">
-        {fmtH(worked)} / {fmtH(target)}
+        {fmtH(bar.workedMinutes)} / {fmtH(bar.targetMinutes)}
       </span>
     </div>
   );
 }
 
+// Per-day strip: each working day that has arrived (today included) shows green
+// for what's done and red for its shortfall — a later day lights red even if an
+// earlier one isn't full.
 function DayStrip({ client }: { client: ClientFund }): React.ReactElement | null {
   if (client.days.length === 0) return null;
   return (
     <div className="mt-1 flex gap-1">
       {client.days.map((d) => {
         const green = pct(d.allocatedMinutes, d.targetMinutes);
-        const red = d.isPast ? 100 - green : 0;
+        const red = d.hasArrived ? 100 - green : 0;
         return (
           <div key={d.date} className="flex-1">
             <div className="flex h-1.5 overflow-hidden rounded-full bg-zinc-100 dark:bg-zinc-700">
@@ -74,19 +79,24 @@ export function ClientFundsCard({
         {data.clients.map((c) => (
           <div key={c.clientId} className="space-y-1">
             <div className="text-sm font-medium">{c.clientName}</div>
+            {c.days.length > 0 ? (
+              <>
+                <div className="text-[10px] uppercase text-zinc-400">Dny</div>
+                <DayStrip client={c} />
+              </>
+            ) : null}
             <div className="text-[10px] uppercase text-zinc-400">Týden</div>
-            <Bar worked={c.weekly.workedMinutes} target={c.weekly.targetMinutes} />
-            <DayStrip client={c} />
+            <Bar bar={c.weekly} />
             <div className="text-[10px] uppercase text-zinc-400">Měsíc</div>
-            <Bar worked={c.monthly.workedMinutes} target={c.monthly.targetMinutes} />
+            <Bar bar={c.monthly} />
           </div>
         ))}
-        <div className="border-t border-zinc-200 pt-2 dark:border-zinc-700">
-          <div className="text-sm font-medium">Celkem (týden)</div>
-          <Bar
-            worked={data.combined.weekly.workedMinutes}
-            target={data.combined.weekly.targetMinutes}
-          />
+        <div className="space-y-1 border-t border-zinc-200 pt-2 dark:border-zinc-700">
+          <div className="text-sm font-medium">Celkem</div>
+          <div className="text-[10px] uppercase text-zinc-400">Týden</div>
+          <Bar bar={data.combined.weekly} />
+          <div className="text-[10px] uppercase text-zinc-400">Měsíc</div>
+          <Bar bar={data.combined.monthly} />
         </div>
       </CardBody>
     </Card>
