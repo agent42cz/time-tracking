@@ -262,6 +262,59 @@ export async function getTimer(session: ApiSession, companyId?: string): Promise
   );
 }
 
+export interface ExtFundBar {
+  targetMinutes: number;
+  workedMinutes: number;
+  expectedToDateMinutes: number;
+}
+
+export interface ExtFundDay {
+  isoWeekday: number;
+  date: string;
+  targetMinutes: number;
+  allocatedMinutes: number;
+  isPast: boolean;
+  hasArrived: boolean;
+}
+
+export interface ExtClientFund {
+  clientId: string;
+  clientName: string;
+  weekly: ExtFundBar;
+  monthly: ExtFundBar;
+  days: ExtFundDay[];
+}
+
+export interface ExtFundProgress {
+  clients: ExtClientFund[];
+  combined: { weekly: ExtFundBar; monthly: ExtFundBar };
+}
+
+export async function getFundProgress(
+  session: ApiSession,
+  companyId?: string,
+): Promise<ExtFundProgress> {
+  const qs = companyId ? `?company=${encodeURIComponent(companyId)}` : '';
+  return call<ExtFundProgress>(
+    session.apiBase,
+    `/api/v1/dashboard/funds${qs}`,
+    { method: 'GET' },
+    session.token,
+  );
+}
+
+const FUND_DISPLAY_KEY = 'tt:fund-display';
+export type FundDisplay = 'off' | 'combined' | 'per-client';
+
+export async function getFundDisplay(storage: StorageAdapter): Promise<FundDisplay> {
+  const v = await storage.get<FundDisplay>(FUND_DISPLAY_KEY);
+  return v === 'combined' || v === 'per-client' ? v : 'off';
+}
+
+export async function setFundDisplay(storage: StorageAdapter, v: FundDisplay): Promise<void> {
+  await storage.set(FUND_DISPLAY_KEY, v);
+}
+
 export async function getCatalog(
   session: ApiSession,
   companyId?: string,

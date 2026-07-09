@@ -78,3 +78,8 @@ Total at v1: **81 tests, ~100s wall**. US coverage: **50/50 (100%)**. Lint + typ
 
 - [x] **MCP layer enforces cross-company isolation, revocation, and rate limiting.**
   - `apps/web/tests/server/mcp/auth.test.ts` — US-61 (cross-company entry returns `not_found`, no existence leak), US-62 (revoked token returns HTTP 401), US-63 (rate-limit returns HTTP 429 with `Retry-After`; next window allows).
+
+- [x] **Admin configures per-client work funds and sees weekly/monthly/per-day/combined progress; dashboard uses Czech unassigned labels.**
+  - `apps/web/tests/services/catalog.test.ts` — US-90 (`updateClientFund` persists config, validates input, writes exactly one audit row).
+  - `apps/web/tests/services/dashboard-reports.test.ts` — US-90 (weekly/monthly/day breakdown for a working-days client, team-wide; DST-correct per-day dates across the fall-back week; hours-only client proportional monthly target with no day breakdown; combined bar sums fund clients, cross-company `not_found`), US-91 (null client/project render Czech unassigned labels).
+  - `apps/web/tests/services/v1-dashboard-funds-route.test.ts` — US-90 (`GET /api/v1/dashboard/funds`: admin gets fund progress; non-admin and cross-company get 404).
