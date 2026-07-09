@@ -11,6 +11,11 @@ import {
   startOfMonth,
   endOfMonth,
   subMonths,
+  getISODay,
+  subDays,
+  addDays,
+  getDaysInMonth,
+  eachDayOfInterval,
 } from 'date-fns';
 
 export const APP_TIMEZONE = 'Europe/Prague';
@@ -89,4 +94,34 @@ export function formatDurationHMS(ms: number): string {
   const m = Math.floor((total % 3600) / 60);
   const s = total % 60;
   return `${pad2(h)}:${pad2(m)}:${pad2(s)}`;
+}
+
+/**
+ * 7-day window (half-open) whose start is the most recent occurrence of the
+ * ISO weekday `weekStartsOn` (1=Mon..7=Sun) at 00:00 Europe/Prague at or before
+ * `reference`. E.g. weekStartsOn=3 (Wed) is SPLY's week boundary.
+ */
+export function weekRangeFor(weekStartsOn: number, reference: Date = now()): PeriodRange {
+  const local = toAppZone(reference);
+  const midnight = startOfDay(local);
+  const currentIso = getISODay(midnight); // 1..7
+  let diff = currentIso - weekStartsOn;
+  if (diff < 0) diff += 7;
+  const localStart = subDays(midnight, diff);
+  return { start: fromAppZone(localStart), end: fromAppZone(addDays(localStart, 7)) };
+}
+
+/** Count days in `reference`'s Prague month whose ISO weekday is in `workingDays`. */
+export function isoWorkingDayCountInMonth(workingDays: number[], reference: Date = now()): number {
+  if (workingDays.length === 0) return 0;
+  const local = toAppZone(reference);
+  const set = new Set(workingDays);
+  return eachDayOfInterval({ start: startOfMonth(local), end: endOfMonth(local) }).filter((d) =>
+    set.has(getISODay(d)),
+  ).length;
+}
+
+/** Calendar days in `reference`'s Prague month. */
+export function daysInMonthCount(reference: Date = now()): number {
+  return getDaysInMonth(toAppZone(reference));
 }

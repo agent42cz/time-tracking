@@ -6,6 +6,9 @@ import {
   formatDurationHMS,
   parseAppZoneInput,
   getPreviousMonthRange,
+  weekRangeFor,
+  isoWorkingDayCountInMonth,
+  daysInMonthCount,
 } from './index.js';
 
 describe('time helpers', () => {
@@ -45,5 +48,31 @@ describe('time helpers', () => {
     // exclusive end = 1 Jun 2026 00:00 Prague === 2026-05-31T22:00:00Z
     expect(r.end.toISOString()).toBe('2026-05-31T22:00:00.000Z');
     setNowProvider(null);
+  });
+
+  it('US-90: week starting Wednesday contains the reference and spans 7 days', () => {
+    // 2026-05-08 is a Friday (ISO 5). Week starts Wed 2026-05-06.
+    const ref = new Date('2026-05-08T12:00:00Z');
+    const r = weekRangeFor(3, ref);
+    // start = 2026-05-06 00:00 Prague == 2026-05-05T22:00:00Z (CEST, +02:00)
+    expect(r.start.toISOString()).toBe('2026-05-05T22:00:00.000Z');
+    expect(r.end.toISOString()).toBe('2026-05-12T22:00:00.000Z');
+    expect(ref >= r.start && ref < r.end).toBe(true);
+  });
+
+  it('US-90: when reference weekday == weekStartsOn, window starts that same day', () => {
+    // 2026-05-06 is a Wednesday (ISO 3).
+    const ref = new Date('2026-05-06T09:00:00Z');
+    const r = weekRangeFor(3, ref);
+    expect(r.start.toISOString()).toBe('2026-05-05T22:00:00.000Z');
+  });
+
+  it('US-90: counts working-day occurrences in a month', () => {
+    // May 2026: Wednesdays = 6,13,20,27 (4); Thursdays 7,14,21,28 (4); Fridays 1,8,15,22,29 (5) => 13
+    const ref = new Date('2026-05-15T12:00:00Z');
+    expect(isoWorkingDayCountInMonth([3, 4, 5], ref)).toBe(13);
+    // Mondays 4,11,18,25 (4) + Tuesdays 5,12,19,26 (4) = 8
+    expect(isoWorkingDayCountInMonth([1, 2], ref)).toBe(8);
+    expect(daysInMonthCount(ref)).toBe(31);
   });
 });
