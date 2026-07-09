@@ -6,6 +6,7 @@ import { PageHeader } from '@/components/PageHeader';
 import { getPeriodRange, toAppZone } from '@tt/shared/time';
 import { dayKey, fmtDur } from '@/lib/time-format';
 import {
+  clientFundProgress,
   clientShare,
   dailyBreakdown,
   headlineKpis,
@@ -13,6 +14,7 @@ import {
   peopleTotals,
   topProjects,
 } from '@/lib/services/dashboard';
+import { ClientFundsCard } from './ClientFundsCard';
 
 type Period = 'today' | 'week' | 'month';
 
@@ -26,13 +28,14 @@ export default async function DashboardPage({
   const period: Period = sp.period === 'today' || sp.period === 'month' ? sp.period : 'week';
   const range = getPeriodRange(period);
 
-  const [kpis, people, share, top, inactive, daily] = await Promise.all([
+  const [kpis, people, share, top, inactive, daily, funds] = await Promise.all([
     headlineKpis(prisma(), s.userId, s.activeCompanyId, range),
     peopleTotals(prisma(), s.userId, s.activeCompanyId, range),
     clientShare(prisma(), s.userId, s.activeCompanyId, range),
     topProjects(prisma(), s.userId, s.activeCompanyId, range, 10),
     inactiveUsers(prisma(), s.userId, s.activeCompanyId, range),
     dailyBreakdown(prisma(), s.userId, s.activeCompanyId, range, 'client'),
+    clientFundProgress(prisma(), s.userId, s.activeCompanyId),
   ]);
 
   if (!kpis.ok) {
@@ -169,6 +172,10 @@ export default async function DashboardPage({
             )}
           </CardBody>
         </Card>
+
+        {funds.ok && funds.value.clients.length > 0 ? (
+          <ClientFundsCard initial={funds.value} companyId={s.activeCompanyId} />
+        ) : null}
 
         <Card>
           <CardHeader>
