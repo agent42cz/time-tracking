@@ -136,6 +136,62 @@ export async function listClients(
   };
 }
 
+export interface ClientFundPatch {
+  fundInDashboard: boolean;
+  weeklyFundMinutes: number | null;
+  weekStartsOn: number | null;
+  workingDays: number[];
+}
+
+export async function updateClientFund(
+  db: Db,
+  actorUserId: string,
+  clientId: string,
+  patch: ClientFundPatch,
+): Promise<Result<true, 'not_found' | 'invalid'>> {
+  // validate: ISO weekdays 1..7, positive minutes when enabled
+  const isoOk = (n: number | null) => n === null || (Number.isInteger(n) && n >= 1 && n <= 7);
+  const daysOk = patch.workingDays.every((d) => Number.isInteger(d) && d >= 1 && d <= 7);
+  const minutesOk =
+    patch.weeklyFundMinutes === null ||
+    (Number.isInteger(patch.weeklyFundMinutes) && patch.weeklyFundMinutes > 0);
+  if (!isoOk(patch.weekStartsOn) || !daysOk || !minutesOk) return { ok: false, reason: 'invalid' };
+  if (patch.fundInDashboard && (patch.weeklyFundMinutes === null || patch.weekStartsOn === null)) {
+    return { ok: false, reason: 'invalid' };
+  }
+
+  const c = await db.client.findUnique({ where: { id: clientId } });
+  if (!c) return { ok: false, reason: 'not_found' };
+  const auth = await requireAdmin(db, actorUserId, c.companyId);
+  if (!auth.ok) return { ok: false, reason: 'not_found' };
+
+  const dedupSortedDays = [...new Set(patch.workingDays)].sort((a, b) => a - b);
+  await db.client.update({
+    where: { id: clientId },
+    data: {
+      fundInDashboard: patch.fundInDashboard,
+      weeklyFundMinutes: patch.weeklyFundMinutes,
+      weekStartsOn: patch.weekStartsOn,
+      workingDays: dedupSortedDays,
+    },
+  });
+  await writeAudit(db, {
+    companyId: c.companyId,
+    actorUserId,
+    action: 'update',
+    entityType: 'client_fund',
+    entityId: clientId,
+    before: {
+      fundInDashboard: c.fundInDashboard,
+      weeklyFundMinutes: c.weeklyFundMinutes,
+      weekStartsOn: c.weekStartsOn,
+      workingDays: c.workingDays,
+    },
+    after: { ...patch, workingDays: dedupSortedDays },
+  });
+  return { ok: true, value: true };
+}
+
 export async function reorderClients(
   db: Db,
   actorUserId: string,

@@ -9,11 +9,13 @@
  * Per BUILD-PROMPT: never mock the DB. All integration tests use these.
  */
 import { execSync } from 'node:child_process';
+import net from 'node:net';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { PrismaClient } from '@prisma/client';
 import type { Prisma } from '@prisma/client';
 import { PostgreSqlContainer, type StartedPostgreSqlContainer } from '@testcontainers/postgresql';
+import { Wait } from 'testcontainers';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -23,14 +25,53 @@ let _container: StartedPostgreSqlContainer | undefined;
 let _prisma: PrismaClient | undefined;
 let _bootPromise: Promise<PrismaClient> | undefined;
 
+/** Resolve once whether a host:port accepts a TCP connection. */
+function tcpReachable(host: string, port: number, timeoutMs = 2000): Promise<boolean> {
+  return new Promise((resolve) => {
+    const socket = net.createConnection({ host, port });
+    const finish = (ok: boolean): void => {
+      socket.destroy();
+      resolve(ok);
+    };
+    socket.setTimeout(timeoutMs);
+    socket.once('connect', () => finish(true));
+    socket.once('timeout', () => finish(false));
+    socket.once('error', () => finish(false));
+  });
+}
+
+/**
+ * Build a client-reachable connection URL to the started Postgres container.
+ *
+ * Normally testcontainers exposes the DB on the host via a mapped port
+ * (`getHost():getMappedPort()`) — this is what CI (daemon on the same host as
+ * the test runner) uses. In a sibling-container sandbox the runner talks to the
+ * daemon over a shared socket, so mapped/published ports are not routable and
+ * only the container's own bridge IP + internal port is reachable. Probe the
+ * mapped host first and fall back to the bridge IP only when it is unreachable,
+ * so CI behaviour is unchanged.
+ */
+async function reachableConnectionUri(container: StartedPostgreSqlContainer): Promise<string> {
+  const mappedHost = container.getHost();
+  const mappedPort = container.getMappedPort(5432);
+  if (await tcpReachable(mappedHost, mappedPort)) return container.getConnectionUri();
+  const bridgeIp = container.getIpAddress('bridge');
+  return `postgresql://timetracker:timetracker@${bridgeIp}:5432/timetracker_test`;
+}
+
 async function boot(): Promise<PrismaClient> {
   const container = await new PostgreSqlContainer('postgres:16-alpine')
     .withDatabase('timetracker_test')
     .withUsername('timetracker')
     .withPassword('timetracker')
+    // Default strategy includes Wait.forListeningPorts(), which probes the
+    // mapped port from the client side. In a sibling-container sandbox that
+    // port is not routable and the wait hangs; the in-container pg_isready
+    // health check is a reliable readiness signal in CI and sandbox alike.
+    .withWaitStrategy(Wait.forHealthCheck())
     .start();
 
-  const url = container.getConnectionUri();
+  const url = await reachableConnectionUri(container);
   process.env.DATABASE_URL = url;
 
   // Filter via @tt/db so the prisma binary is resolved against the

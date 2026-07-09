@@ -97,12 +97,23 @@ Token-authenticated REST surface consumed by the Chrome extension and external t
 | `POST`   | `/api/v1/projects`                        | token, admin | Create a project under an existing client (admin-only); 404 if non-admin or client is cross-company. Writes one audit row.                                                                                      |
 | `GET`    | `/api/v1/entries/[id]/auto-stack/preview` | token        | Compute and return the auto-stack plan for the closed entry `id` without writing; 404 cross-company.                                                                                                            |
 | `POST`   | `/api/v1/entries/[id]/auto-stack`         | token        | Apply the auto-stack plan for `id`; shifts affected entries preserving their durations; audits one row per shift plus the candidate update; 404 cross-company; 422 `invalid_window` if manual start is invalid. |
+| `GET`    | `/api/v1/dashboard/funds`                 | token, admin | Team-wide client work-fund progress (weekly/monthly bars + per-day breakdown + combined bar); 404 for non-admin or cross-company. Read-only; no audit row.                                                      |
 
 The `POST /api/v1/timer/[id]/stop` response includes an `overlap` field: `null` when the setting is OFF or there is no overlap; otherwise an `OverlapInfo` payload describing the overlapping entry. The extension uses this to decide whether to open the auto-stack sheet.
 
 `GET /api/v1/me` includes an `autoStackOverlaps: boolean` field. The extension reads this on startup and after each `/me` refresh and stores it locally; the setting is managed in the web app only (read-only in the extension).
 
-Every mutation (start/stop/create/edit/delete/play-again/create-project/auto-stack-apply) writes exactly one audit row and publishes a WS event to Redis. The `/api/v1/auth/*` routes are public; all others require a bearer token from `chrome.storage.local` or an API-token header (`tt_pat_…`).
+Every mutation (start/stop/create/edit/delete/play-again/create-project/auto-stack-apply) writes exactly one audit row and publishes a WS event to Redis. The `/api/v1/auth/*` routes are public; all others require a bearer token from `chrome.storage.local` or an API-token header (`tt_pat_…`), except that `resolveApiSession` (`apps/web/src/lib/api/auth.ts`) also accepts the `tt-session` cookie — the mechanism the web dashboard's polling client uses for `GET /api/v1/dashboard/funds` instead of a bearer token.
+
+## Client work funds (dashboard progress bars)
+
+Admins can configure a per-`Client` "work fund" — a weekly hour commitment — and see live progress bars for it. Admin-only for now (no `manager` role exists yet); the role check is isolated behind a single predicate so extending it later is localized.
+
+- **Config** — a fund section on the Clients screen (`ClientFundForm.tsx`, under `apps/web/src/app/(authenticated)/clients/`) sets `fundInDashboard` / `weeklyFundMinutes` / `weekStartsOn` (ISO weekday, 1=Mon…7=Sun) / `workingDays` (ISO weekdays; empty ⇒ "hours-only" client, no per-day breakdown). Written via `updateClientFund` (`apps/web/src/lib/services/catalog.ts`) + `updateClientFundAction`, admin-guarded, writes exactly one `client_fund` audit row, cross-company 404.
+- **Aggregation** — `clientFundProgress(db, actorUserId, companyId, reference?)` in `apps/web/src/lib/services/dashboard.ts`: team-wide (all users, not just the actor), admin-gated (`not_found` for non-admin/cross-company). For each fund client it computes a weekly bar (`weekRangeFor(weekStartsOn)`, `packages/shared/src/time/index.ts`) and a monthly bar (working-days clients: Σ working-weekday occurrences in the month × daily target; hours-only clients: `round(weeklyFund × daysInMonth / 7)`, via `isoWorkingDayCountInMonth`/`daysInMonthCount`), plus a per-day green/red breakdown for working-days clients (greedy fill of the week's worked minutes across working days in order) and a combined bar summing all fund clients. All Prague-zoned and DST-correct.
+- **Endpoint** — `GET /api/v1/dashboard/funds` (see REST API table above) returns the `FundProgress` shape.
+- **Web UI** — `ClientFundsCard.tsx` on `/dashboard`: server component seeds initial data, client component polls the endpoint every ~45s (matches the no-WS-on-web architecture used elsewhere on the dashboard).
+- **Extension UI** — an admin-only header bar in the popup with a user-selectable display mode (`tt:fund-display` = `off` / `combined` / `per-client`, persisted in `chrome.storage.local`), fetched via `getFundProgress()` in `apps/extension/src/api.ts`.
 
 ## Build log
 
@@ -129,6 +140,6 @@ Two export routes hang off `/api/reports/`:
 ## See also
 
 - [`../reference/data-model.md`](../reference/data-model.md) — Prisma entities and relations.
-- [`../reference/features.md`](../reference/features.md) — feature catalogue, US-1..US-86.
+- [`../reference/features.md`](../reference/features.md) — feature catalogue, US-1..US-91.
 - [`../operations/coolify-deploy.md`](../operations/coolify-deploy.md) — production stack and env vars.
 - [`../decisions/`](../decisions/) — ADRs explaining _why_ the stack is what it is.

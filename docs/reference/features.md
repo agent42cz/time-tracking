@@ -1,4 +1,4 @@
-# Features (US-1 … US-89)
+# Features (US-1 … US-91)
 
 Feature catalogue keyed by user-story IDs from PRD §13. Test names embed the US ID so [`../../scripts/test-trace.ts`](../../scripts/test-trace.ts) can verify 100% coverage.
 
@@ -130,10 +130,15 @@ Feature catalogue keyed by user-story IDs from PRD §13. Test names embed the US
 - Reports export to PDF (filter-respecting + one-click previous calendar month), Europe/Prague (see US-78 tests in `report-pdf.test.ts`).
 - **US-89** — Reports **Export dialog**: one "Export" button opens a dialog to pick the **period**, the **person(s)** (or "Všichni členové"), and the **format** (PDF/CSV). The export is scoped to that selection instead of always dumping every member together, and the three old header export buttons are removed; grouping defaults to per-member sections when several/all people are exported (see US-89 tests in `export-url.test.ts`, `date-presets.test.ts`, `reports-export-csv-route.test.ts`).
 
+## Dashboard — client work funds
+
+- **US-90** — Admin configures a per-client "work fund" (weekly hour commitment, week-start weekday, working days) and sees team-wide weekly/monthly progress bars plus a per-day green/red breakdown (working-days clients) on the dashboard and, admin-only, in the extension header; a combined bar sums all fund clients. Hours-only clients (no `workingDays`) get a proportional monthly target and no per-day breakdown. Admin-only for now (no `manager` role yet).
+- **US-91** — Dashboard shows the Czech **Nepřiřazený klient** / **Nepřiřazený projekt** labels (not an English `(deleted client)` / `(deleted project)` fallback) for time entries with no client/project assigned.
+
 ## Coverage check
 
 ```bash
 pnpm test:trace
 ```
 
-Walks every test file (`*.test.{ts,tsx}`, `*.spec.{ts,tsx}`, `tests/**`) and looks for `\bUS-N\b`. Exits non-zero if any of US-1..US-89 has zero matches.
+Walks every test file (`*.test.{ts,tsx}`, `*.spec.{ts,tsx}`, `tests/**`) and looks for `\bUS-N\b`. Exits non-zero if any of US-1..US-91 has zero matches.

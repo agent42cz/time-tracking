@@ -22,6 +22,7 @@ import { CSS } from '@dnd-kit/utilities';
 import { useTranslations } from 'next-intl';
 import { Alert, Badge, Button, Input } from '@tt/ui';
 import { renameClientAction, reorderProjectsAction } from '@/lib/actions/catalog';
+import { ClientFundForm } from './ClientFundForm';
 import { ProjectRow, type ProjectRowItem } from './ProjectRow';
 
 export interface ClientRowItem {
@@ -29,6 +30,10 @@ export interface ClientRowItem {
   name: string;
   archived: boolean;
   entryCount: number;
+  fundInDashboard: boolean;
+  weeklyFundMinutes: number | null;
+  weekStartsOn: number | null;
+  workingDays: number[];
   projects: ProjectRowItem[];
 }
 
@@ -277,6 +282,13 @@ export function ClientRow({
               Přidat projekt
             </Button>
           </form>
+          <ClientFundForm
+            clientId={client.id}
+            fundInDashboard={client.fundInDashboard}
+            weeklyFundMinutes={client.weeklyFundMinutes}
+            weekStartsOn={client.weekStartsOn}
+            workingDays={client.workingDays}
+          />
         </div>
       ) : null}
     </li>

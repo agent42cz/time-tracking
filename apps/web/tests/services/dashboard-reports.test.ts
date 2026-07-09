@@ -8,6 +8,7 @@ import { getTestPrisma, stopTestPrisma, withTx } from '@tt/db/test';
 import { createCompany, leaveCompany } from '../../src/lib/services/companies.js';
 import { createClient, createProject, createTag } from '../../src/lib/services/catalog.js';
 import {
+  clientFundProgress,
   clientShare,
   dailyBreakdown,
   headlineKpis,
@@ -248,6 +249,31 @@ describe('dashboard widgets', () => {
       }
     });
   });
+
+  it('US-91: null client/project render Czech unassigned labels, not English', async () => {
+    await withTx(async (tx) => {
+      const w = await buildWorld(tx, 'unassigned');
+      // an entry with no client and no project, inside the range
+      await tx.timeEntry.create({
+        data: {
+          userId: w.user,
+          companyId: w.company,
+          clientId: null,
+          projectId: null,
+          description: 'loose',
+          startedAt: new Date('2026-05-01T09:00:00Z'),
+          endedAt: new Date('2026-05-01T10:00:00Z'),
+        },
+      });
+      const share = await clientShare(tx, w.admin, w.company, w.range);
+      const top = await topProjects(tx, w.admin, w.company, w.range);
+      if (!share.ok || !top.ok) throw new Error('unexpected');
+      expect(share.value.some((r) => r.clientName === 'Nepřiřazený klient')).toBe(true);
+      expect(share.value.some((r) => r.clientName === '(deleted client)')).toBe(false);
+      expect(top.value.some((r) => r.projectName === 'Nepřiřazený projekt')).toBe(true);
+      expect(top.value.some((r) => r.projectName === '(deleted project)')).toBe(false);
+    });
+  });
 });
 
 describe('reports', () => {
@@ -350,6 +376,150 @@ describe('settings', () => {
         where: { userId_companyId: { userId: me.id, companyId: company.id } },
       });
       expect(m).toBeNull();
+    });
+  });
+});
+
+describe('client fund progress', () => {
+  it('US-90: weekly/monthly/day breakdown for a working-days client (team-wide)', async () => {
+    const { setNowProvider } = await import('@tt/shared/time');
+    setNowProvider(() => new Date('2026-05-08T12:00:00Z')); // Friday
+    try {
+      await withTx(async (tx) => {
+        const w = await buildWorld(tx, 'fund');
+        // Dedicated client, isolated from buildWorld's pre-seeded clientA entries.
+        const fc = await createClient(tx, w.admin, { companyId: w.company, name: 'FundCo' });
+        if (!fc.ok) throw new Error('setup');
+        const fundClientId = fc.value.id;
+        // Make it a SPLY-like fund client: 24h/week, Wed/Thu/Fri.
+        await tx.client.update({
+          where: { id: fundClientId },
+          data: {
+            fundInDashboard: true,
+            weeklyFundMinutes: 1440,
+            weekStartsOn: 3,
+            workingDays: [3, 4, 5],
+          },
+        });
+        // Team logs 10h total this week on the fund client: 8h Wed (admin) + 2h Thu (worker).
+        await tx.timeEntry.create({
+          data: {
+            userId: w.admin,
+            companyId: w.company,
+            clientId: fundClientId,
+            startedAt: new Date('2026-05-06T06:00:00Z'),
+            endedAt: new Date('2026-05-06T14:00:00Z'),
+          },
+        });
+        await tx.timeEntry.create({
+          data: {
+            userId: w.user,
+            companyId: w.company,
+            clientId: fundClientId,
+            startedAt: new Date('2026-05-07T06:00:00Z'),
+            endedAt: new Date('2026-05-07T08:00:00Z'),
+          },
+        });
+
+        const r = await clientFundProgress(tx, w.admin, w.company);
+        if (!r.ok) throw new Error('not ok');
+        const sply = r.value.clients.find((c) => c.clientId === fundClientId);
+        if (!sply) throw new Error('missing');
+        expect(sply.weekly).toEqual({ targetMinutes: 1440, workedMinutes: 600 });
+        // May 2026 has 13 Wed/Thu/Fri -> monthly target 13 * 480 = 6240
+        expect(sply.monthly.targetMinutes).toBe(6240);
+        expect(sply.monthly.workedMinutes).toBe(600);
+        // Greedy: Wed filled 480, Thu gets remaining 120, Fri 0.
+        const [wed, thu, fri] = sply.days;
+        expect(wed).toMatchObject({ isoWeekday: 3, allocatedMinutes: 480, isPast: true });
+        expect(thu).toMatchObject({ isoWeekday: 4, allocatedMinutes: 120, isPast: true });
+        expect(fri).toMatchObject({ isoWeekday: 5, allocatedMinutes: 0, isPast: false }); // today
+      });
+    } finally {
+      setNowProvider(null);
+    }
+  });
+
+  it('US-90: per-day dates are DST-correct across the fall-back week', async () => {
+    const { setNowProvider } = await import('@tt/shared/time');
+    // Europe/Prague clocks fall back on Sun 2026-10-25 (25h day). Pin to Tue of that week.
+    setNowProvider(() => new Date('2026-10-27T12:00:00Z'));
+    try {
+      await withTx(async (tx) => {
+        const w = await buildWorld(tx, 'dst');
+        const fc = await createClient(tx, w.admin, { companyId: w.company, name: 'DstCo' });
+        if (!fc.ok) throw new Error('setup');
+        // Week starts Saturday (ISO 6); working days Sun(7)/Mon(1)/Tue(2) straddle the fall-back.
+        await tx.client.update({
+          where: { id: fc.value.id },
+          data: {
+            fundInDashboard: true,
+            weeklyFundMinutes: 1440,
+            weekStartsOn: 6,
+            workingDays: [7, 1, 2],
+          },
+        });
+        const r = await clientFundProgress(tx, w.admin, w.company);
+        if (!r.ok) throw new Error('not ok');
+        const c = r.value.clients.find((x) => x.clientId === fc.value.id);
+        if (!c) throw new Error('missing');
+        expect(c.days.map((d) => d.date)).toEqual(['2026-10-25', '2026-10-26', '2026-10-27']);
+      });
+    } finally {
+      setNowProvider(null);
+    }
+  });
+
+  it('US-90: hours-only client has proportional monthly target and no day breakdown', async () => {
+    const { setNowProvider } = await import('@tt/shared/time');
+    setNowProvider(() => new Date('2026-05-15T12:00:00Z'));
+    try {
+      await withTx(async (tx) => {
+        const w = await buildWorld(tx, 'fund-ho');
+        await tx.client.update({
+          where: { id: w.clientA },
+          data: { fundInDashboard: true, weeklyFundMinutes: 600, weekStartsOn: 1, workingDays: [] },
+        });
+        const r = await clientFundProgress(tx, w.admin, w.company);
+        if (!r.ok) throw new Error('not ok');
+        const c = r.value.clients.find((x) => x.clientId === w.clientA);
+        if (!c) throw new Error('missing');
+        expect(c.days).toEqual([]);
+        // 600 * 31 / 7 = 2657.14 -> round 2657
+        expect(c.monthly.targetMinutes).toBe(2657);
+      });
+    } finally {
+      setNowProvider(null);
+    }
+  });
+
+  it('US-90: combined bar sums fund clients; cross-company actor gets not_found', async () => {
+    await withTx(async (tx) => {
+      const w = await buildWorld(tx, 'fund-comb');
+      await tx.client.update({
+        where: { id: w.clientA },
+        data: {
+          fundInDashboard: true,
+          weeklyFundMinutes: 1440,
+          weekStartsOn: 3,
+          workingDays: [3, 4, 5],
+        },
+      });
+      await tx.client.update({
+        where: { id: w.clientB },
+        data: {
+          fundInDashboard: true,
+          weeklyFundMinutes: 960,
+          weekStartsOn: 1,
+          workingDays: [1, 2],
+        },
+      });
+      const ok = await clientFundProgress(tx, w.admin, w.company);
+      if (!ok.ok) throw new Error('not ok');
+      expect(ok.value.combined.weekly.targetMinutes).toBe(2400); // 1440 + 960
+      // outsider is admin of a different company -> existence hidden
+      const cross = await clientFundProgress(tx, w.outsider, w.company);
+      expect(cross.ok).toBe(false);
     });
   });
 });
