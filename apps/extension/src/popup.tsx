@@ -504,16 +504,15 @@ function AppShell({
       {isAdmin && fundDisplay !== 'off' && fund ? (
         <div className="px-3 py-1.5">
           {fundDisplay === 'combined' ? (
-            <FundMiniBar bar={fund.combined.weekly} label="Týden" />
+            <>
+              <FundMiniBar bar={fund.combined.weekly} label="Týden" />
+              <FundNums bar={fund.combined.weekly} />
+            </>
           ) : (
             fund.clients.map((c) => (
-              <div key={c.clientId} className="mb-1 last:mb-0">
-                <div className="mb-0.5 flex justify-between text-[10px] text-zinc-500 dark:text-zinc-400">
-                  <span className="truncate">{c.clientName}</span>
-                  <span>
-                    {(c.weekly.workedMinutes / 60).toFixed(1)}/
-                    {(c.weekly.targetMinutes / 60).toFixed(0)} h
-                  </span>
+              <div key={c.clientId} className="mb-1.5 last:mb-0">
+                <div className="mb-0.5 truncate text-[10px] text-zinc-500 dark:text-zinc-400">
+                  {c.clientName}
                 </div>
                 {c.days.length > 0 ? (
                   <div className="flex gap-0.5">
@@ -537,6 +536,7 @@ function AppShell({
                 ) : (
                   <FundMiniBar bar={c.weekly} />
                 )}
+                <FundNums bar={c.weekly} />
               </div>
             ))
           )}
@@ -716,6 +716,24 @@ function FundMiniBar({ bar, label }: { bar: ExtFundBar; label?: string }): React
       </div>
       <span className="shrink-0 text-[10px] tabular-nums text-zinc-500 dark:text-zinc-400">
         {(bar.workedMinutes / 60).toFixed(1)}/{(bar.targetMinutes / 60).toFixed(0)} h
+      </span>
+    </div>
+  );
+}
+
+// Exact hours per colour + how much is left to the weekly limit.
+function FundNums({ bar }: { bar: ExtFundBar }): ReactElement {
+  const worked = bar.workedMinutes / 60;
+  const shortfall = Math.max(0, bar.expectedToDateMinutes - bar.workedMinutes) / 60;
+  const remaining = Math.max(0, bar.targetMinutes - bar.workedMinutes) / 60;
+  return (
+    <div className="mt-0.5 flex items-center gap-1.5 text-[10px] tabular-nums">
+      <span className="text-emerald-600 dark:text-emerald-400">{worked.toFixed(1)} h</span>
+      {shortfall > 0 ? (
+        <span className="text-red-600 dark:text-red-400">skluz {shortfall.toFixed(1)} h</span>
+      ) : null}
+      <span className="ml-auto text-zinc-500 dark:text-zinc-400">
+        {remaining > 0 ? `zbývá ${remaining.toFixed(1)} h` : 'splněno ✓'}
       </span>
     </div>
   );
