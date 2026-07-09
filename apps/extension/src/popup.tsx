@@ -4,6 +4,9 @@ import {
   ApiError,
   type ApiSession,
   type CatalogResponse,
+  type ExtFundBar,
+  type ExtFundProgress,
+  type FundDisplay,
   type MeResponse,
   type StartTimerInput,
   type ThemePreference,
@@ -13,6 +16,8 @@ import {
   clearPopupCache,
   getApiBase,
   getCatalog,
+  getFundDisplay,
+  getFundProgress,
   getPopupCache,
   getStoredSession,
   getTimer,
@@ -20,6 +25,7 @@ import {
   logout,
   me,
   setApiBase,
+  setFundDisplay,
   setPopupCache,
   setStoredSession,
   updateTheme,
@@ -63,21 +69,51 @@ export function Popup(): ReactElement {
   const [state, setState] = useState<AppState | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
+  const [fund, setFund] = useState<ExtFundProgress | null>(null);
+  const [fundDisplay, setFundDisplayState] = useState<FundDisplay>('off');
+
+  useEffect(() => {
+    void getFundDisplay(storage).then(setFundDisplayState);
+  }, []);
 
   const refresh = useCallback(async (session: ApiSession, companyId?: string) => {
     setRefreshing(true);
     try {
-      const [user, timer, catalog] = await Promise.all([
+      const [user, timer, catalog, display] = await Promise.all([
         me(session),
         getTimer(session, companyId),
         getCatalog(session, companyId),
+        getFundDisplay(storage),
       ]);
       setState({ session, me: user, timer, catalog });
       await setPopupCache(storage, { me: user, timer, catalog });
+
+      const activeCompanyId = timer.companyId ?? companyId;
+      const admin = user.memberships.some(
+        (m) => m.companyId === activeCompanyId && m.role === 'admin',
+      );
+      if (admin && display !== 'off') {
+        try {
+          setFund(await getFundProgress(session, activeCompanyId));
+        } catch {
+          setFund(null);
+        }
+      } else {
+        setFund(null);
+      }
     } finally {
       setRefreshing(false);
     }
   }, []);
+
+  const handleSetFundDisplay = useCallback(
+    async (v: FundDisplay): Promise<void> => {
+      setFundDisplayState(v);
+      await setFundDisplay(storage, v);
+      if (state) await refresh(state.session, state.timer.companyId ?? undefined);
+    },
+    [state, refresh],
+  );
 
   const tryLoadFromStorage = useCallback(async (): Promise<void> => {
     const [session, cached] = await Promise.all([
@@ -156,6 +192,9 @@ export function Popup(): ReactElement {
     <AppShell
       state={state}
       refreshing={refreshing}
+      fund={fund}
+      fundDisplay={fundDisplay}
+      onSetFundDisplay={handleSetFundDisplay}
       onChange={() => refresh(state.session, state.timer.companyId ?? undefined)}
       onLogout={async () => {
         await logout(state.session);
@@ -346,11 +385,17 @@ function LoginForm({
 function AppShell({
   state,
   refreshing,
+  fund,
+  fundDisplay,
+  onSetFundDisplay,
   onChange,
   onLogout,
 }: {
   state: AppState;
   refreshing: boolean;
+  fund: ExtFundProgress | null;
+  fundDisplay: FundDisplay;
+  onSetFundDisplay: (v: FundDisplay) => void | Promise<void>;
   onChange: () => void | Promise<void>;
   onLogout: () => void | Promise<void>;
 }): ReactElement {
@@ -446,13 +491,57 @@ function AppShell({
         refreshing={refreshing}
         theme={theme}
         showStats={showStats}
+        isAdmin={isAdmin}
+        fundDisplay={fundDisplay}
         onManualEntry={() => setSheet({ mode: 'create' })}
         onNewProject={isAdmin ? () => setProjectOpen(true) : null}
         onRefresh={() => void onChange()}
         onSetTheme={handleSetTheme}
         onToggleStats={handleToggleStats}
+        onSetFundDisplay={onSetFundDisplay}
         onLogout={onLogout}
       />
+      {isAdmin && fundDisplay !== 'off' && fund ? (
+        <div className="px-3 py-1.5">
+          {fundDisplay === 'combined' ? (
+            <FundMiniBar bar={fund.combined.weekly} label="Týden" />
+          ) : (
+            fund.clients.map((c) => (
+              <div key={c.clientId} className="mb-1 last:mb-0">
+                <div className="mb-0.5 flex justify-between text-[10px] text-zinc-500 dark:text-zinc-400">
+                  <span className="truncate">{c.clientName}</span>
+                  <span>
+                    {(c.weekly.workedMinutes / 60).toFixed(1)}/
+                    {(c.weekly.targetMinutes / 60).toFixed(0)} h
+                  </span>
+                </div>
+                {c.days.length > 0 ? (
+                  <div className="flex gap-0.5">
+                    {c.days.map((d) => {
+                      const g =
+                        d.targetMinutes > 0
+                          ? Math.min(100, (d.allocatedMinutes / d.targetMinutes) * 100)
+                          : 0;
+                      const r = d.isPast ? 100 - g : 0;
+                      return (
+                        <div
+                          key={d.date}
+                          className="flex h-1 flex-1 overflow-hidden rounded-full bg-zinc-200 dark:bg-zinc-700"
+                        >
+                          <div className="h-full bg-emerald-500" style={{ width: `${g}%` }} />
+                          <div className="h-full bg-red-500" style={{ width: `${r}%` }} />
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <FundMiniBar bar={c.weekly} />
+                )}
+              </div>
+            ))
+          )}
+        </div>
+      ) : null}
       <StartRow catalog={state.catalog} onStart={sync.executeStart} />
       <RunningList
         entries={state.timer.running}
@@ -520,11 +609,14 @@ function Header({
   refreshing,
   theme,
   showStats,
+  isAdmin,
+  fundDisplay,
   onManualEntry,
   onNewProject,
   onRefresh,
   onSetTheme,
   onToggleStats,
+  onSetFundDisplay,
   onLogout,
 }: {
   me: MeResponse;
@@ -535,11 +627,14 @@ function Header({
   refreshing: boolean;
   theme: ThemePreference;
   showStats: boolean;
+  isAdmin: boolean;
+  fundDisplay: FundDisplay;
   onManualEntry: () => void;
   onNewProject: (() => void) | null;
   onRefresh: () => void;
   onSetTheme: (t: ThemePreference) => void;
   onToggleStats: () => void;
+  onSetFundDisplay: (v: FundDisplay) => void | Promise<void>;
   onLogout: () => void | Promise<void>;
 }): ReactElement {
   return (
@@ -589,14 +684,35 @@ function Header({
           apiBase={apiBase}
           theme={theme}
           showStats={showStats}
+          isAdmin={isAdmin}
+          fundDisplay={fundDisplay}
           onManualEntry={onManualEntry}
           onNewProject={onNewProject}
           onRefresh={onRefresh}
           onSetTheme={onSetTheme}
           onToggleStats={onToggleStats}
+          onSetFundDisplay={onSetFundDisplay}
           onLogout={onLogout}
         />
       </div>
+    </div>
+  );
+}
+
+function FundMiniBar({ bar, label }: { bar: ExtFundBar; label?: string }): ReactElement {
+  const pct =
+    bar.targetMinutes > 0 ? Math.min(100, (bar.workedMinutes / bar.targetMinutes) * 100) : 0;
+  return (
+    <div className="flex items-center gap-1.5">
+      {label ? (
+        <span className="shrink-0 text-[10px] text-zinc-500 dark:text-zinc-400">{label}</span>
+      ) : null}
+      <div className="h-1 flex-1 overflow-hidden rounded-full bg-zinc-200 dark:bg-zinc-700">
+        <div className="h-full bg-blue-500" style={{ width: `${pct}%` }} />
+      </div>
+      <span className="shrink-0 text-[10px] tabular-nums text-zinc-500 dark:text-zinc-400">
+        {(bar.workedMinutes / 60).toFixed(1)}/{(bar.targetMinutes / 60).toFixed(0)} h
+      </span>
     </div>
   );
 }
@@ -607,25 +723,37 @@ const THEME_OPTIONS: { value: ThemePreference; label: string }[] = [
   { value: 'system', label: 'Systémový' },
 ];
 
+const FUND_DISPLAY_OPTIONS: { value: FundDisplay; label: string }[] = [
+  { value: 'off', label: 'Vypnuto' },
+  { value: 'combined', label: 'Souhrn' },
+  { value: 'per-client', label: 'Po klientech' },
+];
+
 function MoreMenu({
   apiBase,
   theme,
   showStats,
+  isAdmin,
+  fundDisplay,
   onManualEntry,
   onNewProject,
   onRefresh,
   onSetTheme,
   onToggleStats,
+  onSetFundDisplay,
   onLogout,
 }: {
   apiBase: string;
   theme: ThemePreference;
   showStats: boolean;
+  isAdmin: boolean;
+  fundDisplay: FundDisplay;
   onManualEntry: () => void;
   onNewProject: (() => void) | null;
   onRefresh: () => void;
   onSetTheme: (t: ThemePreference) => void;
   onToggleStats: () => void;
+  onSetFundDisplay: (v: FundDisplay) => void | Promise<void>;
   onLogout: () => void | Promise<void>;
 }): ReactElement {
   const [open, setOpen] = useState(false);
@@ -749,6 +877,41 @@ function MoreMenu({
               {showStats ? '◐' : '○'}
             </span>
           </button>
+          {isAdmin ? (
+            <div
+              role="group"
+              aria-label="Fond klientů"
+              className="border-t border-zinc-100 dark:border-zinc-700"
+            >
+              <div className="px-3 pt-2 text-[9px] font-medium uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
+                Fond klientů
+              </div>
+              {FUND_DISPLAY_OPTIONS.map((opt) => {
+                const active = fundDisplay === opt.value;
+                return (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    role="menuitemradio"
+                    aria-checked={active}
+                    onClick={() => {
+                      void onSetFundDisplay(opt.value);
+                      setOpen(false);
+                    }}
+                    className="flex w-full items-center justify-between px-3 py-1.5 text-left text-xs text-zinc-700 hover:bg-zinc-50 dark:text-zinc-300 dark:hover:bg-zinc-700"
+                  >
+                    <span>{opt.label}</span>
+                    <span
+                      aria-hidden
+                      className={active ? 'text-zinc-900 dark:text-zinc-100' : 'text-transparent'}
+                    >
+                      ✓
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          ) : null}
           <div
             role="group"
             aria-label="Motiv"
