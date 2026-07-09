@@ -15,8 +15,10 @@ import {
   renameProject,
   reorderClients,
   reorderProjects,
+  updateClientFund,
   updateTag,
 } from '../services/catalog.js';
+import type { ClientFundPatch } from '../services/catalog.js';
 
 export type ActionResult = { ok: true } | { ok: false; error: string };
 
@@ -62,6 +64,19 @@ export async function deleteClientAction(
   const r = await deleteClient(prisma(), s.userId, clientId, { cascade });
   if (!r.ok) return { ok: false, error: 'Nelze smazat' };
   revalidatePath('/clients');
+  return { ok: true };
+}
+
+export async function updateClientFundAction(
+  clientId: string,
+  patch: ClientFundPatch,
+): Promise<ActionResult> {
+  const s = await requireAdmin();
+  const r = await updateClientFund(prisma(), s.userId, clientId, patch);
+  if (!r.ok)
+    return { ok: false, error: r.reason === 'invalid' ? 'Neplatné hodnoty fondu' : 'Nelze uložit' };
+  revalidatePath('/clients');
+  revalidatePath('/dashboard');
   return { ok: true };
 }
 

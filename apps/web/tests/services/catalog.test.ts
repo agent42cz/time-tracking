@@ -20,6 +20,7 @@ import {
   listTags,
   reorderClients,
   reorderProjects,
+  updateClientFund,
   updateTag,
 } from '../../src/lib/services/catalog.js';
 
@@ -511,6 +512,49 @@ describe('catalog (clients / projects / tags)', () => {
         orderBy: [{ archived: 'asc' }, { sortOrder: 'asc' }, { name: 'asc' }],
       });
       expect(rows.map((r) => r.name)).toEqual(['Cherry', 'Apple', 'Banana', 'Damson']);
+    });
+  });
+
+  it('US-90: updateClientFund persists config, validates, writes exactly one audit row', async () => {
+    await withTx(async (tx) => {
+      const admin = await tx.user.create({ data: { email: 'cf-a@x.test', fullName: 'A' } });
+      const outsider = await tx.user.create({ data: { email: 'cf-o@x.test', fullName: 'O' } });
+      const company = await createCompany(tx, { name: 'CF', createdByUserId: admin.id });
+      await createCompany(tx, { name: 'CF2', createdByUserId: outsider.id });
+      const c = await createClient(tx, admin.id, { companyId: company.id, name: 'SPLY' });
+      if (!c.ok) throw new Error('setup');
+
+      const before = await tx.auditLog.count({ where: { companyId: company.id } });
+      const ok = await updateClientFund(tx, admin.id, c.value.id, {
+        fundInDashboard: true,
+        weeklyFundMinutes: 1440,
+        weekStartsOn: 3,
+        workingDays: [3, 4, 5],
+      });
+      expect(ok.ok).toBe(true);
+      const row = await tx.client.findUnique({ where: { id: c.value.id } });
+      expect(row?.fundInDashboard).toBe(true);
+      expect(row?.workingDays).toEqual([3, 4, 5]);
+      const after = await tx.auditLog.count({ where: { companyId: company.id } });
+      expect(after - before).toBe(1); // exactly one audit row
+
+      // invalid weekday
+      const bad = await updateClientFund(tx, admin.id, c.value.id, {
+        fundInDashboard: true,
+        weeklyFundMinutes: 60,
+        weekStartsOn: 9,
+        workingDays: [3],
+      });
+      expect(bad).toEqual({ ok: false, reason: 'invalid' });
+
+      // cross-company actor -> not_found (existence hidden)
+      const cross = await updateClientFund(tx, outsider.id, c.value.id, {
+        fundInDashboard: false,
+        weeklyFundMinutes: null,
+        weekStartsOn: null,
+        workingDays: [],
+      });
+      expect(cross).toEqual({ ok: false, reason: 'not_found' });
     });
   });
 });
