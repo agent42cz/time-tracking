@@ -8,19 +8,33 @@ const pct = (part: number, whole: number) => (whole > 0 ? Math.min(100, (part / 
 
 // Green = worked so far. Red = how far behind schedule we are right now
 // (expected-to-date minus worked). The rest of the track stays neutral.
+// Below the bar: the exact hours per colour + how much is left to the limit.
 function Bar({ bar }: { bar: FundBar }): React.ReactElement {
   const green = pct(bar.workedMinutes, bar.targetMinutes);
   const shortfall = Math.max(0, bar.expectedToDateMinutes - bar.workedMinutes);
   const red = pct(shortfall, bar.targetMinutes);
+  const remaining = Math.max(0, bar.targetMinutes - bar.workedMinutes);
   return (
-    <div className="flex items-center gap-2">
-      <div className="flex h-2 flex-1 overflow-hidden rounded-full bg-zinc-100 dark:bg-zinc-700">
+    <div>
+      <div className="flex h-2 overflow-hidden rounded-full bg-zinc-100 dark:bg-zinc-700">
         <div className="h-full bg-emerald-500" style={{ width: `${green}%` }} />
         <div className="h-full bg-red-500" style={{ width: `${red}%` }} />
       </div>
-      <span className="w-24 text-right text-xs tabular-nums text-zinc-500">
-        {fmtH(bar.workedMinutes)} / {fmtH(bar.targetMinutes)}
-      </span>
+      <div className="mt-0.5 flex flex-wrap items-center gap-x-2 text-[11px] tabular-nums">
+        <span className="font-medium text-emerald-600 dark:text-emerald-400">
+          {fmtH(bar.workedMinutes)}
+        </span>
+        {shortfall > 0 ? (
+          <span className="font-medium text-red-600 dark:text-red-400">
+            skluz {fmtH(shortfall)}
+          </span>
+        ) : null}
+        <span className="ml-auto text-zinc-500 dark:text-zinc-400">
+          {remaining > 0
+            ? `do limitu zbývá ${fmtH(remaining)} z ${fmtH(bar.targetMinutes)}`
+            : `limit ${fmtH(bar.targetMinutes)} splněn ✓`}
+        </span>
+      </div>
     </div>
   );
 }
