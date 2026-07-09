@@ -112,7 +112,7 @@ jobs:
           # and the candidate stop overlapping, so the overlap dialog never shows.
           TZ: Europe/Prague
 
-      # US-90 and US-97 have their ONLY tests here. `pnpm test:trace` greps files
+      # US-92 and US-99 have their ONLY tests here. `pnpm test:trace` greps files
       # for a US id; it cannot know whether the file ever executes, so without
       # this step the coverage report vouches for two stories nothing runs.
       # No database: the suite stubs chrome.* and every /api/v1 route, and its

@@ -55,12 +55,12 @@ export interface ApiFixture {
 
 /**
  * `runningStartedAt` defaults to 1h 1m 1s ago so the running row renders
- * `01:01:01` once seconds are restored (US-90).
+ * `01:01:01` once seconds are restored (US-92).
  * `historyCount` defaults to 25 — enough rows to make the 600px-tall popup
- * scroll, which US-97 depends on.
+ * scroll, which US-99 depends on.
  * `running` defaults to `true` (one seeded running entry, matching prior
  * behaviour). Pass `false` to model an idle popup with no running timer —
- * needed to exercise the tick-gating-on-`hasRunning` codepath (US-90).
+ * needed to exercise the tick-gating-on-`hasRunning` codepath (US-92).
  */
 export function buildApiFixture(
   opts: { runningStartedAt?: string; historyCount?: number; running?: boolean } = {},

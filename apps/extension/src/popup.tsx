@@ -50,7 +50,7 @@ const storage: StorageAdapter =
     ? createChromeStorageAdapter()
     : new InMemoryStorageAdapter();
 
-/** Running timers re-render once a second so the seconds field advances (US-90). */
+/** Running timers re-render once a second so the seconds field advances (US-92). */
 export const RUNNING_TICK_MS = 1000;
 
 type View = 'loading' | 'login' | 'app';

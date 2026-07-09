@@ -80,7 +80,7 @@ The "last admin" guard blocks any role change, removal, or self-leave that would
 ## Soft delete + trash
 
 - TimeEntry deletion sets `deleted_at` to `now()`. Entries with non-null `deleted_at` are hidden from normal queries and reports (US-47).
-- The `/trash` page lists soft-deleted entries and allows restore, scoped by role: a member sees only their own; an admin sees every member's in the active company (US-92).
+- The `/trash` page lists soft-deleted entries and allows restore, scoped by role: a member sees only their own; an admin sees every member's in the active company (US-94).
 - A daily Coolify scheduled task calls `POST /api/cron/purge`, which hard-deletes any TimeEntry with `deleted_at < now() - 30 days` and writes one actor-less `purge` audit row per entry. See [ADR-0011](../decisions/0011-coolify-scheduled-task-for-purge.md).
 
 ## Multi-tenant scoping

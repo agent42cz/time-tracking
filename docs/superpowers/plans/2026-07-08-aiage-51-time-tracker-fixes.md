@@ -15,7 +15,7 @@
 Every task's requirements implicitly include this section. These come from [`docs/constitution.md`](../../constitution.md).
 
 - **Test-first.** The test must fail for the right reason before you make it pass.
-- **One user story per `it`/`test` block**, with the US ID embedded in the name: `it('US-91: …')`.
+- **One user story per `it`/`test` block**, with the US ID embedded in the name: `it('US-93: …')`.
 - **Real Postgres + Redis via testcontainers.** Zero DB mocks, ever. Service tests use `withTx` from `@tt/db/test`.
 - **Cross-company 404 is mandatory** for every read endpoint and every mutation. Use `not_found` (never `403`) to avoid existence leaks.
 - **Every mutation produces exactly one audit row.**
@@ -39,14 +39,14 @@ Every task's requirements implicitly include this section. These come from [`doc
 | --------------------------------------------------------- | ------------------------------------------------------------------------------------------ |
 | `apps/extension/playwright.config.ts`                     | Extension e2e config — builds the bundle, serves `dist/popup.html` via `vite preview`      |
 | `apps/extension/tests/e2e/fixtures.ts`                    | `chrome.*` stub + API route stubs + seed data. The only place e2e knows about storage keys |
-| `apps/extension/tests/e2e/popup.spec.ts`                  | Extension popup e2e — smoke, US-90, US-97                                                  |
+| `apps/extension/tests/e2e/popup.spec.ts`                  | Extension popup e2e — smoke, US-92, US-99                                                  |
 | `apps/extension/src/useBodyScrollLock.ts`                 | Locks `<body>` scroll while a sheet is mounted. Shared by both sheets.                     |
 | `packages/shared/src/time/duration.ts`                    | Pure duration arithmetic. **Zero imports.**                                                |
 | `packages/shared/src/time/duration.test.ts`               | Unit tests for the above                                                                   |
-| `apps/web/tests/services/trash.test.ts`                   | US-91, US-92, US-93, US-95, US-96 service tests                                            |
-| `apps/web/tests/services/cron-purge-route.test.ts`        | US-96 route auth tests                                                                     |
-| `apps/web/tests/e2e/trash-undo.spec.ts`                   | US-94                                                                                      |
-| `apps/web/tests/e2e/reports-multiselect.spec.ts`          | US-98                                                                                      |
+| `apps/web/tests/services/trash.test.ts`                   | US-93, US-94, US-95, US-97, US-98 service tests                                            |
+| `apps/web/tests/services/cron-purge-route.test.ts`        | US-98 route auth tests                                                                     |
+| `apps/web/tests/e2e/trash-undo.spec.ts`                   | US-96                                                                                      |
+| `apps/web/tests/e2e/reports-multiselect.spec.ts`          | US-100                                                                                     |
 | `apps/web/src/app/api/cron/purge/route.ts`                | `POST` purge endpoint, `CRON_SECRET`-guarded                                               |
 | `docs/decisions/0011-coolify-scheduled-task-for-purge.md` | ADR                                                                                        |
 
@@ -209,9 +209,9 @@ export interface ApiFixture {
 
 /**
  * `runningStartedAt` defaults to 1h 1m 1s ago so the running row renders
- * `01:01:01` once seconds are restored (US-90).
+ * `01:01:01` once seconds are restored (US-92).
  * `historyCount` defaults to 25 — enough rows to make the 600px-tall popup
- * scroll, which US-97 depends on.
+ * scroll, which US-99 depends on.
  */
 export function buildApiFixture(
   opts: { runningStartedAt?: string; historyCount?: number } = {},
@@ -518,7 +518,7 @@ zero-import leaf and re-export from the barrel so nothing breaks."
 
 ---
 
-### Task 3: Extension running timer shows seconds again (US-90)
+### Task 3: Extension running timer shows seconds again (US-92)
 
 A scoped partial revert of AIAGE-28, which removed seconds from the extension **everywhere** and widened the tick from 1000 ms to 30 000 ms.
 
@@ -534,7 +534,7 @@ Three changes ride together because they are one behaviour:
 
 - Modify: `apps/extension/src/popup.tsx` (imports, `AppShell` tick, sheet state, `RunningList`)
 - Modify: `apps/extension/src/format.ts:1` (stale comment)
-- Modify: `apps/extension/tests/e2e/popup.spec.ts` (add US-90)
+- Modify: `apps/extension/tests/e2e/popup.spec.ts` (add US-92)
 
 **Interfaces:**
 
@@ -546,7 +546,7 @@ Three changes ride together because they are one behaviour:
 Append to `apps/extension/tests/e2e/popup.spec.ts`, inside the existing `test.describe('extension popup', …)`:
 
 ```ts
-test('US-90: the running row shows seconds and ticks every second', async ({ page }) => {
+test('US-92: the running row shows seconds and ticks every second', async ({ page }) => {
   await openPopup(page, buildApiFixture());
 
   const duration = page.getByTestId('running-duration');
@@ -558,7 +558,7 @@ test('US-90: the running row shows seconds and ticks every second', async ({ pag
   await expect.poll(async () => duration.textContent(), { timeout: 5_000 }).not.toBe(first);
 });
 
-test('US-90: stopped history rows keep HH:MM, without seconds', async ({ page }) => {
+test('US-92: stopped history rows keep HH:MM, without seconds', async ({ page }) => {
   await openPopup(page, buildApiFixture());
 
   // Each seeded history entry is exactly 30 minutes long.
@@ -566,7 +566,7 @@ test('US-90: stopped history rows keep HH:MM, without seconds', async ({ page })
   await expect(page.getByText('00:30:00', { exact: true })).toHaveCount(0);
 });
 
-test('US-90: a 1s tick does not clobber the manual-entry start input', async ({ page }) => {
+test('US-92: a 1s tick does not clobber the manual-entry start input', async ({ page }) => {
   // Regression guard for bce7cbb (web: "manual start input was uneditable").
   await openPopup(page, buildApiFixture());
 
@@ -593,7 +593,7 @@ test('US-90: a 1s tick does not clobber the manual-entry start input', async ({ 
 pnpm test:e2e:ext
 ```
 
-Expected: the first two FAIL. `US-90: the running row shows seconds` fails on the missing `data-testid` (`getByTestId('running-duration')` resolves to 0 elements). The `stopped history rows` test passes already — that is correct; it is a **guard** proving Task 3 does not over-apply the change.
+Expected: the first two FAIL. `US-92: the running row shows seconds` fails on the missing `data-testid` (`getByTestId('running-duration')` resolves to 0 elements). The `stopped history rows` test passes already — that is correct; it is a **guard** proving Task 3 does not over-apply the change.
 
 - [ ] **Step 3: Swap the formatter on the running row**
 
@@ -634,7 +634,7 @@ with:
 In `apps/extension/src/popup.tsx`, add near the top-level consts:
 
 ```ts
-/** Running timers re-render once a second so the seconds field advances (US-90). */
+/** Running timers re-render once a second so the seconds field advances (US-92). */
 export const RUNNING_TICK_MS = 1000;
 ```
 
@@ -732,7 +732,7 @@ with:
 /**
  * Duration as HH:MM — for *stopped* entries, day totals and summary cards
  * (AIAGE-28). The running row uses `formatDurationHMS` instead (AIAGE-51,
- * US-90), because a live timer without a seconds field looks frozen.
+ * US-92), because a live timer without a seconds field looks frozen.
  */
 ```
 
@@ -756,7 +756,7 @@ Look at the "Probíhá (1)" row. If it wraps, shrink the Stop button's `px-4` to
 
 ```bash
 git add apps/extension/src/popup.tsx apps/extension/src/format.ts apps/extension/tests/e2e/popup.spec.ts
-git commit -m "fix(ext): running timer shows seconds again, ticks every second (US-90)
+git commit -m "fix(ext): running timer shows seconds again, ticks every second (US-92)
 
 Partial revert of AIAGE-28, scoped to the running row. Stopped rows, day
 totals and summary cards keep HH:MM.
@@ -768,7 +768,7 @@ at open time — otherwise 'Přidat ručně' would prefill a stale start."
 
 ---
 
-### Task 4: Extension sheets pin to the viewport (US-97)
+### Task 4: Extension sheets pin to the viewport (US-99)
 
 `AppShell`'s root (`popup.tsx:439`) is `relative` and grows to the **full document height** — header + start row + running list + summary + the entire history. So `absolute inset-0` stretches a sheet from document `y=0` to the bottom of the whole list, not across the popup viewport. Scroll down, click a row, and the sheet's header and `Název` field render above the fold; the first thing visible is the `Popis` textarea.
 
@@ -784,7 +784,7 @@ Two consequences of `absolute` on a document-tall parent, both fixed here:
 - Create: `apps/extension/src/useBodyScrollLock.ts`
 - Modify: `apps/extension/src/EntrySheet.tsx:137,151`
 - Modify: `apps/extension/src/NewProjectSheet.tsx:36,48`
-- Modify: `apps/extension/tests/e2e/popup.spec.ts` (add US-97)
+- Modify: `apps/extension/tests/e2e/popup.spec.ts` (add US-99)
 
 **Interfaces:**
 
@@ -796,7 +796,7 @@ Two consequences of `absolute` on a document-tall parent, both fixed here:
 Append to `apps/extension/tests/e2e/popup.spec.ts`, inside the existing `test.describe`:
 
 ```ts
-test('US-97: opening an entry while scrolled keeps the sheet header on screen', async ({
+test('US-99: opening an entry while scrolled keeps the sheet header on screen', async ({
   page,
 }) => {
   await openPopup(page, buildApiFixture({ historyCount: 25 }));
@@ -824,7 +824,7 @@ test('US-97: opening an entry while scrolled keeps the sheet header on screen', 
   await expect(page.getByPlaceholder('Co děláte?')).toBeInViewport();
 });
 
-test('US-97: the body does not scroll behind an open sheet', async ({ page }) => {
+test('US-99: the body does not scroll behind an open sheet', async ({ page }) => {
   await openPopup(page, buildApiFixture({ historyCount: 25 }));
   await page.getByText('Historický záznam 0').click();
   await expect(page.getByText('Upravit záznam')).toBeVisible();
@@ -840,7 +840,7 @@ test('US-97: the body does not scroll behind an open sheet', async ({ page }) =>
 pnpm test:e2e:ext
 ```
 
-Expected: `US-97: opening an entry while scrolled…` FAILS with `expect(box.y).toBeGreaterThanOrEqual(0)` receiving a negative number (roughly `-scrollY`). `US-97: the body does not scroll…` FAILS with `expect('').toBe('hidden')`.
+Expected: `US-99: opening an entry while scrolled…` FAILS with `expect(box.y).toBeGreaterThanOrEqual(0)` receiving a negative number (roughly `-scrollY`). `US-99: the body does not scroll…` FAILS with `expect('').toBe('hidden')`.
 
 - [ ] **Step 3: Extract the body scroll lock into a shared hook**
 
@@ -959,7 +959,7 @@ Expected: PASS. Also confirm `AutoStackSheet` (`z-50`) still renders **above** a
 
 ```bash
 git add apps/extension/src/useBodyScrollLock.ts apps/extension/src/EntrySheet.tsx apps/extension/src/NewProjectSheet.tsx apps/extension/tests/e2e/popup.spec.ts
-git commit -m "fix(ext): entry + new-project sheets pin to the viewport (US-97)
+git commit -m "fix(ext): entry + new-project sheets pin to the viewport (US-99)
 
 AppShell's root is relative and document-tall, so \`absolute inset-0\` stretched
 each sheet from document y=0 to the bottom of the whole history list. Scrolled
@@ -972,7 +972,7 @@ and locks body scroll while open."
 
 ---
 
-### Task 5: MultiSelect popover escapes its clipping ancestors (US-98)
+### Task 5: MultiSelect popover escapes its clipping ancestors (US-100)
 
 `MultiSelect`'s popover is `absolute` (`MultiSelect.tsx:145`). Two ancestors clip it:
 
@@ -1038,8 +1038,8 @@ test.afterAll(async () => {
   await prisma.$disconnect();
 });
 
-test.describe('US-98: reports client filter', () => {
-  test('US-98: the popover escapes its clipping ancestors and scrolls', async ({ page }) => {
+test.describe('US-100: reports client filter', () => {
+  test('US-100: the popover escapes its clipping ancestors and scrolls', async ({ page }) => {
     await page.goto('/reports');
 
     await page.getByRole('button', { name: /všichni klienti/i }).click();
@@ -1130,7 +1130,7 @@ interface PopoverPos {
  *
  * The popover is portalled to <body> and positioned `fixed`. Both of its usual
  * parents clip it otherwise: `Card` is `overflow-hidden` and `ConfirmModal`'s
- * panel is `max-h-[90vh] overflow-y-auto` (AIAGE-51, US-98).
+ * panel is `max-h-[90vh] overflow-y-auto` (AIAGE-51, US-100).
  */
 export function MultiSelect({
   name,
@@ -1324,7 +1324,7 @@ export function MultiSelect({
           <span className="px-1 text-zinc-400 dark:text-zinc-500">{placeholder}</span>
         ) : (
           <div className="flex flex-1 flex-wrap gap-1">
-            {/* Deliberate: at most 4 chips + a +N badge. Not the US-98 bug. */}
+            {/* Deliberate: at most 4 chips + a +N badge. Not the US-100 bug. */}
             {selectedLabels.slice(0, 4).map((o) => (
               <span
                 key={o.id}
@@ -1386,7 +1386,7 @@ Expected: the full web e2e suite passes, including `destructive-confirm.spec.ts`
 
 ```bash
 git add apps/web/src/components/MultiSelect.tsx apps/web/tests/e2e/reports-multiselect.spec.ts
-git commit -m "fix(web): MultiSelect popover escapes clipping ancestors (US-98)
+git commit -m "fix(web): MultiSelect popover escapes clipping ancestors (US-100)
 
 The popover was \`absolute\`; Card is overflow-hidden and ConfirmModal's panel
 is max-h-[90vh] overflow-y-auto, so on /reports the client dropdown was clipped
@@ -1400,7 +1400,7 @@ click on an option would otherwise have closed the popover."
 
 ---
 
-### Task 6: Trash — owners restore their own entries, scoped by role (US-91, US-92, US-93)
+### Task 6: Trash — owners restore their own entries, scoped by role (US-93, US-94, US-95)
 
 Today `softDeleteEntry` allows **owner-or-admin** (`time-entries.ts:302`) but `restoreEntry` demands **admin** (`:331`). A member can delete their own entry and never get it back. `/trash` is admin-only in nav (`nav.ts:38`) and its page bypasses the service layer entirely, querying `prisma()` directly behind `requireAdmin()`.
 
@@ -1434,7 +1434,7 @@ Create `apps/web/tests/services/trash.test.ts`:
 ```ts
 /**
  * AIAGE-51 — trash scoping, owner restore, enriched rows.
- * Covers US-91, US-92, US-93.
+ * Covers US-93, US-94, US-95.
  */
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { Prisma } from '@prisma/client';
@@ -1489,7 +1489,7 @@ async function bootstrap(tx: Prisma.TransactionClient, suffix: string): Promise<
 }
 
 describe('trash', () => {
-  it('US-91: a non-admin owner restores their own soft-deleted entry', async () => {
+  it('US-93: a non-admin owner restores their own soft-deleted entry', async () => {
     await withTx(async (tx) => {
       const w = await bootstrap(tx, 'us91');
       const e = await startTimer(tx, w.user, { companyId: w.company });
@@ -1514,7 +1514,7 @@ describe('trash', () => {
     });
   });
 
-  it("US-91: a member cannot restore another member's entry", async () => {
+  it("US-93: a member cannot restore another member's entry", async () => {
     await withTx(async (tx) => {
       const w = await bootstrap(tx, 'us91b');
       const e = await startTimer(tx, w.user, { companyId: w.company });
@@ -1529,7 +1529,7 @@ describe('trash', () => {
     });
   });
 
-  it('US-91: a cross-company actor restoring returns not_found', async () => {
+  it('US-93: a cross-company actor restoring returns not_found', async () => {
     await withTx(async (tx) => {
       const w = await bootstrap(tx, 'us91c');
       const e = await startTimer(tx, w.user, { companyId: w.company });
@@ -1541,7 +1541,7 @@ describe('trash', () => {
     });
   });
 
-  it("US-92: a member sees only their own deleted entries; an admin sees everyone's", async () => {
+  it("US-94: a member sees only their own deleted entries; an admin sees everyone's", async () => {
     await withTx(async (tx) => {
       const w = await bootstrap(tx, 'us92');
       const mine = await startTimer(tx, w.user, { companyId: w.company, description: 'mine' });
@@ -1566,7 +1566,7 @@ describe('trash', () => {
     });
   });
 
-  it('US-92: a non-member listing the trash returns not_found', async () => {
+  it('US-94: a non-member listing the trash returns not_found', async () => {
     await withTx(async (tx) => {
       const w = await bootstrap(tx, 'us92b');
       const result = await listTrash(tx, w.outsider, w.company);
@@ -1574,7 +1574,7 @@ describe('trash', () => {
     });
   });
 
-  it('US-93: trash rows expose start, end and duration inputs', async () => {
+  it('US-95: trash rows expose start, end and duration inputs', async () => {
     await withTx(async (tx) => {
       const w = await bootstrap(tx, 'us93');
       const client = await tx.client.create({
@@ -1607,7 +1607,7 @@ describe('trash', () => {
     });
   });
 
-  it('US-93: a soft-deleted running entry reports a null end', async () => {
+  it('US-95: a soft-deleted running entry reports a null end', async () => {
     await withTx(async (tx) => {
       const w = await bootstrap(tx, 'us93b');
       const e = await startTimer(tx, w.user, { companyId: w.company });
@@ -1628,7 +1628,7 @@ describe('trash', () => {
 pnpm --filter @tt/web exec vitest run tests/services/trash.test.ts
 ```
 
-Expected: FAIL. `US-91` fails with `{ ok: false, reason: 'not_found' }` (restore is admin-only). `US-92`/`US-93` fail on the narrow `listTrash` payload — `r.userName` is `undefined` and the member call returns `not_found`.
+Expected: FAIL. `US-93` fails with `{ ok: false, reason: 'not_found' }` (restore is admin-only). `US-94`/`US-95` fail on the narrow `listTrash` payload — `r.userName` is `undefined` and the member call returns `not_found`.
 
 - [ ] **Step 3: Split `snapshot` so Task 8 can reuse it**
 
@@ -1695,7 +1695,7 @@ export interface TrashEntryView {
 
 /**
  * Deleted entries within the 30-day window. Admins see the whole company;
- * a member sees only their own (US-92).
+ * a member sees only their own (US-94).
  */
 export async function listTrash(
   db: Db,
@@ -1766,7 +1766,7 @@ export async function restoreEntryAction(entryId: string): Promise<ActionResult>
   const result = await restoreEntry(prisma(), s.userId, entryId);
   if (!result.ok) return { ok: false, error: 'Nelze obnovit' };
   revalidatePath('/trash');
-  // Undo (US-94) restores from /timer, which must re-render too.
+  // Undo (US-96) restores from /timer, which must re-render too.
   revalidatePath('/timer');
   return { ok: true };
 }
@@ -2062,7 +2062,7 @@ Expected: PASS. `audit.test.ts:98` (`US-46: admin restores from trash`) still pa
 git add apps/web/src/lib/services/time-entries.ts apps/web/src/lib/actions/time.ts \
         "apps/web/src/app/(authenticated)/trash/" "apps/web/src/app/(authenticated)/nav.ts" \
         "apps/web/src/app/(authenticated)/nav.test.ts" apps/web/tests/services/trash.test.ts
-git commit -m "feat(trash): owners restore their own entries; trash scoped by role (US-91, US-92, US-93)
+git commit -m "feat(trash): owners restore their own entries; trash scoped by role (US-93, US-94, US-95)
 
 softDeleteEntry allowed owner-or-admin but restoreEntry demanded admin, so a
 member could delete their own entry and never get it back — while the delete
@@ -2075,7 +2075,7 @@ The page also stops bypassing the service layer with a raw prisma() query."
 
 ---
 
-### Task 7: Undo affordance after deleting an entry (US-94)
+### Task 7: Undo affordance after deleting an entry (US-96)
 
 There is no toast primitive in the repo — no `sonner`, no snackbar, nothing in `packages/ui`. An inline `Alert` above the history list matches how `TrashList` already surfaces messages, needs no portal, and is directly testable.
 
@@ -2099,8 +2099,8 @@ Create `apps/web/tests/e2e/trash-undo.spec.ts`. It reuses the start→stop→del
 ```ts
 import { expect, test } from '@playwright/test';
 
-test.describe('US-94: undo a deleted entry', () => {
-  test('US-94: deleting an entry offers an undo that restores it', async ({ page }) => {
+test.describe('US-96: undo a deleted entry', () => {
+  test('US-96: deleting an entry offers an undo that restores it', async ({ page }) => {
     await page.goto('/timer');
 
     const description = `e2e undo ${Date.now()}`;
@@ -2125,7 +2125,7 @@ test.describe('US-94: undo a deleted entry', () => {
     await expect(undo).toBeHidden();
   });
 
-  test('US-94: dismissing the undo leaves the entry deleted and in the trash', async ({ page }) => {
+  test('US-96: dismissing the undo leaves the entry deleted and in the trash', async ({ page }) => {
     await page.goto('/timer');
 
     const description = `e2e no-undo ${Date.now()}`;
@@ -2297,7 +2297,7 @@ Expected: PASS. `destructive-confirm.spec.ts` still passes — the new Alert app
 ```bash
 git add "apps/web/src/app/(authenticated)/timer/TimerLists.tsx" apps/web/messages/cs.json \
         apps/web/tests/e2e/trash-undo.spec.ts
-git commit -m "feat(timer): undo affordance after deleting an entry (US-94)
+git commit -m "feat(timer): undo affordance after deleting an entry (US-96)
 
 Inline Alert above the history list rather than a new Toast primitive — the
 repo has no toast anywhere, and this task would be its only consumer. Lives in
@@ -2308,7 +2308,7 @@ Expires after 10s; /trash remains the recovery path after that."
 
 ---
 
-### Task 8: Permanent purge + `purge` audit action (US-95, US-99)
+### Task 8: Permanent purge + `purge` audit action (US-97, US-101)
 
 US-46 promised _"restore individual entries **or purge them permanently**"_. Only restore was built. Purge is the sole irreversible operation in the system, so its audit row's `before` snapshot becomes the entry's **only surviving trace** — it must be distinguishable from a soft delete.
 
@@ -2326,8 +2326,8 @@ Separately, `audit/page.tsx:21`'s `ALL_ACTIONS` is a hand-maintained copy of the
 - Create: `apps/web/src/app/(authenticated)/audit/audit-actions.ts`
 - Modify: `apps/web/src/app/(authenticated)/audit/page.tsx:19-35`
 - Modify: `apps/web/messages/cs.json` (`audit.action.shift`, `audit.action.purge`)
-- Modify: `apps/web/tests/services/trash.test.ts` (US-95)
-- Modify: `apps/web/tests/services/audit.test.ts` (US-99)
+- Modify: `apps/web/tests/services/trash.test.ts` (US-97)
+- Modify: `apps/web/tests/services/audit.test.ts` (US-101)
 
 **Interfaces:**
 
@@ -2342,7 +2342,7 @@ Separately, `audit/page.tsx:21`'s `ALL_ACTIONS` is a hand-maintained copy of the
 Append to `apps/web/tests/services/trash.test.ts`, inside `describe('trash', …)`. Add `purgeEntry` to the import list from `time-entries.js`:
 
 ```ts
-it('US-95: an admin purges an entry permanently, leaving exactly one purge audit row', async () => {
+it('US-97: an admin purges an entry permanently, leaving exactly one purge audit row', async () => {
   await withTx(async (tx) => {
     const w = await bootstrap(tx, 'us95');
     const tag = await tx.tag.create({
@@ -2376,7 +2376,7 @@ it('US-95: an admin purges an entry permanently, leaving exactly one purge audit
   });
 });
 
-it('US-95: a member cannot purge their own entry', async () => {
+it('US-97: a member cannot purge their own entry', async () => {
   await withTx(async (tx) => {
     const w = await bootstrap(tx, 'us95b');
     const e = await startTimer(tx, w.user, { companyId: w.company });
@@ -2388,7 +2388,7 @@ it('US-95: a member cannot purge their own entry', async () => {
   });
 });
 
-it('US-95: purging a cross-company entry returns not_found', async () => {
+it('US-97: purging a cross-company entry returns not_found', async () => {
   await withTx(async (tx) => {
     const w = await bootstrap(tx, 'us95c');
     const e = await startTimer(tx, w.user, { companyId: w.company });
@@ -2402,7 +2402,7 @@ it('US-95: purging a cross-company entry returns not_found', async () => {
   });
 });
 
-it('US-95: purging an entry that is not in the trash returns not_found', async () => {
+it('US-97: purging an entry that is not in the trash returns not_found', async () => {
   await withTx(async (tx) => {
     const w = await bootstrap(tx, 'us95d');
     const e = await startTimer(tx, w.user, { companyId: w.company });
@@ -2426,7 +2426,7 @@ and at the end of the file:
 
 ```ts
 describe('audit action filter', () => {
-  it('US-99: the filter offers every AuditAction value', () => {
+  it('US-101: the filter offers every AuditAction value', () => {
     expect(new Set(ALL_ACTIONS)).toEqual(new Set(Object.values(AuditAction)));
   });
 });
@@ -2440,7 +2440,7 @@ describe('audit action filter', () => {
 pnpm --filter @tt/web exec vitest run tests/services/trash.test.ts tests/services/audit.test.ts
 ```
 
-Expected: FAIL. `purgeEntry` is not exported (`TypeError: purgeEntry is not a function`); `US-99` fails because `ALL_ACTIONS` is not exported, and once exported it would still be missing `reorder`, `shift`, `purge`.
+Expected: FAIL. `purgeEntry` is not exported (`TypeError: purgeEntry is not a function`); `US-101` fails because `ALL_ACTIONS` is not exported, and once exported it would still be missing `reorder`, `shift`, `purge`.
 
 - [ ] **Step 3a: Repair the migration drift FIRST (separate commit)**
 
@@ -2523,7 +2523,7 @@ In `apps/web/src/lib/services/time-entries.ts`, add immediately after `restoreEn
  * Hard-delete a soft-deleted entry. Admin-only, irreversible.
  *
  * The audit row's `before` snapshot is the entry's only surviving trace, so it
- * is captured *before* the delete cascades `TimeEntryTag` away (US-95).
+ * is captured *before* the delete cascades `TimeEntryTag` away (US-97).
  */
 export async function purgeEntry(
   db: Db,
@@ -2641,7 +2641,7 @@ import { AuditAction } from '@prisma/client';
  * than hand-maintained — the old hardcoded list had silently drifted, omitting
  * `reorder` and `shift` (both actively written by catalog.ts and
  * auto-stack-save.ts), so those rows showed up in the unfiltered table but
- * could not be filtered for. Pinned by a test (US-99).
+ * could not be filtered for. Pinned by a test (US-101).
  *
  * Kept out of `page.tsx` so tests can import it without dragging in
  * `next/headers` via `@/lib/session`.
@@ -2701,7 +2701,7 @@ pnpm --filter @tt/web exec vitest run tests/services/trash.test.ts tests/service
 pnpm typecheck && pnpm lint
 ```
 
-Expected: PASS (10 in `trash.test.ts`, all of `audit.test.ts` including the new US-99).
+Expected: PASS (10 in `trash.test.ts`, all of `audit.test.ts` including the new US-101).
 
 Confirm the immutability grep at `audit.test.ts:149-181` still passes — `purgeEntry` calls `timeEntry.delete`, **not** `auditLog.delete`, so it must not trip the check.
 
@@ -2711,7 +2711,7 @@ Confirm the immutability grep at `audit.test.ts:149-181` still passes — `purge
 git add packages/db/prisma/ apps/web/src/lib/services/time-entries.ts apps/web/src/lib/actions/time.ts \
         "apps/web/src/app/(authenticated)/trash/TrashList.tsx" "apps/web/src/app/(authenticated)/audit/" \
         apps/web/messages/cs.json apps/web/tests/services/trash.test.ts apps/web/tests/services/audit.test.ts
-git commit -m "feat(trash): permanent purge + purge audit action (US-95, US-99)
+git commit -m "feat(trash): permanent purge + purge audit action (US-97, US-101)
 
 US-46 promised 'restore individual entries or purge them permanently'; only
 restore was built. Purge is the one irreversible operation, so its audit row's
@@ -2725,7 +2725,7 @@ copy had drifted, omitting reorder and shift; a test now pins it."
 
 ---
 
-### Task 9: Daily purge endpoint + Coolify scheduled task (US-96)
+### Task 9: Daily purge endpoint + Coolify scheduled task (US-98)
 
 `purgeOldDeleted()` (`time-entries.ts:353`) exists, is tested, and is **never called in production**. Nothing imports `node-cron` despite it being a declared dependency (`apps/web/package.json:35`), and `docs/reference/data-model.md:84` documents a daily job that does not exist. The trash page's "Po 30 dnech se trvale promazávají" is currently false, and the trash grows without bound. We just showed `/trash` to every member (Task 6), so this now matters.
 
@@ -2742,7 +2742,7 @@ Two behaviour changes to `purgeOldDeleted`:
 - Create: `apps/web/src/app/api/cron/purge/route.ts`
 - Create: `apps/web/tests/services/cron-purge-route.test.ts`
 - Modify: `apps/web/tests/services/time-entries.test.ts:470` (name the US)
-- Modify: `apps/web/tests/services/trash.test.ts` (US-96 service coverage)
+- Modify: `apps/web/tests/services/trash.test.ts` (US-98 service coverage)
 - Modify: `apps/web/package.json` (drop `node-cron`, `@types/node-cron`)
 - Create: `docs/decisions/0011-coolify-scheduled-task-for-purge.md`
 - Modify: `.env.example`, `docs/reference/env-vars.md`
@@ -2757,7 +2757,7 @@ Two behaviour changes to `purgeOldDeleted`:
 Append to `apps/web/tests/services/trash.test.ts`, inside `describe('trash', …)`. Add `purgeOldDeleted` to the service import list:
 
 ```ts
-it('US-96: the daily purge hard-deletes >30-day-old entries and audits each one', async () => {
+it('US-98: the daily purge hard-deletes >30-day-old entries and audits each one', async () => {
   await withTx(async (tx) => {
     const w = await bootstrap(tx, 'us96');
     const old = await startTimer(tx, w.user, { companyId: w.company, description: 'old' });
@@ -2788,7 +2788,7 @@ it('US-96: the daily purge hard-deletes >30-day-old entries and audits each one'
   });
 });
 
-it('US-96: a purge run with nothing to purge writes no audit rows', async () => {
+it('US-98: a purge run with nothing to purge writes no audit rows', async () => {
   await withTx(async (tx) => {
     const w = await bootstrap(tx, 'us96b');
     const before = await tx.auditLog.count({ where: { companyId: w.company } });
@@ -2835,7 +2835,7 @@ function req(auth?: string): NextRequest {
 }
 
 describe('POST /api/cron/purge', () => {
-  it('US-96: a correct bearer secret runs the purge', async () => {
+  it('US-98: a correct bearer secret runs the purge', async () => {
     await withTx(async (tx) => {
       ctx.db = tx;
       const res = await POST(req(`Bearer ${SECRET}`));
@@ -2844,7 +2844,7 @@ describe('POST /api/cron/purge', () => {
     });
   });
 
-  it('US-96: a missing Authorization header is rejected with 401', async () => {
+  it('US-98: a missing Authorization header is rejected with 401', async () => {
     await withTx(async (tx) => {
       ctx.db = tx;
       const res = await POST(req());
@@ -2852,7 +2852,7 @@ describe('POST /api/cron/purge', () => {
     });
   });
 
-  it('US-96: a wrong secret is rejected with 401', async () => {
+  it('US-98: a wrong secret is rejected with 401', async () => {
     await withTx(async (tx) => {
       ctx.db = tx;
       expect((await POST(req('Bearer nope'))).status).toBe(401);
@@ -2861,7 +2861,7 @@ describe('POST /api/cron/purge', () => {
     });
   });
 
-  it('US-96: an unset CRON_SECRET rejects every request', async () => {
+  it('US-98: an unset CRON_SECRET rejects every request', async () => {
     await withTx(async (tx) => {
       ctx.db = tx;
       vi.stubEnv('CRON_SECRET', '');
@@ -2877,7 +2877,7 @@ describe('POST /api/cron/purge', () => {
 pnpm --filter @tt/web exec vitest run tests/services/trash.test.ts tests/services/cron-purge-route.test.ts
 ```
 
-Expected: FAIL. The route module does not exist; `US-96: the daily purge … audits each one` fails on `after - before` being `0`.
+Expected: FAIL. The route module does not exist; `US-98: the daily purge … audits each one` fails on `after - before` being `0`.
 
 Note `softDeleteEntry(tx, userId, id, now)` already accepts an injectable `now` (`time-entries.ts:296`) — that is how the test backdates `deletedAt` without stubbing the clock.
 
@@ -2954,7 +2954,7 @@ await db.timeEntry.delete({ where: { id: entryId } });
 return { ok: true, value: true };
 ```
 
-The existing US-95 tests already assert exactly one `purge` audit row, that the row is gone, and that `timeEntryTag.count === 0`. They must stay green unchanged — reordering two awaits inside a non-transactional service changes no observable outcome on the happy path. If any of them fails, stop: it means something depended on the delete happening first.
+The existing US-97 tests already assert exactly one `purge` audit row, that the row is gone, and that `timeEntryTag.count === 0`. They must stay green unchanged — reordering two awaits inside a non-transactional service changes no observable outcome on the happy path. If any of them fails, stop: it means something depended on the delete happening first.
 
 Note this deliberately diverges from `softDeleteEntry` / `restoreEntry`, which mutate then audit. That is correct: those two leave the row in the database either way, so a lost audit row is recoverable from the row itself. A purged row is not.
 
@@ -2999,10 +2999,10 @@ export async function POST(req: NextRequest): Promise<Response> {
 
 - [ ] **Step 5: Name the US on the pre-existing purge test**
 
-`apps/web/tests/services/time-entries.test.ts:470` has an untraced test. Rename it so `test:trace` sees US-96 there too:
+`apps/web/tests/services/time-entries.test.ts:470` has an untraced test. Rename it so `test:trace` sees US-98 there too:
 
 ```ts
-  it('US-96: purge cron deletes only entries soft-deleted >30 days ago', async () => {
+  it('US-98: purge cron deletes only entries soft-deleted >30 days ago', async () => {
 ```
 
 Its assertion `expect(result.purged).toBe(1)` is unchanged by Task 9.
@@ -3050,7 +3050,7 @@ Create `docs/decisions/0011-coolify-scheduled-task-for-purge.md`:
 - **Status:** Accepted
 - **Date:** 2026-07-08
 - **Deciders:** Michal Lénert
-- **Related:** AIAGE-51, US-96, [`0006-coolify-expose-not-ports.md`](0006-coolify-expose-not-ports.md)
+- **Related:** AIAGE-51, US-98, [`0006-coolify-expose-not-ports.md`](0006-coolify-expose-not-ports.md)
 
 ## Context
 
@@ -3061,7 +3061,7 @@ landed, but nothing ever called it. `node-cron` was a declared dependency of
 exist. The trash grew without bound and the UI copy "Po 30 dnech se trvale
 promazávají" was false.
 
-AIAGE-51 exposes `/trash` to every member (US-92), so the retention promise now
+AIAGE-51 exposes `/trash` to every member (US-94), so the retention promise now
 has to be real.
 
 ## Decision
@@ -3140,7 +3140,7 @@ git add apps/web/src/app/api/cron/ apps/web/src/lib/services/time-entries.ts \
         apps/web/tests/services/cron-purge-route.test.ts apps/web/tests/services/trash.test.ts \
         apps/web/tests/services/time-entries.test.ts apps/web/package.json pnpm-lock.yaml \
         .env.example docs/reference/env-vars.md docs/decisions/0011-coolify-scheduled-task-for-purge.md
-git commit -m "feat(ops): daily purge endpoint + Coolify scheduled task (US-96)
+git commit -m "feat(ops): daily purge endpoint + Coolify scheduled task (US-98)
 
 purgeOldDeleted() has existed and been tested since the trash landed, but
 nothing ever called it — node-cron was declared and never imported, and the
@@ -3188,22 +3188,22 @@ Append to `docs/reference/features.md`, before the `## Coverage check` section:
 ```markdown
 ## Time tracker fixes (AIAGE-51)
 
-- **US-90** — The extension's running row renders `HH:MM:SS` and updates every second; stopped rows, day totals and summary cards stay `HH:MM`. Partial revert of AIAGE-28, which had removed seconds everywhere in the extension. Because the tick is now gated on a running timer, a sheet captures `nowIso` when it opens.
-- **US-91** — A non-admin owner restores their own soft-deleted entry, producing exactly one `restore` audit row. Another member's entry, or a cross-company entry, returns `not_found`.
-- **US-92** — `/trash` is scoped by role: a member sees only their own deleted entries; an admin sees every member's in the active company; a non-member gets `not_found`.
-- **US-93** — Trash rows expose start, end and duration, so an entry with no description is identifiable. A soft-deleted _running_ entry shows a null end.
-- **US-94** — After deleting an entry, an undo affordance restores it; letting it expire (10 s) leaves the entry in the trash.
-- **US-95** — An admin purges an entry permanently from the trash. The row is hard-deleted (cascading its tag joins) and exactly one `purge` audit row survives, carrying the `before` snapshot. Members cannot purge; cross-company returns `not_found`.
-- **US-96** — `POST /api/cron/purge` hard-deletes entries soft-deleted more than 30 days ago, writing one actor-less `purge` audit row each; entries younger than 30 days are kept. A missing or incorrect `CRON_SECRET` returns 401. Driven by a Coolify scheduled task (ADR-0011).
-- **US-97** — Opening an entry sheet in the extension while the popup is scrolled shows the sheet's header and `Název` field, because the sheet is pinned to the viewport (`fixed`, not `absolute`, which stretched it across the document-tall root).
-- **US-98** — The `MultiSelect` popover renders above its clipping ancestors (`Card`'s `overflow-hidden`, `ConfirmModal`'s `overflow-y-auto`) and scrolls when its options exceed its max height.
-- **US-99** — The audit action filter offers every `AuditAction` value, derived from the Prisma enum so it cannot drift.
+- **US-92** — The extension's running row renders `HH:MM:SS` and updates every second; stopped rows, day totals and summary cards stay `HH:MM`. Partial revert of AIAGE-28, which had removed seconds everywhere in the extension. Because the tick is now gated on a running timer, a sheet captures `nowIso` when it opens.
+- **US-93** — A non-admin owner restores their own soft-deleted entry, producing exactly one `restore` audit row. Another member's entry, or a cross-company entry, returns `not_found`.
+- **US-94** — `/trash` is scoped by role: a member sees only their own deleted entries; an admin sees every member's in the active company; a non-member gets `not_found`.
+- **US-95** — Trash rows expose start, end and duration, so an entry with no description is identifiable. A soft-deleted _running_ entry shows a null end.
+- **US-96** — After deleting an entry, an undo affordance restores it; letting it expire (10 s) leaves the entry in the trash.
+- **US-97** — An admin purges an entry permanently from the trash. The row is hard-deleted (cascading its tag joins) and exactly one `purge` audit row survives, carrying the `before` snapshot. Members cannot purge; cross-company returns `not_found`.
+- **US-98** — `POST /api/cron/purge` hard-deletes entries soft-deleted more than 30 days ago, writing one actor-less `purge` audit row each; entries younger than 30 days are kept. A missing or incorrect `CRON_SECRET` returns 401. Driven by a Coolify scheduled task (ADR-0011).
+- **US-99** — Opening an entry sheet in the extension while the popup is scrolled shows the sheet's header and `Název` field, because the sheet is pinned to the viewport (`fixed`, not `absolute`, which stretched it across the document-tall root).
+- **US-100** — The `MultiSelect` popover renders above its clipping ancestors (`Card`'s `overflow-hidden`, `ConfirmModal`'s `overflow-y-auto`) and scrolls when its options exceed its max height.
+- **US-101** — The audit action filter offers every `AuditAction` value, derived from the Prisma enum so it cannot drift.
 ```
 
 Also update the closing line of `## Coverage check`:
 
 ```markdown
-Walks every test file (`*.test.{ts,tsx}`, `*.spec.{ts,tsx}`, `tests/**`) and looks for `\bUS-N\b`. Exits non-zero if any of US-1..US-99 has zero matches.
+Walks every test file (`*.test.{ts,tsx}`, `*.spec.{ts,tsx}`, `tests/**`) and looks for `\bUS-N\b`. Exits non-zero if any of US-1..US-101 has zero matches.
 ```
 
 - [ ] **Step 3: Bump `TOTAL_US`**
@@ -3322,7 +3322,7 @@ Expected: green, and `US coverage: 99/99 (100.0%)`.
 ```bash
 git add apps/extension/package.json apps/extension/public/manifest.json apps/extension/src/DESCRIPTION.md \
         scripts/test-trace.ts docs/
-git commit -m "chore(ext): bump to 1.6.0; docs: record US-90..US-99, TOTAL_US 89->99
+git commit -m "chore(ext): bump to 1.6.0; docs: record US-92..US-101, TOTAL_US 89->99
 
 Also corrects three stale claims: data-model.md described a node-cron purge job
 that never existed (ADR-0011 replaces it), acceptance.md claimed

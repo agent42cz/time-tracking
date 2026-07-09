@@ -495,7 +495,7 @@ describe('time entries', () => {
     });
   });
 
-  it('US-96: purge cron deletes only entries soft-deleted >30 days ago', async () => {
+  it('US-98: purge cron deletes only entries soft-deleted >30 days ago', async () => {
     await withTx(async (tx) => {
       const w = await bootstrap(tx, 'purge');
       const old = await tx.timeEntry.create({
@@ -523,7 +523,7 @@ describe('time entries', () => {
     });
   });
 
-  it('US-92: admin sees deleted entries in trash; owning member sees their own too', async () => {
+  it('US-94: admin sees deleted entries in trash; owning member sees their own too', async () => {
     await withTx(async (tx) => {
       const w = await bootstrap(tx, 'trash');
       const a = await startTimer(tx, w.user, { companyId: w.company });

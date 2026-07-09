@@ -1,4 +1,4 @@
-# Features (US-1 … US-99)
+# Features (US-1 … US-101)
 
 Feature catalogue keyed by user-story IDs from PRD §13. Test names embed the US ID so [`../../scripts/test-trace.ts`](../../scripts/test-trace.ts) can verify 100% coverage.
 
@@ -132,16 +132,16 @@ Feature catalogue keyed by user-story IDs from PRD §13. Test names embed the US
 
 ## Time tracker fixes (AIAGE-51)
 
-- **US-90** — The extension's running row renders `HH:MM:SS` and updates every second; stopped rows, day totals and summary cards stay `HH:MM`. Partial revert of AIAGE-28, which had removed seconds everywhere in the extension. Because the tick is now gated on a running timer, a sheet captures `nowIso` when it opens.
-- **US-91** — A non-admin owner restores their own soft-deleted entry, producing exactly one `restore` audit row. Another member's entry, or a cross-company entry, returns `not_found`.
-- **US-92** — `/trash` is scoped by role: a member sees only their own deleted entries; an admin sees every member's in the active company; a non-member gets `not_found`.
-- **US-93** — Trash rows expose start, end and duration, so an entry with no description is identifiable. A soft-deleted _running_ entry shows a null end.
-- **US-94** — After deleting an entry, an undo affordance restores it; letting it expire (10 s) leaves the entry in the trash.
-- **US-95** — An admin purges an entry permanently from the trash. The row is hard-deleted (cascading its tag joins) and exactly one `purge` audit row survives, carrying the `before` snapshot. Members cannot purge; cross-company returns `not_found`.
-- **US-96** — `POST /api/cron/purge` hard-deletes entries soft-deleted more than 30 days ago, writing one actor-less `purge` audit row each; entries younger than 30 days are kept. A missing or incorrect `CRON_SECRET` returns 401. Driven by a Coolify scheduled task (ADR-0011).
-- **US-97** — Opening an entry sheet in the extension while the popup is scrolled shows the sheet's header and `Název` field, because the sheet is pinned to the viewport (`fixed`, not `absolute`, which stretched it across the document-tall root).
-- **US-98** — The `MultiSelect` popover renders above its clipping ancestors (`Card`'s `overflow-hidden`, `ConfirmModal`'s `overflow-y-auto`) and scrolls when its options exceed its max height.
-- **US-99** — The audit action filter offers every `AuditAction` value, derived from the Prisma enum so it cannot drift.
+- **US-92** — The extension's running row renders `HH:MM:SS` and updates every second; stopped rows, day totals and summary cards stay `HH:MM`. Partial revert of AIAGE-28, which had removed seconds everywhere in the extension. Because the tick is now gated on a running timer, a sheet captures `nowIso` when it opens.
+- **US-93** — A non-admin owner restores their own soft-deleted entry, producing exactly one `restore` audit row. Another member's entry, or a cross-company entry, returns `not_found`.
+- **US-94** — `/trash` is scoped by role: a member sees only their own deleted entries; an admin sees every member's in the active company; a non-member gets `not_found`.
+- **US-95** — Trash rows expose start, end and duration, so an entry with no description is identifiable. A soft-deleted _running_ entry shows a null end.
+- **US-96** — After deleting an entry, an undo affordance restores it; letting it expire (10 s) leaves the entry in the trash.
+- **US-97** — An admin purges an entry permanently from the trash. The row is hard-deleted (cascading its tag joins) and exactly one `purge` audit row survives, carrying the `before` snapshot. Members cannot purge; cross-company returns `not_found`.
+- **US-98** — `POST /api/cron/purge` hard-deletes entries soft-deleted more than 30 days ago, writing one actor-less `purge` audit row each; entries younger than 30 days are kept. A missing or incorrect `CRON_SECRET` returns 401. Driven by a Coolify scheduled task (ADR-0011).
+- **US-99** — Opening an entry sheet in the extension while the popup is scrolled shows the sheet's header and `Název` field, because the sheet is pinned to the viewport (`fixed`, not `absolute`, which stretched it across the document-tall root).
+- **US-100** — The `MultiSelect` popover renders above its clipping ancestors (`Card`'s `overflow-hidden`, `ConfirmModal`'s `overflow-y-auto`) and scrolls when its options exceed its max height.
+- **US-101** — The audit action filter offers every `AuditAction` value, derived from the Prisma enum so it cannot drift.
 
 ## Coverage check
 
@@ -149,4 +149,4 @@ Feature catalogue keyed by user-story IDs from PRD §13. Test names embed the US
 pnpm test:trace
 ```
 
-Walks every test file (`*.test.{ts,tsx}`, `*.spec.{ts,tsx}`, `tests/**`) and looks for `\bUS-N\b`. Exits non-zero if any of US-1..US-99 has zero matches.
+Walks every test file (`*.test.{ts,tsx}`, `*.spec.{ts,tsx}`, `tests/**`) and looks for `\bUS-N\b`. Exits non-zero if any of US-1..US-101 has zero matches.

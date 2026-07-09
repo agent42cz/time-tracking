@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test';
 
-test.describe('US-94: undo a deleted entry', () => {
-  test('US-94: deleting an entry offers an undo that restores it', async ({ page }) => {
+test.describe('US-96: undo a deleted entry', () => {
+  test('US-96: deleting an entry offers an undo that restores it', async ({ page }) => {
     await page.goto('/timer');
 
     const description = `e2e undo ${Date.now()}`;
@@ -36,7 +36,7 @@ test.describe('US-94: undo a deleted entry', () => {
     await expect(undo).toBeHidden();
   });
 
-  test('US-94: dismissing the undo leaves the entry deleted and in the trash', async ({ page }) => {
+  test('US-96: dismissing the undo leaves the entry deleted and in the trash', async ({ page }) => {
     await page.goto('/timer');
 
     const description = `e2e no-undo ${Date.now()}`;
@@ -65,7 +65,7 @@ test.describe('US-94: undo a deleted entry', () => {
     await expect(page.getByRole('table').getByText(description)).toBeVisible();
   });
 
-  test('US-94: a failed undo (server action rejects) surfaces the failure alert instead of being silently swallowed', async ({
+  test('US-96: a failed undo (server action rejects) surfaces the failure alert instead of being silently swallowed', async ({
     page,
   }) => {
     await page.goto('/timer');

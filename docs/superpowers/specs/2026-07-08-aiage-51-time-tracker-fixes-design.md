@@ -1,4 +1,4 @@
-# AIAGE-51 — Time Tracker fixes (US-90…US-99)
+# AIAGE-51 — Time Tracker fixes (US-92…US-101)
 
 Status: approved 2026-07-08.
 
@@ -40,7 +40,7 @@ Found during investigation, none reported, all confirmed against the code:
    `auto-stack-save.ts:238`). Those rows appear in the unfiltered table but cannot
    be filtered for.
 
-## Workstream A — extension running timer shows seconds (US-90)
+## Workstream A — extension running timer shows seconds (US-92)
 
 A scoped partial revert of AIAGE-28, which removed seconds from the extension
 everywhere and widened the tick to 30 s.
@@ -87,7 +87,7 @@ more wrong than `00:12`.
 AIAGE-29 deliberately made STOP fill the row. Use `font-mono tabular-nums` and
 verify the running row does not wrap.
 
-## Workstream B — trash, restore, undo, purge (US-91…US-96)
+## Workstream B — trash, restore, undo, purge (US-93…US-98)
 
 | Change                   | File                   | Detail                                                                                                                                                                                                                                                              |
 | ------------------------ | ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -154,7 +154,7 @@ covering system-initiated mutations, and was approved as such.
   cron's `deleteMany` drop the join rows. Snapshot the tags into `before` _first_,
   though — after the cascade they are unrecoverable.
 
-## Workstream C — extension sheets pin to the viewport (US-97)
+## Workstream C — extension sheets pin to the viewport (US-99)
 
 `AppShell`'s root (`popup.tsx:439`) is `relative` and grows to the full document
 height. `absolute inset-0` therefore stretches a sheet from document `y=0` to the
@@ -171,7 +171,7 @@ already gets this right with `fixed inset-0`.
 
 Scroll position is preserved on close, returning the user where they were.
 
-## Workstream D — MultiSelect popover escapes clipping ancestors (US-98)
+## Workstream D — MultiSelect popover escapes clipping ancestors (US-100)
 
 Portal the popover to `document.body` with `position: fixed`, anchored off the
 trigger's `getBoundingClientRect()`, flipping up near the viewport bottom and
@@ -197,7 +197,7 @@ The trigger's four-chip cap (`MultiSelect.tsx:111`, with a `+N` overflow badge a
 Five call sites benefit: four in `ReportFiltersForm.tsx` (`:171`, `:179`, `:188`, `:229`)
 and one in `ExportDialog.tsx:159`.
 
-## Workstream E — audit filter pinned to the enum (US-99)
+## Workstream E — audit filter pinned to the enum (US-101)
 
 `audit/page.tsx:21` hand-maintains a copy of `AuditAction` that has already drifted.
 Export `ALL_ACTIONS` and pin it in a test against the Prisma enum so drift cannot
@@ -255,7 +255,7 @@ importing `audit/page.tsx` from vitest would drag in `next/headers` via `@/lib/s
 Also:
 
 - Rename the existing untraced `it('purge cron deletes only entries soft-deleted >30 days ago')`
-  (`time-entries.test.ts:470`) to carry `US-96`.
+  (`time-entries.test.ts:470`) to carry `US-98`.
 - Update `nav.test.ts` for the un-gated Koš.
 - `apps/web/tests/e2e/time-entry-edit.spec.ts:45` asserts the literal string `"1h 0m"`.
   Workstream A does not touch `fmtDur`, so this stays green — but it is the tripwire
@@ -267,7 +267,7 @@ Also:
   sentence at `data-model.md:84` and drops the now-dead `node-cron` and
   `@types/node-cron` dependencies from `apps/web/package.json`.
 - `docs/reference/env-vars.md` + `.env.example` — `CRON_SECRET`.
-- `docs/reference/features.md` — US-90…US-99.
+- `docs/reference/features.md` — US-92…US-101.
 - `docs/reference/data-model.md` — `AuditAction` gains `purge`; correct the cron sentence.
 - `scripts/test-trace.ts:10` — `TOTAL_US = 99`.
 - `docs/gotchas.md` — two entries: the `ALTER TYPE … ADD VALUE` / Prisma-transaction trap,
@@ -287,14 +287,14 @@ value).
 
 1. `test(ext): Playwright e2e harness for the popup`
 2. `refactor(shared): extract pure duration formatters into a leaf module`
-3. `fix(ext): running timer shows seconds again, ticks every second (US-90)`
-4. `fix(ext): entry + new-project sheets pin to the viewport (US-97)`
-5. `fix(web): MultiSelect popover escapes clipping ancestors (US-98)`
-6. `feat(trash): owners restore their own entries; trash scoped by role (US-91, US-92, US-93)`
-7. `feat(timer): undo affordance after deleting an entry (US-94)`
-8. `fix(db): add the missing time_entries.note migration` + `feat(trash): permanent purge + purge audit action (US-95, US-99)`
-9. `feat(ops): daily purge endpoint + Coolify scheduled task (US-96)` — includes ADR-0011
-10. `chore(ext): bump to 1.6.0` + `docs: record US-90…US-99, bump TOTAL_US` + ADR-0012 (propose `prisma migrate deploy`)
+3. `fix(ext): running timer shows seconds again, ticks every second (US-92)`
+4. `fix(ext): entry + new-project sheets pin to the viewport (US-99)`
+5. `fix(web): MultiSelect popover escapes clipping ancestors (US-100)`
+6. `feat(trash): owners restore their own entries; trash scoped by role (US-93, US-94, US-95)`
+7. `feat(timer): undo affordance after deleting an entry (US-96)`
+8. `fix(db): add the missing time_entries.note migration` + `feat(trash): permanent purge + purge audit action (US-97, US-101)`
+9. `feat(ops): daily purge endpoint + Coolify scheduled task (US-98)` — includes ADR-0011
+10. `chore(ext): bump to 1.6.0` + `docs: record US-92…US-101, bump TOTAL_US` + ADR-0012 (propose `prisma migrate deploy`)
 
 ## Discovered during execution (amendments)
 
@@ -315,26 +315,26 @@ Two things the design did not know, both approved mid-run:
 
 ## User stories
 
-- **US-90** — The extension's running row renders `HH:MM:SS` and updates every second;
+- **US-92** — The extension's running row renders `HH:MM:SS` and updates every second;
   stopped rows, day totals and summary cards stay `HH:MM`.
-- **US-91** — A non-admin owner restores their own soft-deleted entry, producing exactly
+- **US-93** — A non-admin owner restores their own soft-deleted entry, producing exactly
   one `restore` audit row. Another member's entry, or a cross-company entry, returns
   `not_found`.
-- **US-92** — `/trash` is scoped by role: a member sees only their own deleted entries;
+- **US-94** — `/trash` is scoped by role: a member sees only their own deleted entries;
   an admin sees every member's in the active company; a non-member gets `not_found`.
-- **US-93** — Trash rows expose start, end and duration, so an entry with no description
+- **US-95** — Trash rows expose start, end and duration, so an entry with no description
   is identifiable.
-- **US-94** — After deleting an entry, an undo affordance restores it; letting it expire
+- **US-96** — After deleting an entry, an undo affordance restores it; letting it expire
   leaves the entry deleted.
-- **US-95** — An admin purges an entry permanently from trash. The row is hard-deleted and
+- **US-97** — An admin purges an entry permanently from trash. The row is hard-deleted and
   exactly one `purge` audit row survives, carrying the `before` snapshot. Cross-company
   returns `not_found`.
-- **US-96** — The daily purge endpoint hard-deletes entries soft-deleted more than 30 days
+- **US-98** — The daily purge endpoint hard-deletes entries soft-deleted more than 30 days
   ago, writing one `purge` audit row each; entries younger than 30 days are kept. A missing
   or incorrect `CRON_SECRET` returns 401.
-- **US-97** — Opening an entry sheet in the extension while the popup is scrolled shows the
+- **US-99** — Opening an entry sheet in the extension while the popup is scrolled shows the
   sheet's header and `Název` field, because the sheet is pinned to the viewport.
-- **US-98** — The `MultiSelect` popover renders above its clipping ancestors and scrolls
+- **US-100** — The `MultiSelect` popover renders above its clipping ancestors and scrolls
   when its options exceed its max height.
-- **US-99** — The audit action filter offers every `AuditAction` value, pinned to the Prisma
+- **US-101** — The audit action filter offers every `AuditAction` value, pinned to the Prisma
   enum so it cannot drift.

@@ -46,7 +46,7 @@ interface PopoverPos {
  *
  * The popover is portalled to <body> and positioned `fixed`. Both of its usual
  * parents clip it otherwise: `Card` is `overflow-hidden` and `ConfirmModal`'s
- * panel is `max-h-[90vh] overflow-y-auto` (AIAGE-51, US-98).
+ * panel is `max-h-[90vh] overflow-y-auto` (AIAGE-51, US-100).
  */
 export function MultiSelect({
   name,
@@ -270,7 +270,7 @@ export function MultiSelect({
           <span className="px-1 text-zinc-400 dark:text-zinc-500">{placeholder}</span>
         ) : (
           <div className="flex flex-1 flex-wrap gap-1">
-            {/* Deliberate: at most 4 chips + a +N badge. Not the US-98 bug. */}
+            {/* Deliberate: at most 4 chips + a +N badge. Not the US-100 bug. */}
             {selectedLabels.slice(0, 4).map((o) => (
               <span
                 key={o.id}

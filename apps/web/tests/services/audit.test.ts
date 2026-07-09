@@ -189,7 +189,7 @@ describe('audit log', () => {
 });
 
 describe('audit action filter', () => {
-  it('US-99: the filter offers every AuditAction value', () => {
+  it('US-101: the filter offers every AuditAction value', () => {
     expect(new Set(ALL_ACTIONS)).toEqual(new Set(Object.values(AuditAction)));
   });
 });

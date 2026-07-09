@@ -33,8 +33,8 @@ test.afterAll(async () => {
   await prisma.$disconnect();
 });
 
-test.describe('US-98: reports client filter', () => {
-  test('US-98: the popover escapes its clipping ancestors and scrolls', async ({ page }) => {
+test.describe('US-100: reports client filter', () => {
+  test('US-100: the popover escapes its clipping ancestors and scrolls', async ({ page }) => {
     await page.goto('/reports');
 
     await page.getByRole('button', { name: /všichni klienti/i }).click();
@@ -63,7 +63,7 @@ test.describe('US-98: reports client filter', () => {
     await expect(last).toBeInViewport();
   });
 
-  test('US-98: a short viewport clamps the popover inside the viewport', async ({ page }) => {
+  test('US-100: a short viewport clamps the popover inside the viewport', async ({ page }) => {
     // At 300px the click auto-scrolls the trigger to y≈131, which leaves 131px
     // below it — under ESTIMATED_POPOVER_HEIGHT, but not less than the space
     // above, so `reposition()` anchors *below* and must clamp. Without the
@@ -95,7 +95,9 @@ test.describe('US-98: reports client filter', () => {
     await expect(last).toBeInViewport();
   });
 
-  test('US-98: the popover repositions when the trigger grows from chip wrap', async ({ page }) => {
+  test('US-100: the popover repositions when the trigger grows from chip wrap', async ({
+    page,
+  }) => {
     // A tall viewport keeps the popover anchored *below* the trigger (`top:
     // trigger.bottom + GAP`) instead of flipping above it. The flip-up anchor
     // (`bottom: viewport height - trigger.top + GAP`) only depends on the
@@ -145,7 +147,7 @@ test.describe('US-98: reports client filter', () => {
   });
 });
 
-test.describe('US-98: export dialog MultiSelect escapes ConfirmModal', () => {
+test.describe('US-100: export dialog MultiSelect escapes ConfirmModal', () => {
   const EXTRA_MEMBER_NAME = 'ZZZ MultiSelect Member';
   const EXTRA_MEMBER_EMAIL = 'zzz-multiselect-member@example.test';
   let extraMemberUserId: string;
@@ -168,7 +170,7 @@ test.describe('US-98: export dialog MultiSelect escapes ConfirmModal', () => {
     await prisma.user.delete({ where: { id: extraMemberUserId } });
   });
 
-  test('US-98: the export dialog popover paints above the modal and stays interactive', async ({
+  test('US-100: the export dialog popover paints above the modal and stays interactive', async ({
     page,
   }) => {
     await page.goto('/reports');

@@ -13,7 +13,7 @@ test.describe('extension popup', () => {
     expect(scrollHeight).toBeGreaterThan(600);
   });
 
-  test('US-90: the running row shows seconds and ticks every second', async ({ page }) => {
+  test('US-92: the running row shows seconds and ticks every second', async ({ page }) => {
     await openPopup(page, buildApiFixture());
 
     const duration = page.getByTestId('running-duration');
@@ -25,7 +25,7 @@ test.describe('extension popup', () => {
     await expect.poll(async () => duration.textContent(), { timeout: 5_000 }).not.toBe(first);
   });
 
-  test('US-90: stopped history rows keep HH:MM, without seconds', async ({ page }) => {
+  test('US-92: stopped history rows keep HH:MM, without seconds', async ({ page }) => {
     await openPopup(page, buildApiFixture());
 
     // Each seeded history entry is exactly 30 minutes long.
@@ -33,7 +33,7 @@ test.describe('extension popup', () => {
     await expect(page.getByText('00:30:00', { exact: true })).toHaveCount(0);
   });
 
-  test('US-90: a 1s tick does not clobber the manual-entry start input', async ({ page }) => {
+  test('US-92: a 1s tick does not clobber the manual-entry start input', async ({ page }) => {
     // Regression guard for bce7cbb (web: "manual start input was uneditable").
     await openPopup(page, buildApiFixture());
 
@@ -53,7 +53,7 @@ test.describe('extension popup', () => {
     await expect(startTime).toHaveValue('08:15');
   });
 
-  test('US-90: an idle popup prefills manual entry with the time the sheet opened', async ({
+  test('US-92: an idle popup prefills manual entry with the time the sheet opened', async ({
     page,
   }) => {
     // Install the faked clock at the real current time (before navigating)
@@ -82,7 +82,7 @@ test.describe('extension popup', () => {
     await expect(page.locator('input[type="time"]').first()).toHaveValue(expected);
   });
 
-  test('US-97: opening an entry while scrolled keeps the sheet header on screen', async ({
+  test('US-99: opening an entry while scrolled keeps the sheet header on screen', async ({
     page,
   }) => {
     await openPopup(page, buildApiFixture({ historyCount: 25 }));
@@ -112,7 +112,7 @@ test.describe('extension popup', () => {
     await expect(page.getByRole('dialog').getByPlaceholder('Co děláte?')).toBeInViewport();
   });
 
-  test('US-97: the body does not scroll behind an open sheet', async ({ page }) => {
+  test('US-99: the body does not scroll behind an open sheet', async ({ page }) => {
     await openPopup(page, buildApiFixture({ historyCount: 25 }));
     await page.getByText('Historický záznam 0').click();
     await expect(page.getByText('Upravit záznam')).toBeVisible();

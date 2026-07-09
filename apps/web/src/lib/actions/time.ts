@@ -187,7 +187,7 @@ export async function restoreEntryAction(entryId: string): Promise<ActionResult>
   const result = await restoreEntry(prisma(), s.userId, entryId);
   if (!result.ok) return { ok: false, error: 'Nelze obnovit' };
   revalidatePath('/trash');
-  // Undo (US-94) restores from /timer, which must re-render too.
+  // Undo (US-96) restores from /timer, which must re-render too.
   revalidatePath('/timer');
   return { ok: true };
 }

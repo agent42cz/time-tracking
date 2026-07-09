@@ -3,7 +3,7 @@
 - **Status:** Accepted
 - **Date:** 2026-07-08
 - **Deciders:** Michal Lénert
-- **Related:** AIAGE-51, US-96, [`0006-coolify-expose-not-ports.md`](0006-coolify-expose-not-ports.md)
+- **Related:** AIAGE-51, US-98, [`0006-coolify-expose-not-ports.md`](0006-coolify-expose-not-ports.md)
 
 ## Context
 
@@ -14,7 +14,7 @@ landed, but nothing ever called it. `node-cron` was a declared dependency of
 exist. The trash grew without bound and the UI copy "Po 30 dnech se trvale
 promazávají" was false.
 
-AIAGE-51 exposes `/trash` to every member (US-92), so the retention promise now
+AIAGE-51 exposes `/trash` to every member (US-94), so the retention promise now
 has to be real.
 
 ## Decision

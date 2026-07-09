@@ -1,6 +1,6 @@
 /**
  * AIAGE-51 — daily purge cron endpoint.
- * Covers US-96.
+ * Covers US-98.
  */
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Prisma } from '@prisma/client';
@@ -41,7 +41,7 @@ function req(auth?: string): NextRequest {
 }
 
 describe('POST /api/cron/purge', () => {
-  it('US-96: a correct bearer secret runs the purge', async () => {
+  it('US-98: a correct bearer secret runs the purge', async () => {
     await withTx(async (tx) => {
       ctx.db = tx;
       const res = await POST(req(`Bearer ${SECRET}`));
@@ -50,7 +50,7 @@ describe('POST /api/cron/purge', () => {
     });
   });
 
-  it('US-96: a missing Authorization header is rejected with 401', async () => {
+  it('US-98: a missing Authorization header is rejected with 401', async () => {
     await withTx(async (tx) => {
       ctx.db = tx;
       const res = await POST(req());
@@ -58,7 +58,7 @@ describe('POST /api/cron/purge', () => {
     });
   });
 
-  it('US-96: a wrong secret is rejected with 401', async () => {
+  it('US-98: a wrong secret is rejected with 401', async () => {
     await withTx(async (tx) => {
       ctx.db = tx;
       expect((await POST(req('Bearer nope'))).status).toBe(401);
@@ -67,7 +67,7 @@ describe('POST /api/cron/purge', () => {
     });
   });
 
-  it('US-96: an unset CRON_SECRET rejects every request', async () => {
+  it('US-98: an unset CRON_SECRET rejects every request', async () => {
     await withTx(async (tx) => {
       ctx.db = tx;
       vi.stubEnv('CRON_SECRET', '');

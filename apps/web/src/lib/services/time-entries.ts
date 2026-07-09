@@ -371,7 +371,7 @@ export async function softDeleteEntry(
 }
 
 /**
- * Restore a soft-deleted entry from the trash. Owner or company admin (US-91).
+ * Restore a soft-deleted entry from the trash. Owner or company admin (US-93).
  *
  * The mirror image of `purgeEntry`. The `findUnique` stays — the authorization
  * check and the audit row both need `entry.companyId` / `entry.userId` — but the
@@ -426,7 +426,7 @@ export async function restoreEntry(
  * Audits *before* deleting — and must stay in sync with `purgeOldDeleted`,
  * which makes the same trade for the same reason. The `before` snapshot is the
  * entry's only surviving trace, and it has to be captured before the delete
- * cascades `TimeEntryTag` away (US-95). The cost is that a purge that then
+ * cascades `TimeEntryTag` away (US-97). The cost is that a purge that then
  * loses the race below leaves an audit row for an entry that still exists;
  * that is the acceptable direction of failure. Delete-then-audit would lose
  * the snapshot outright.
@@ -558,7 +558,7 @@ export interface TrashEntryView {
 
 /**
  * Deleted entries within the 30-day window. Admins see the whole company;
- * a member sees only their own (US-92).
+ * a member sees only their own (US-94).
  */
 export async function listTrash(
   db: Db,

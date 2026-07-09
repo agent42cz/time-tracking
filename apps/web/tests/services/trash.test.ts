@@ -1,6 +1,6 @@
 /**
  * AIAGE-51 — trash scoping, owner restore, enriched rows.
- * Covers US-91, US-92, US-93.
+ * Covers US-93, US-94, US-95.
  */
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { Prisma } from '@prisma/client';
@@ -60,7 +60,7 @@ async function bootstrap(tx: Prisma.TransactionClient, suffix: string): Promise<
 }
 
 describe('trash', () => {
-  it('US-91: a non-admin owner restores their own soft-deleted entry', async () => {
+  it('US-93: a non-admin owner restores their own soft-deleted entry', async () => {
     await withTx(async (tx) => {
       const w = await bootstrap(tx, 'us91');
       const e = await startTimer(tx, w.user, { companyId: w.company });
@@ -85,7 +85,7 @@ describe('trash', () => {
     });
   });
 
-  it('US-91: the restore restates deletedAt on the UPDATE itself, not just on the read', async () => {
+  it('US-93: the restore restates deletedAt on the UPDATE itself, not just on the read', async () => {
     await withTx(async (tx) => {
       const w = await bootstrap(tx, 'us91d');
       const e = await startTimer(tx, w.user, { companyId: w.company });
@@ -116,7 +116,7 @@ describe('trash', () => {
     });
   });
 
-  it("US-91: a member cannot restore another member's entry", async () => {
+  it("US-93: a member cannot restore another member's entry", async () => {
     await withTx(async (tx) => {
       const w = await bootstrap(tx, 'us91b');
       const e = await startTimer(tx, w.user, { companyId: w.company });
@@ -131,7 +131,7 @@ describe('trash', () => {
     });
   });
 
-  it('US-91: a cross-company actor restoring returns not_found', async () => {
+  it('US-93: a cross-company actor restoring returns not_found', async () => {
     await withTx(async (tx) => {
       const w = await bootstrap(tx, 'us91c');
       const e = await startTimer(tx, w.user, { companyId: w.company });
@@ -143,7 +143,7 @@ describe('trash', () => {
     });
   });
 
-  it("US-92: a member sees only their own deleted entries; an admin sees everyone's", async () => {
+  it("US-94: a member sees only their own deleted entries; an admin sees everyone's", async () => {
     await withTx(async (tx) => {
       const w = await bootstrap(tx, 'us92');
       const mine = await startTimer(tx, w.user, { companyId: w.company, description: 'mine' });
@@ -168,7 +168,7 @@ describe('trash', () => {
     });
   });
 
-  it('US-92: a non-member listing the trash returns not_found', async () => {
+  it('US-94: a non-member listing the trash returns not_found', async () => {
     await withTx(async (tx) => {
       const w = await bootstrap(tx, 'us92b');
       const result = await listTrash(tx, w.outsider, w.company);
@@ -176,7 +176,7 @@ describe('trash', () => {
     });
   });
 
-  it('US-93: trash rows expose start, end and duration inputs', async () => {
+  it('US-95: trash rows expose start, end and duration inputs', async () => {
     await withTx(async (tx) => {
       const w = await bootstrap(tx, 'us93');
       const client = await tx.client.create({
@@ -209,7 +209,7 @@ describe('trash', () => {
     });
   });
 
-  it('US-93: a soft-deleted running entry reports a null end', async () => {
+  it('US-95: a soft-deleted running entry reports a null end', async () => {
     await withTx(async (tx) => {
       const w = await bootstrap(tx, 'us93b');
       const e = await startTimer(tx, w.user, { companyId: w.company });
@@ -222,7 +222,7 @@ describe('trash', () => {
     });
   });
 
-  it('US-95: an admin purges an entry permanently, leaving exactly one purge audit row', async () => {
+  it('US-97: an admin purges an entry permanently, leaving exactly one purge audit row', async () => {
     await withTx(async (tx) => {
       const w = await bootstrap(tx, 'us95');
       const tag = await tx.tag.create({
@@ -258,7 +258,7 @@ describe('trash', () => {
     });
   });
 
-  it('US-95: the purge restates deletedAt on the DELETE itself, not just on the read', async () => {
+  it('US-97: the purge restates deletedAt on the DELETE itself, not just on the read', async () => {
     await withTx(async (tx) => {
       const w = await bootstrap(tx, 'us95f');
       const e = await startTimer(tx, w.user, { companyId: w.company });
@@ -283,7 +283,7 @@ describe('trash', () => {
     });
   });
 
-  it('US-95: a member cannot purge their own entry', async () => {
+  it('US-97: a member cannot purge their own entry', async () => {
     await withTx(async (tx) => {
       const w = await bootstrap(tx, 'us95b');
       const e = await startTimer(tx, w.user, { companyId: w.company });
@@ -295,7 +295,7 @@ describe('trash', () => {
     });
   });
 
-  it('US-95: purging a cross-company entry returns not_found', async () => {
+  it('US-97: purging a cross-company entry returns not_found', async () => {
     await withTx(async (tx) => {
       const w = await bootstrap(tx, 'us95c');
       const e = await startTimer(tx, w.user, { companyId: w.company });
@@ -309,7 +309,7 @@ describe('trash', () => {
     });
   });
 
-  it('US-95: purging an entry that is not in the trash returns not_found', async () => {
+  it('US-97: purging an entry that is not in the trash returns not_found', async () => {
     await withTx(async (tx) => {
       const w = await bootstrap(tx, 'us95d');
       const e = await startTimer(tx, w.user, { companyId: w.company });
@@ -319,7 +319,7 @@ describe('trash', () => {
     });
   });
 
-  it('US-95: purging an entry restored out of the trash before the read returns not_found', async () => {
+  it('US-97: purging an entry restored out of the trash before the read returns not_found', async () => {
     await withTx(async (tx) => {
       const w = await bootstrap(tx, 'us95e');
       const e = await startTimer(tx, w.user, { companyId: w.company });
@@ -335,14 +335,14 @@ describe('trash', () => {
       // pre-check: there the audit row is written and the DELETE finds no
       // matching row — the accepted direction of failure (ADR-0011). The
       // predicate that makes that safe is asserted directly on the write, in
-      // 'US-95: the purge restates deletedAt on the DELETE itself'.
+      // 'US-97: the purge restates deletedAt on the DELETE itself'.
       expect(await purgeEntry(tx, w.admin, e.value.id)).toEqual({ ok: false, reason: 'not_found' });
       expect(await tx.timeEntry.findUnique({ where: { id: e.value.id } })).not.toBeNull();
       expect(await tx.auditLog.count({ where: { entityId: e.value.id, action: 'purge' } })).toBe(0);
     });
   });
 
-  it('US-96: the daily purge audits every doomed entry in one write', async () => {
+  it('US-98: the daily purge audits every doomed entry in one write', async () => {
     await withTx(async (tx) => {
       const w = await bootstrap(tx, 'us96c');
       const a = await startTimer(tx, w.user, { companyId: w.company, description: 'a' });
@@ -390,7 +390,7 @@ describe('trash', () => {
     });
   });
 
-  it('US-96: the daily purge hard-deletes >30-day-old entries and audits each one', async () => {
+  it('US-98: the daily purge hard-deletes >30-day-old entries and audits each one', async () => {
     await withTx(async (tx) => {
       const w = await bootstrap(tx, 'us96');
       const old = await startTimer(tx, w.user, { companyId: w.company, description: 'old' });
@@ -421,7 +421,7 @@ describe('trash', () => {
     });
   });
 
-  it('US-96: the daily purge restates deletedAt < cutoff on the DELETE, not just the SELECT', async () => {
+  it('US-98: the daily purge restates deletedAt < cutoff on the DELETE, not just the SELECT', async () => {
     await withTx(async (tx) => {
       const w = await bootstrap(tx, 'us96d');
       const old = await startTimer(tx, w.user, { companyId: w.company, description: 'old' });
@@ -457,7 +457,7 @@ describe('trash', () => {
     });
   });
 
-  it('US-96: a purge run with nothing to purge writes no audit rows', async () => {
+  it('US-98: a purge run with nothing to purge writes no audit rows', async () => {
     await withTx(async (tx) => {
       const w = await bootstrap(tx, 'us96b');
       const before = await tx.auditLog.count({ where: { companyId: w.company } });
