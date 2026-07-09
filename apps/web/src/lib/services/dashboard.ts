@@ -9,6 +9,7 @@
  * pass period boundaries from `@tt/shared/time#getPeriodRange`.
  */
 import type { Prisma, PrismaClient } from '@prisma/client';
+import { addDays } from 'date-fns';
 import { dayKey } from '../time-format';
 import {
   weekRangeFor,
@@ -16,6 +17,8 @@ import {
   daysInMonthCount,
   getPeriodRange,
   now,
+  toAppZone,
+  fromAppZone,
 } from '@tt/shared/time';
 
 type Db = PrismaClient | Prisma.TransactionClient;
@@ -329,7 +332,7 @@ export async function clientFundProgress(
       });
       for (const iso of ordered) {
         const offset = (iso - weekStartsOn + 7) % 7;
-        const dayDate = new Date(week.start.getTime() + offset * 24 * 60 * MIN);
+        const dayDate = fromAppZone(addDays(toAppZone(week.start), offset));
         const allocated = Math.min(remaining, dailyTarget);
         remaining -= allocated;
         const key = dateKeyPrague(dayDate);

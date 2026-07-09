@@ -440,6 +440,36 @@ describe('client fund progress', () => {
     }
   });
 
+  it('US-90: per-day dates are DST-correct across the fall-back week', async () => {
+    const { setNowProvider } = await import('@tt/shared/time');
+    // Europe/Prague clocks fall back on Sun 2026-10-25 (25h day). Pin to Tue of that week.
+    setNowProvider(() => new Date('2026-10-27T12:00:00Z'));
+    try {
+      await withTx(async (tx) => {
+        const w = await buildWorld(tx, 'dst');
+        const fc = await createClient(tx, w.admin, { companyId: w.company, name: 'DstCo' });
+        if (!fc.ok) throw new Error('setup');
+        // Week starts Saturday (ISO 6); working days Sun(7)/Mon(1)/Tue(2) straddle the fall-back.
+        await tx.client.update({
+          where: { id: fc.value.id },
+          data: {
+            fundInDashboard: true,
+            weeklyFundMinutes: 1440,
+            weekStartsOn: 6,
+            workingDays: [7, 1, 2],
+          },
+        });
+        const r = await clientFundProgress(tx, w.admin, w.company);
+        if (!r.ok) throw new Error('not ok');
+        const c = r.value.clients.find((x) => x.clientId === fc.value.id);
+        if (!c) throw new Error('missing');
+        expect(c.days.map((d) => d.date)).toEqual(['2026-10-25', '2026-10-26', '2026-10-27']);
+      });
+    } finally {
+      setNowProvider(null);
+    }
+  });
+
   it('US-90: hours-only client has proportional monthly target and no day breakdown', async () => {
     const { setNowProvider } = await import('@tt/shared/time');
     setNowProvider(() => new Date('2026-05-15T12:00:00Z'));
