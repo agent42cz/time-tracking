@@ -10,6 +10,13 @@
  */
 import type { Prisma, PrismaClient } from '@prisma/client';
 import { dayKey } from '../time-format';
+import {
+  weekRangeFor,
+  isoWorkingDayCountInMonth,
+  daysInMonthCount,
+  getPeriodRange,
+  now,
+} from '@tt/shared/time';
 
 type Db = PrismaClient | Prisma.TransactionClient;
 
@@ -225,4 +232,135 @@ export async function dailyBreakdown(
     else out.set(k, { day, key, label, totalMs: durationMs(e) });
   }
   return { ok: true, value: Array.from(out.values()) };
+}
+
+// 7. Client work-fund progress (team-wide weekly/monthly bars + day breakdown).
+export interface FundBar {
+  targetMinutes: number;
+  workedMinutes: number;
+}
+export interface FundDay {
+  isoWeekday: number; // 1..7
+  date: string; // 'YYYY-MM-DD' Prague
+  targetMinutes: number; // dailyTarget
+  allocatedMinutes: number; // greedy fill
+  isPast: boolean; // day is strictly before today (Prague)
+}
+export interface ClientFund {
+  clientId: string;
+  clientName: string;
+  weekly: FundBar;
+  monthly: FundBar;
+  days: FundDay[]; // [] for hours-only clients
+}
+export interface FundProgress {
+  clients: ClientFund[];
+  combined: { weekly: FundBar; monthly: FundBar };
+}
+
+const MIN = 60_000;
+function dateKeyPrague(d: Date): string {
+  return dayKey(d); // dayKey already formats YYYY-MM-DD in Prague
+}
+
+export async function clientFundProgress(
+  db: Db,
+  actorUserId: string,
+  companyId: string,
+  reference: Date = now(),
+): Promise<DashResult<FundProgress>> {
+  if (!(await requireAdmin(db, actorUserId, companyId))) return { ok: false, reason: 'not_found' };
+
+  const clients = await db.client.findMany({
+    where: { companyId, fundInDashboard: true },
+    orderBy: [{ sortOrder: 'asc' }, { name: 'asc' }],
+  });
+
+  const month = getPeriodRange('month', reference); // inclusive end, fine for gte/lt below with +1ms guard
+  const monthEndExclusive = new Date(month.end.getTime() + 1);
+  const todayKey = dateKeyPrague(reference);
+
+  const out: ClientFund[] = [];
+  for (const c of clients) {
+    const weeklyTarget = c.weeklyFundMinutes ?? 0;
+    const wd = c.workingDays ?? [];
+    const weekStartsOn = c.weekStartsOn ?? 1;
+    const week = weekRangeFor(weekStartsOn, reference);
+
+    const weekEntries = await db.timeEntry.findMany({
+      where: {
+        companyId,
+        clientId: c.id,
+        deletedAt: null,
+        startedAt: { gte: week.start, lt: week.end },
+      },
+      select: { startedAt: true, endedAt: true },
+    });
+    const monthEntries = await db.timeEntry.findMany({
+      where: {
+        companyId,
+        clientId: c.id,
+        deletedAt: null,
+        startedAt: { gte: month.start, lt: monthEndExclusive },
+      },
+      select: { startedAt: true, endedAt: true },
+    });
+    const weekWorked = Math.round(weekEntries.reduce((a, e) => a + durationMs(e), 0) / MIN);
+    const monthWorked = Math.round(monthEntries.reduce((a, e) => a + durationMs(e), 0) / MIN);
+
+    // monthly target
+    let monthlyTarget: number;
+    if (wd.length > 0) {
+      const dailyTarget = Math.round(weeklyTarget / wd.length);
+      monthlyTarget = isoWorkingDayCountInMonth(wd, reference) * dailyTarget;
+    } else {
+      monthlyTarget = Math.round((weeklyTarget * daysInMonthCount(reference)) / 7);
+    }
+
+    // per-day greedy allocation (working-days clients only)
+    const days: FundDay[] = [];
+    if (wd.length > 0) {
+      const dailyTarget = Math.round(weeklyTarget / wd.length);
+      let remaining = weekWorked;
+      const ordered = [...wd].sort((a, b) => {
+        const da = (a - weekStartsOn + 7) % 7;
+        const dbb = (b - weekStartsOn + 7) % 7;
+        return da - dbb;
+      });
+      for (const iso of ordered) {
+        const offset = (iso - weekStartsOn + 7) % 7;
+        const dayDate = new Date(week.start.getTime() + offset * 24 * 60 * MIN);
+        const allocated = Math.min(remaining, dailyTarget);
+        remaining -= allocated;
+        const key = dateKeyPrague(dayDate);
+        days.push({
+          isoWeekday: iso,
+          date: key,
+          targetMinutes: dailyTarget,
+          allocatedMinutes: allocated,
+          isPast: key < todayKey,
+        });
+      }
+    }
+
+    out.push({
+      clientId: c.id,
+      clientName: c.name,
+      weekly: { targetMinutes: weeklyTarget, workedMinutes: weekWorked },
+      monthly: { targetMinutes: monthlyTarget, workedMinutes: monthWorked },
+      days,
+    });
+  }
+
+  const combined = {
+    weekly: {
+      targetMinutes: out.reduce((a, c) => a + c.weekly.targetMinutes, 0),
+      workedMinutes: out.reduce((a, c) => a + c.weekly.workedMinutes, 0),
+    },
+    monthly: {
+      targetMinutes: out.reduce((a, c) => a + c.monthly.targetMinutes, 0),
+      workedMinutes: out.reduce((a, c) => a + c.monthly.workedMinutes, 0),
+    },
+  };
+  return { ok: true, value: { clients: out, combined } };
 }
