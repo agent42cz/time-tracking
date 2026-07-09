@@ -27,6 +27,10 @@ Invite
 
 Client
 ├── id, company_id, name, archived (bool), created_at
+├── fundInDashboard (bool, default false) — show this client's work-fund progress bars on the web dashboard + extension
+├── weeklyFundMinutes (int, nullable) — agreed weekly hour commitment, in minutes
+├── weekStartsOn (int, nullable) — ISO weekday the client's fund week starts on (1=Mon … 7=Sun)
+├── workingDays (int[], default []) — ISO weekdays the fund is worked on; empty = "hours-only" client (no per-day breakdown, proportional monthly target)
 └── projects[] → Project
 
 Project
