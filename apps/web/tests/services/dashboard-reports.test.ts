@@ -425,15 +425,39 @@ describe('client fund progress', () => {
         if (!r.ok) throw new Error('not ok');
         const sply = r.value.clients.find((c) => c.clientId === fundClientId);
         if (!sply) throw new Error('missing');
-        expect(sply.weekly).toEqual({ targetMinutes: 1440, workedMinutes: 600 });
-        // May 2026 has 13 Wed/Thu/Fri -> monthly target 13 * 480 = 6240
+        // Today is Fri, so all three working days have arrived -> the whole
+        // week is "expected to date" (3 * 480 = 1440).
+        expect(sply.weekly).toEqual({
+          targetMinutes: 1440,
+          workedMinutes: 600,
+          expectedToDateMinutes: 1440,
+        });
+        // May 2026 has 13 Wed/Thu/Fri -> monthly target 13 * 480 = 6240.
         expect(sply.monthly.targetMinutes).toBe(6240);
         expect(sply.monthly.workedMinutes).toBe(600);
-        // Greedy: Wed filled 480, Thu gets remaining 120, Fri 0.
+        // Working days elapsed in May by the 8th: Fri 1, Wed 6, Thu 7, Fri 8 = 4 -> 4 * 480 = 1920.
+        expect(sply.monthly.expectedToDateMinutes).toBe(1920);
+        // Greedy: Wed filled 480, Thu gets remaining 120, Fri 0. Every day has
+        // arrived (Fri is today), so all three carry hasArrived: true.
         const [wed, thu, fri] = sply.days;
-        expect(wed).toMatchObject({ isoWeekday: 3, allocatedMinutes: 480, isPast: true });
-        expect(thu).toMatchObject({ isoWeekday: 4, allocatedMinutes: 120, isPast: true });
-        expect(fri).toMatchObject({ isoWeekday: 5, allocatedMinutes: 0, isPast: false }); // today
+        expect(wed).toMatchObject({
+          isoWeekday: 3,
+          allocatedMinutes: 480,
+          isPast: true,
+          hasArrived: true,
+        });
+        expect(thu).toMatchObject({
+          isoWeekday: 4,
+          allocatedMinutes: 120,
+          isPast: true,
+          hasArrived: true,
+        });
+        expect(fri).toMatchObject({
+          isoWeekday: 5,
+          allocatedMinutes: 0,
+          isPast: false,
+          hasArrived: true,
+        }); // today
       });
     } finally {
       setNowProvider(null);
@@ -521,5 +545,61 @@ describe('client fund progress', () => {
       const cross = await clientFundProgress(tx, w.outsider, w.company);
       expect(cross.ok).toBe(false);
     });
+  });
+
+  it('US-90: on the first working day, expected-to-date is the full day (shortfall shows immediately)', async () => {
+    const { setNowProvider } = await import('@tt/shared/time');
+    // Mon 2026-07-06 is the first working day of the week for a Mon/Tue client.
+    setNowProvider(() => new Date('2026-07-06T09:00:00Z'));
+    try {
+      await withTx(async (tx) => {
+        const w = await buildWorld(tx, 'fund-today');
+        const fc = await createClient(tx, w.admin, { companyId: w.company, name: 'TodayCo' });
+        if (!fc.ok) throw new Error('setup');
+        // 16h/week Mon+Tue -> 8h (480 min) daily target.
+        await tx.client.update({
+          where: { id: fc.value.id },
+          data: {
+            fundInDashboard: true,
+            weeklyFundMinutes: 960,
+            weekStartsOn: 1,
+            workingDays: [1, 2],
+          },
+        });
+        // Only 0.6 h (36 min) worked so far, on Monday.
+        await tx.timeEntry.create({
+          data: {
+            userId: w.admin,
+            companyId: w.company,
+            clientId: fc.value.id,
+            startedAt: new Date('2026-07-06T06:00:00Z'),
+            endedAt: new Date('2026-07-06T06:36:00Z'),
+          },
+        });
+        const r = await clientFundProgress(tx, w.admin, w.company);
+        if (!r.ok) throw new Error('not ok');
+        const c = r.value.clients.find((x) => x.clientId === fc.value.id);
+        if (!c) throw new Error('missing');
+        // One working day (today) has arrived -> the full 8h day is already due.
+        // Shortfall (red) = 480 - 36 = 444 min (7.4 h) even though the day isn't over.
+        expect(c.weekly).toEqual({
+          targetMinutes: 960,
+          workedMinutes: 36,
+          expectedToDateMinutes: 480,
+        });
+        expect(c.monthly.expectedToDateMinutes).toBe(480); // only Mon 6 elapsed this month
+        const [mon, tue] = c.days;
+        expect(mon).toMatchObject({
+          isoWeekday: 1,
+          allocatedMinutes: 36,
+          hasArrived: true,
+          isPast: false,
+        });
+        // Tuesday hasn't arrived yet -> no red.
+        expect(tue).toMatchObject({ isoWeekday: 2, allocatedMinutes: 0, hasArrived: false });
+      });
+    } finally {
+      setNowProvider(null);
+    }
   });
 });

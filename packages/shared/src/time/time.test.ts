@@ -8,6 +8,7 @@ import {
   getPreviousMonthRange,
   weekRangeFor,
   isoWorkingDayCountInMonth,
+  isoWorkingDaysToDateInMonth,
   daysInMonthCount,
 } from './index.js';
 
@@ -74,5 +75,27 @@ describe('time helpers', () => {
     // Mondays 4,11,18,25 (4) + Tuesdays 5,12,19,26 (4) = 8
     expect(isoWorkingDayCountInMonth([1, 2], ref)).toBe(8);
     expect(daysInMonthCount(ref)).toBe(31);
+  });
+
+  it('US-90: monthly working-day count changes per calendar month (Mon+Tue fund)', () => {
+    // SVĚT PLODŮ works Mon+Tue. The monthly fund is #(Mon+Tue) × daily target,
+    // and that count is different every month.
+    // June 2026 (June 1 = Monday): Mondays 1,8,15,22,29 (5) + Tuesdays 2,9,16,23,30 (5) = 10 → 80 h.
+    expect(isoWorkingDayCountInMonth([1, 2], new Date('2026-06-15T12:00:00Z'))).toBe(10);
+    // July 2026 (July 1 = Wednesday): Mondays 6,13,20,27 (4) + Tuesdays 7,14,21,28 (4) = 8 → 64 h.
+    expect(isoWorkingDayCountInMonth([1, 2], new Date('2026-07-15T12:00:00Z'))).toBe(8);
+    // August 2026 (Aug 1 = Saturday): Mondays 3,10,17,24,31 (5) + Tuesdays 4,11,18,25 (4) = 9 → 72 h.
+    expect(isoWorkingDayCountInMonth([1, 2], new Date('2026-08-15T12:00:00Z'))).toBe(9);
+  });
+
+  it('US-90: counts working days elapsed so far this month (to date)', () => {
+    // July 2026, on Thu July 9: Mon/Tue already passed = Mon 6 + Tue 7 = 2.
+    expect(isoWorkingDaysToDateInMonth([1, 2], new Date('2026-07-09T12:00:00Z'))).toBe(2);
+    // Same month at end (July 31): all 8 have arrived.
+    expect(isoWorkingDaysToDateInMonth([1, 2], new Date('2026-07-31T12:00:00Z'))).toBe(8);
+    // On the 1st working day itself (Mon July 6) it counts that day.
+    expect(isoWorkingDaysToDateInMonth([1, 2], new Date('2026-07-06T12:00:00Z'))).toBe(1);
+    // Hours-only clients (no working days) → 0.
+    expect(isoWorkingDaysToDateInMonth([], new Date('2026-07-09T12:00:00Z'))).toBe(0);
   });
 });

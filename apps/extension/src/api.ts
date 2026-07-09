@@ -265,6 +265,7 @@ export async function getTimer(session: ApiSession, companyId?: string): Promise
 export interface ExtFundBar {
   targetMinutes: number;
   workedMinutes: number;
+  expectedToDateMinutes: number;
 }
 
 export interface ExtFundDay {
@@ -273,6 +274,7 @@ export interface ExtFundDay {
   targetMinutes: number;
   allocatedMinutes: number;
   isPast: boolean;
+  hasArrived: boolean;
 }
 
 export interface ExtClientFund {
