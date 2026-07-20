@@ -114,7 +114,9 @@ describe('extension popup', () => {
     const result = await q.flush(
       (m) =>
         Promise.resolve(
-          m.kind === 'updateEntry' ? { ok: false as const, reason: 'conflict' as const } : { ok: true as const },
+          m.kind === 'updateEntry'
+            ? { ok: false as const, reason: 'conflict' as const }
+            : { ok: true as const },
         ),
       { onConflict: (m) => conflicts.push(m) },
     );
@@ -168,6 +170,35 @@ describe('extension popup', () => {
     });
     expect(sent).toHaveLength(1);
     expect(sent[0]!.payload).toEqual({ id: 'y' });
+  });
+
+  it('US-34: redundant offline stopTimer clicks collapse to one queued mutation (AIAGE-55)', async () => {
+    // A user on an instance whose network has wedged hammers Stop three
+    // times. Each click would enqueue a stopTimer; without dedup that
+    // surfaces as three "unsynchronized events". stopTimer is an idempotent
+    // terminal op keyed by entry id, so the queue must collapse them to one.
+    const q = new OfflineQueue(adapter());
+    for (let i = 0; i < 3; i++) {
+      await q.enqueue({ kind: 'stopTimer', payload: { id: 'e-1' }, clientId: `click-${i}` });
+    }
+    expect(await q.size()).toBe(1);
+    const sent: Mutation[] = [];
+    await q.flush((m) => {
+      sent.push(m);
+      return Promise.resolve({ ok: true });
+    });
+    // The first click wins; later duplicates never entered the queue.
+    expect(sent).toEqual([{ kind: 'stopTimer', payload: { id: 'e-1' }, clientId: 'click-0' }]);
+  });
+
+  it('US-34: idempotent dedup collapses same-id stops/deletes but keeps distinct ones (AIAGE-55)', async () => {
+    const q = new OfflineQueue(adapter());
+    await q.enqueue({ kind: 'stopTimer', payload: { id: 'a' }, clientId: '1' });
+    await q.enqueue({ kind: 'stopTimer', payload: { id: 'a' }, clientId: '2' }); // dup → dropped
+    await q.enqueue({ kind: 'stopTimer', payload: { id: 'b' }, clientId: '3' }); // other id → kept
+    await q.enqueue({ kind: 'deleteEntry', payload: { id: 'a' }, clientId: '4' }); // other kind → kept
+    await q.enqueue({ kind: 'deleteEntry', payload: { id: 'a' }, clientId: '5' }); // dup → dropped
+    expect(await q.size()).toBe(3);
   });
 
   it('US-35: pendingCount > 0 is the unsynced indicator', async () => {
