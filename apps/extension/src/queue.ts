@@ -18,7 +18,11 @@ export type Mutation =
   | { kind: 'startTimer'; payload: Record<string, unknown>; clientId: string }
   | { kind: 'stopTimer'; payload: { id: string }; clientId: string }
   | { kind: 'createManual'; payload: Record<string, unknown>; clientId: string }
-  | { kind: 'updateEntry'; payload: { id: string; patch: Record<string, unknown> }; clientId: string }
+  | {
+      kind: 'updateEntry';
+      payload: { id: string; patch: Record<string, unknown> };
+      clientId: string;
+    }
   | { kind: 'deleteEntry'; payload: { id: string }; clientId: string };
 
 export interface QueueState {
@@ -29,18 +33,46 @@ export interface QueueState {
 
 const STORAGE_KEY = 'tt:offline-queue';
 
+/**
+ * `stopTimer` and `deleteEntry` are idempotent terminal operations keyed by
+ * entry id: queuing a second one for the same entry adds nothing. Returns a
+ * collapse key for those kinds, or null for mutations that are always
+ * distinct (startTimer/createManual create new rows; updateEntry patches may
+ * differ). Used to dedup redundant clicks — e.g. a user hammering Stop on an
+ * instance whose network has wedged, which otherwise piles up as several
+ * "unsynchronized events" (AIAGE-55).
+ */
+function collapseKey(m: Mutation): string | null {
+  switch (m.kind) {
+    case 'stopTimer':
+      return `stopTimer:${m.payload.id}`;
+    case 'deleteEntry':
+      return `deleteEntry:${m.payload.id}`;
+    default:
+      return null;
+  }
+}
+
 export class OfflineQueue {
   constructor(private storage: StorageAdapter) {}
 
   async load(): Promise<QueueState> {
-    return (await this.storage.get<QueueState>(STORAGE_KEY)) ?? {
-      mutations: [],
-      lastFlushAt: null,
-    };
+    return (
+      (await this.storage.get<QueueState>(STORAGE_KEY)) ?? {
+        mutations: [],
+        lastFlushAt: null,
+      }
+    );
   }
 
   async enqueue(mut: Mutation): Promise<void> {
     const state = await this.load();
+    const key = collapseKey(mut);
+    if (key !== null && state.mutations.some((m) => collapseKey(m) === key)) {
+      // An equivalent idempotent terminal op is already queued — drop the
+      // duplicate so repeat clicks don't inflate the unsynced count.
+      return;
+    }
     state.mutations.push(mut);
     await this.storage.set(STORAGE_KEY, state);
   }

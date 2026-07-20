@@ -1167,6 +1167,27 @@ function RunningList({
   onStop: (entryId: string) => Promise<void>;
   onEdit: (entryId: string) => void;
 }): ReactElement | null {
+  // Entries whose Stop was clicked and is in flight (or only queued offline).
+  // Prevents a second click from firing another stop — the entry stays in the
+  // running list until the stop actually lands, and re-clicking looked like it
+  // "did nothing", producing duplicate unsynced stops (AIAGE-55).
+  const [stopping, setStopping] = useState<Set<string>>(() => new Set());
+
+  const handleStop = (id: string): void => {
+    if (stopping.has(id)) return;
+    setStopping((s) => new Set(s).add(id));
+    void onStop(id).catch(() => {
+      // A real (non-network) failure — re-enable so it can be retried. A
+      // queued offline stop resolves without throwing and stays disabled
+      // until the entry actually stops and this row unmounts.
+      setStopping((s) => {
+        const next = new Set(s);
+        next.delete(id);
+        return next;
+      });
+    });
+  };
+
   if (entries.length === 0) return null;
   return (
     <div className="space-y-1.5 p-3">
@@ -1197,10 +1218,11 @@ function RunningList({
             </span>
             <button
               type="button"
-              onClick={() => void onStop(e.id)}
-              className="rounded-md bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700 dark:bg-red-700 dark:hover:bg-red-600"
+              onClick={() => handleStop(e.id)}
+              disabled={stopping.has(e.id)}
+              className="rounded-md bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-60 dark:bg-red-700 dark:hover:bg-red-600"
             >
-              Stop
+              {stopping.has(e.id) ? 'Zastavuji…' : 'Stop'}
             </button>
           </div>
         </div>
