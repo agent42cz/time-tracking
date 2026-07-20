@@ -12,8 +12,9 @@
  *  - softDelete / restore: owners can soft-delete their own; admins can
  *    soft-delete any. Both produce an audit row. Soft-deleted entries
  *    are hidden from normal queries (US-25, US-47).
+ *  - purgeEntry: admin-only hard delete from the trash; one `purge` audit row.
  *  - listForUser / listWeek: deleted entries are filtered out by default.
- *  - listTrash: admin-only view of deleted entries within the 30-day window.
+ *  - listTrash: deleted entries; admins see the company, members see their own.
  *  - purgeOldDeleted: hard-deletes anything soft-deleted >30 days ago
  *    (called by the daily cron job).
  *  - getHistory: returns the audit rows for a single entry (US-27, US-45).
@@ -66,10 +67,35 @@ function validateWindow(
   return { ok: true };
 }
 
-async function snapshot(db: Db, id: string): Promise<Record<string, unknown> | null> {
-  const e = await db.timeEntry.findUnique({ where: { id }, include: { tags: true } });
-  if (!e) return null;
+type EntryWithTags = Prisma.TimeEntryGetPayload<{ include: { tags: true } }>;
+
+/**
+ * The audit `before`/`after` shape.
+ *
+ * `companyId` lives on the audit row itself. `userId` does **not** — the row's
+ * `actorUserId` is *who performed the action*, which for a `purge` is an admin
+ * or (for the cron) nobody at all. Since the `before` snapshot is a purged
+ * entry's only surviving trace, the owner has to be recorded here.
+ *
+ * Declared as a type alias rather than an interface so TypeScript infers an
+ * implicit index signature and the value is assignable to Prisma's
+ * `InputJsonValue` without a cast.
+ */
+type EntrySnapshot = {
+  userId: string;
+  description: string;
+  note: string;
+  clientId: string | null;
+  projectId: string | null;
+  startedAt: string;
+  endedAt: string | null;
+  tagIds: string[];
+  deletedAt: string | null;
+};
+
+function snapshotOf(e: EntryWithTags): EntrySnapshot {
   return {
+    userId: e.userId,
     description: e.description,
     note: e.note,
     clientId: e.clientId,
@@ -79,6 +105,12 @@ async function snapshot(db: Db, id: string): Promise<Record<string, unknown> | n
     tagIds: e.tags.map((t) => t.tagId).sort(),
     deletedAt: e.deletedAt?.toISOString() ?? null,
   };
+}
+
+async function snapshot(db: Db, id: string): Promise<EntrySnapshot | null> {
+  const e = await db.timeEntry.findUnique({ where: { id }, include: { tags: true } });
+  if (!e) return null;
+  return snapshotOf(e);
 }
 
 // --- Start / stop ---
@@ -289,6 +321,20 @@ export async function updateEntry(
 }
 
 // --- Soft delete / restore / purge ---
+
+/**
+ * Soft-delete an entry. Owner or company admin (US-25, US-47).
+ *
+ * The write restates `deletedAt: null` for the same reason `purgeEntry`'s DELETE
+ * restates `deletedAt: { not: null }`: an admin can hard-purge the row between
+ * the `findUnique` and the write, and an unconditional `update({ where: { id } })`
+ * would throw `P2025` at a caller with no `catch`. `updateMany` reports a count
+ * instead. It also stops a second concurrent delete from overwriting `deletedAt`
+ * and silently restarting the 30-day retention clock.
+ *
+ * Audits *after* mutating: the row survives either way, so a lost audit row is
+ * recoverable from it. The purge paths make the opposite trade — see `purgeEntry`.
+ */
 export async function softDeleteEntry(
   db: Db,
   actorUserId: string,
@@ -302,7 +348,11 @@ export async function softDeleteEntry(
   if (entry.userId !== actorUserId && role !== 'admin') return { ok: false, reason: 'not_found' };
 
   const before = await snapshot(db, entryId);
-  await db.timeEntry.update({ where: { id: entryId }, data: { deletedAt: now } });
+  const { count } = await db.timeEntry.updateMany({
+    where: { id: entryId, deletedAt: null },
+    data: { deletedAt: now },
+  });
+  if (count === 0) return { ok: false, reason: 'not_found' };
   await writeAudit(db, {
     companyId: entry.companyId,
     actorUserId,
@@ -320,6 +370,22 @@ export async function softDeleteEntry(
   return { ok: true, value: true };
 }
 
+/**
+ * Restore a soft-deleted entry from the trash. Owner or company admin (US-93).
+ *
+ * The mirror image of `purgeEntry`. The `findUnique` stays — the authorization
+ * check and the audit row both need `entry.companyId` / `entry.userId` — but the
+ * write restates `deletedAt: { not: null }` rather than trusting that read. An
+ * admin's purge, or the cron's 30-second transaction, can hard-delete the row in
+ * between; an unconditional `update({ where: { id } })` would then throw `P2025`
+ * into `restoreEntryAction`, which has no `catch`, and blank `/trash`.
+ * `updateMany` returns a count, so the loser of the race reports `not_found`.
+ *
+ * Whichever write lands first wins. Audits *after* mutating — deliberately the
+ * opposite of the purge paths: here the row survives either way, so an audit row
+ * lost to a crash is recoverable from the row itself, whereas a purge's `before`
+ * snapshot is the entry's only surviving trace.
+ */
 export async function restoreEntry(
   db: Db,
   actorUserId: string,
@@ -328,10 +394,15 @@ export async function restoreEntry(
   const entry = await db.timeEntry.findUnique({ where: { id: entryId } });
   if (!entry || !entry.deletedAt) return { ok: false, reason: 'not_found' };
   const role = await getMembership(db, actorUserId, entry.companyId);
-  if (!role || role !== 'admin') return { ok: false, reason: 'not_found' };
+  if (!role) return { ok: false, reason: 'not_found' };
+  if (entry.userId !== actorUserId && role !== 'admin') return { ok: false, reason: 'not_found' };
 
   const before = await snapshot(db, entryId);
-  await db.timeEntry.update({ where: { id: entryId }, data: { deletedAt: null } });
+  const { count } = await db.timeEntry.updateMany({
+    where: { id: entryId, deletedAt: { not: null } },
+    data: { deletedAt: null },
+  });
+  if (count === 0) return { ok: false, reason: 'not_found' };
   await writeAudit(db, {
     companyId: entry.companyId,
     actorUserId,
@@ -349,30 +420,175 @@ export async function restoreEntry(
   return { ok: true, value: true };
 }
 
-/** Daily cron — purges anything soft-deleted >30 days ago. */
+/**
+ * Hard-delete a soft-deleted entry. Admin-only, irreversible.
+ *
+ * Audits *before* deleting — and must stay in sync with `purgeOldDeleted`,
+ * which makes the same trade for the same reason. The `before` snapshot is the
+ * entry's only surviving trace, and it has to be captured before the delete
+ * cascades `TimeEntryTag` away (US-97). The cost is that a purge that then
+ * loses the race below leaves an audit row for an entry that still exists;
+ * that is the acceptable direction of failure. Delete-then-audit would lose
+ * the snapshot outright.
+ *
+ * The delete restates `deletedAt: { not: null }` because the owner can restore
+ * the entry from their own /trash between the `findUnique` above and the write.
+ * Under READ COMMITTED Postgres re-evaluates the predicate against the current
+ * row version, so a concurrent restore wins and we report `not_found`.
+ * `deleteMany` also returns a count where `delete()` would throw `P2025` at a
+ * caller that has no `catch`.
+ */
+export async function purgeEntry(
+  db: Db,
+  actorUserId: string,
+  entryId: string,
+): Promise<Result<true>> {
+  const entry = await db.timeEntry.findUnique({
+    where: { id: entryId },
+    include: { tags: true },
+  });
+  if (!entry || !entry.deletedAt) return { ok: false, reason: 'not_found' };
+  const role = await getMembership(db, actorUserId, entry.companyId);
+  if (!role || role !== 'admin') return { ok: false, reason: 'not_found' };
+
+  const before = snapshotOf(entry);
+  await writeAudit(db, {
+    companyId: entry.companyId,
+    actorUserId,
+    action: 'purge',
+    entityType: 'TimeEntry',
+    entityId: entryId,
+    before: before as never,
+  });
+  const { count } = await db.timeEntry.deleteMany({
+    where: { id: entryId, deletedAt: { not: null } },
+  });
+  if (count === 0) return { ok: false, reason: 'not_found' };
+  return { ok: true, value: true };
+}
+
+/**
+ * How many entries one cron run may purge. The run is therefore **incremental**:
+ * a backlog larger than this drains over successive runs, oldest first.
+ *
+ * Postgres caps a statement at 65 535 bind parameters (the wire protocol counts
+ * them in an int16). Both of the writes below scale with the batch:
+ *
+ *  - `auditLog.createMany` binds ~8 columns per row — the tighter ceiling by far,
+ *    blowing first at roughly 8 000 rows. It has to stay a single INSERT (N
+ *    sequential round-trips would exhaust the caller's 30 s transaction), so it
+ *    cannot be chunked out of the problem.
+ *  - `timeEntry.deleteMany` binds one parameter per id in `id: { in: … }`.
+ *
+ * Bounding the SELECT bounds both, keeps the audit write to one INSERT, and keeps
+ * the run inside its transaction timeout. Chunking only the DELETE would leave
+ * `createMany` to hit the ceiling first — the very failure this guards against.
+ * 5 000 × ~8 ≈ 40 000 bound parameters, comfortably under the cap.
+ *
+ * A run returning `purged === PURGE_BATCH_SIZE` has more work waiting; the
+ * endpoint is idempotent and safe to `curl` again immediately. See ADR-0011.
+ */
+export const PURGE_BATCH_SIZE = 5_000;
+
+/**
+ * Daily cron — hard-deletes anything soft-deleted >30 days ago, up to
+ * `PURGE_BATCH_SIZE` entries per run, oldest first.
+ *
+ * Writes one `purge` audit row per entry (`actorUserId: null`, system-initiated)
+ * before deleting, because the snapshot is the entry's only surviving trace.
+ * Audit-then-delete is deliberate: an entry that survives the delete below
+ * keeps a `purge` audit row it did not earn, and the next run re-audits it,
+ * whereas delete-then-audit would lose the trace entirely. Keep in sync with
+ * `purgeEntry`.
+ *
+ * The caller (`/api/cron/purge`) wraps this in one transaction; the service
+ * itself never opens one, so `withTx`-based tests can drive it directly.
+ */
 export async function purgeOldDeleted(db: Db, now: Date = new Date()): Promise<{ purged: number }> {
   const cutoff = new Date(now.getTime() - TRASH_RETENTION_MS);
-  const { count } = await db.timeEntry.deleteMany({
+  const doomed = await db.timeEntry.findMany({
     where: { deletedAt: { lt: cutoff } },
+    include: { tags: true },
+    // Oldest first, so a backlog drains in retention order and each run is
+    // deterministic. `take` bounds every bind-parameter count below.
+    orderBy: { deletedAt: 'asc' },
+    take: PURGE_BATCH_SIZE,
+  });
+  if (doomed.length === 0) return { purged: 0 };
+
+  // One INSERT, not one per doomed entry: a run sees up to `PURGE_BATCH_SIZE`
+  // entries, and N sequential round-trips would blow the transaction's timeout.
+  // `source` falls back to its schema default (`web`) and the omitted `after`
+  // stores SQL NULL — both match what `writeAudit` would have written.
+  const auditRows: Prisma.AuditLogCreateManyInput[] = doomed.map((e) => ({
+    companyId: e.companyId,
+    actorUserId: null,
+    action: 'purge',
+    entityType: 'TimeEntry',
+    entityId: e.id,
+    before: snapshotOf(e),
+  }));
+  await db.auditLog.createMany({ data: auditRows });
+
+  // `deletedAt < cutoff` MUST stay on the DELETE, not just on the SELECT above.
+  // Under READ COMMITTED Postgres re-evaluates a DELETE's predicate against the
+  // current row version, so an entry a user restored while we were auditing is
+  // skipped rather than destroyed. A transaction alone does not give us this —
+  // it would re-evaluate the DELETE, not the earlier SELECT. The row keeps the
+  // unearned `purge` audit row written above; see the note on ordering.
+  const { count } = await db.timeEntry.deleteMany({
+    where: { id: { in: doomed.map((e) => e.id) }, deletedAt: { lt: cutoff } },
   });
   return { purged: count };
 }
 
 // --- Reads ---
+export interface TrashEntryView {
+  id: string;
+  userId: string;
+  userName: string;
+  description: string;
+  clientName: string | null;
+  projectName: string | null;
+  startedAt: Date;
+  /** null when a *running* entry was soft-deleted. */
+  endedAt: Date | null;
+  deletedAt: Date;
+}
+
+/**
+ * Deleted entries within the 30-day window. Admins see the whole company;
+ * a member sees only their own (US-94).
+ */
 export async function listTrash(
   db: Db,
   actorUserId: string,
   companyId: string,
-): Promise<Result<{ id: string; userId: string; deletedAt: Date }[]>> {
+): Promise<Result<TrashEntryView[]>> {
   const role = await getMembership(db, actorUserId, companyId);
-  if (!role || role !== 'admin') return { ok: false, reason: 'not_found' };
+  if (!role) return { ok: false, reason: 'not_found' };
   const rows = await db.timeEntry.findMany({
-    where: { companyId, deletedAt: { not: null } },
+    where: {
+      companyId,
+      deletedAt: { not: null },
+      ...(role === 'admin' ? {} : { userId: actorUserId }),
+    },
+    include: { user: true, client: true, project: true },
     orderBy: { deletedAt: 'desc' },
   });
   return {
     ok: true,
-    value: rows.map((r) => ({ id: r.id, userId: r.userId, deletedAt: r.deletedAt! })),
+    value: rows.map((r) => ({
+      id: r.id,
+      userId: r.userId,
+      userName: r.user.fullName,
+      description: r.description,
+      clientName: r.client?.name ?? null,
+      projectName: r.project?.name ?? null,
+      startedAt: r.startedAt,
+      endedAt: r.endedAt,
+      deletedAt: r.deletedAt!,
+    })),
   };
 }
 

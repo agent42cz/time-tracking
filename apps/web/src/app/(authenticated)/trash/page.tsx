@@ -1,21 +1,32 @@
 import type { ReactElement } from 'react';
 import { Card, CardBody, CardHeader, CardTitle, EmptyState } from '@tt/ui';
-import { prisma, requireAdmin } from '@/lib/session';
+import { prisma, requireActiveCompany } from '@/lib/session';
 import { PageHeader } from '@/components/PageHeader';
+import { listTrash } from '@/lib/services/time-entries';
 import { TrashList } from './TrashList';
 
 export default async function TrashPage(): Promise<ReactElement> {
-  const s = await requireAdmin();
-  const entries = await prisma().timeEntry.findMany({
-    where: { companyId: s.activeCompanyId, deletedAt: { not: null } },
-    include: { user: true, client: true, project: true },
-    orderBy: { deletedAt: 'desc' },
-  });
+  const s = await requireActiveCompany();
+  const result = await listTrash(prisma(), s.userId, s.activeCompanyId);
+  if (!result.ok) {
+    return (
+      <div>
+        <PageHeader title="Koš" />
+        <EmptyState title="Bez přístupu" />
+      </div>
+    );
+  }
+  const entries = result.value;
+  const isAdmin = s.activeRole === 'admin';
   return (
     <div>
       <PageHeader
         title="Koš"
-        description="Smazané záznamy. Po 30 dnech se trvale promazávají."
+        description={
+          isAdmin
+            ? 'Smazané záznamy celé firmy. Po 30 dnech se trvale promazávají.'
+            : 'Vaše smazané záznamy. Po 30 dnech se trvale promazávají.'
+        }
       />
       <Card>
         <CardHeader>
@@ -26,13 +37,16 @@ export default async function TrashPage(): Promise<ReactElement> {
             <EmptyState title="Koš je prázdný" />
           ) : (
             <TrashList
+              isAdmin={isAdmin}
               entries={entries.map((e) => ({
                 id: e.id,
                 description: e.description,
-                userName: e.user.fullName,
-                clientName: e.client?.name ?? null,
-                projectName: e.project?.name ?? null,
-                deletedAt: e.deletedAt!.toISOString(),
+                userName: e.userName,
+                clientName: e.clientName,
+                projectName: e.projectName,
+                startedAt: e.startedAt.toISOString(),
+                endedAt: e.endedAt?.toISOString() ?? null,
+                deletedAt: e.deletedAt.toISOString(),
               }))}
             />
           )}

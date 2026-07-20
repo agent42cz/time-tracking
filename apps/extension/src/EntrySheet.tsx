@@ -8,6 +8,7 @@ import {
 } from './api.js';
 import { combineToIso, resolveWindow, toDateInput, toTimeInput } from './datetime.js';
 import { fmtDurationHM } from './format.js';
+import { useBodyScrollLock } from './useBodyScrollLock.js';
 
 /** Turn a failed save into a human-readable Czech reason instead of a generic message. */
 function saveErrorMessage(err: unknown): string {
@@ -67,6 +68,7 @@ export function EntrySheet(props: EntrySheetProps): ReactElement {
   const [error, setError] = useState<string | null>(null);
 
   const wasRunning = mode === 'edit' && initial?.endedAt == null;
+  useBodyScrollLock();
 
   const startIso = startTime ? combineToIso(startDate, startTime) : '';
   const win = startTime && endTime ? resolveWindow(startDate, startTime, endTime) : null;
@@ -134,9 +136,17 @@ export function EntrySheet(props: EntrySheetProps): ReactElement {
   }
 
   return (
-    <div className="absolute inset-0 z-20 flex flex-col bg-white dark:bg-zinc-900">
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="entry-sheet-title"
+      className="fixed inset-0 z-40 flex flex-col bg-white dark:bg-zinc-900"
+    >
       <div className="flex items-center justify-between border-b border-zinc-100 px-4 py-3 dark:border-zinc-700/60">
-        <span className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+        <span
+          id="entry-sheet-title"
+          className="text-sm font-semibold text-zinc-900 dark:text-zinc-100"
+        >
           {mode === 'create' ? 'Nový záznam' : 'Upravit záznam'}
         </span>
         <button
@@ -148,7 +158,7 @@ export function EntrySheet(props: EntrySheetProps): ReactElement {
           ✕
         </button>
       </div>
-      <div className="space-y-4 overflow-y-auto p-4">
+      <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-4">
         {error ? (
           <div className="rounded border border-red-200 bg-red-50 px-2 py-1 text-xs text-red-800 dark:border-red-900 dark:bg-red-950/40 dark:text-red-200">
             {error}

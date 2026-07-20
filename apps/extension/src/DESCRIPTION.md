@@ -36,7 +36,7 @@ The "commit before send" property means: if the browser is killed mid-flush, the
 
 ## Dependencies
 
-- **Internal:** `@tt/ui` (shared primitives), `@tt/shared` (validators, time helpers, WS wire types + client).
+- **Internal:** `@tt/shared/time/duration` is imported (`popup.tsx`, `formatDurationHMS` for the running-row `HH:MM:SS` display, US-92) — a leaf import only, so `zod`, `date-fns-tz` and the WS client stay out of the popup bundle. `@tt/ui` is a declared `package.json` dependency but nothing in `src/` imports it; the popup keeps its own Tailwind + `clsx` primitives instead (see Notes).
 - **External:** `react`, `react-dom`, Tailwind via Vite. No Auth.js — the extension authenticates by holding a session token issued by the web app.
 
 ## Used by
@@ -47,5 +47,5 @@ The MV3 manifest is the runtime entry. Users install the packaged extension; the
 
 - **Czech UI** — same `next-intl` keys as the web app are mirrored as a static catalogue at build time.
 - **No styled-components.** Tailwind + `clsx` only, matching `packages/ui`.
-- **Tests are unit-only.** Real Chrome integration is verified manually with a packed extension (per the original PRD §14.8 — things AI cannot fully automate).
+- **Tests are unit + e2e.** `queue.test.ts` (Vitest) covers the offline queue. `apps/extension/tests/e2e/` (Playwright, added over Tasks 1/3/4; run via `pnpm test:e2e:ext`) drives the packed popup in a real Chromium — see `popup.spec.ts` for US-92 (running-row `HH:MM:SS` ticking) and US-99 (sheet pinned to the viewport, not the document). Real Chrome _integration_ (install flow, storage permissions in situ) is still verified manually with a packed extension (per the original PRD §14.8 — things AI cannot fully automate).
 - **Distribution.** Packaged as `.zip` for sideload + Chrome Web Store listing. Works on Brave, Arc, Edge by default (Chromium).

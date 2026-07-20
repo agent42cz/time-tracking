@@ -4,7 +4,7 @@
  */
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { Prisma } from '@prisma/client';
-import type { AuditSource } from '@prisma/client';
+import { AuditAction, type AuditSource } from '@prisma/client';
 import { getTestPrisma, stopTestPrisma, withTx } from '@tt/db/test';
 import { createCompany } from '../../src/lib/services/companies.js';
 import {
@@ -15,6 +15,7 @@ import {
 } from '../../src/lib/services/time-entries.js';
 import { listAuditLog } from '../../src/lib/services/audit-query.js';
 import { writeAudit } from '../../src/lib/services/audit.js';
+import { ALL_ACTIONS } from '../../src/app/(authenticated)/audit/audit-actions.js';
 
 beforeAll(async () => {
   await getTestPrisma();
@@ -149,9 +150,15 @@ describe('audit log', () => {
   it('audit rows are immutable — Prisma update on AuditLog has no side effects in tests, surface forbids', async () => {
     // The Prisma AuditLog model exposes update/delete at the ORM level (no DB
     // trigger blocks them). The route layer is the immutability boundary —
-    // there is no audit-mutation route exposed. This test enforces that
-    // intent by ensuring no service in services/* writes to audit_logs
-    // beyond `writeAudit` (the create-only helper).
+    // there is no audit-mutation route exposed. This test enforces that intent
+    // by ensuring no service in services/* *mutates* an existing audit row:
+    // no `update`, `delete`, `updateMany` or `deleteMany`.
+    //
+    // Inserts are not the rule's concern and are deliberately not matched.
+    // `writeAudit` is the usual path, but `purgeOldDeleted` writes its batch of
+    // `purge` rows straight through `db.auditLog.createMany` — one INSERT for N
+    // entries, see ADR-0011. The regex below does not match `createMany`; do not
+    // widen it.
     const fs = await import('node:fs');
     const path = await import('node:path');
     const url = await import('node:url');
@@ -178,5 +185,11 @@ describe('audit log', () => {
       const src = fs.readFileSync(f, 'utf8');
       expect(src).not.toMatch(/\.auditLog\.(update|delete|deleteMany|updateMany)\(/);
     }
+  });
+});
+
+describe('audit action filter', () => {
+  it('US-101: the filter offers every AuditAction value', () => {
+    expect(new Set(ALL_ACTIONS)).toEqual(new Set(Object.values(AuditAction)));
   });
 });

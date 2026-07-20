@@ -1,10 +1,22 @@
 'use client';
 
 import type { ReactElement } from 'react';
-import { useEffect, useState } from 'react';
-import { TIMER_CHANGED_EVENT, TimerStateResponseSchema, type TimerEntry } from '@/lib/timer-events';
+import { useEffect, useState, useTransition } from 'react';
+import { Alert, Button } from '@tt/ui';
+import { useTranslations } from 'next-intl';
+import { unstable_rethrow } from 'next/navigation';
+import {
+  TIMER_CHANGED_EVENT,
+  TimerStateResponseSchema,
+  notifyTimerChanged,
+  type TimerEntry,
+} from '@/lib/timer-events';
+import { restoreEntryAction } from '@/lib/actions/time';
 import { RunningTimers } from './RunningTimers';
 import { TimerHistory, type HistoryEntryView } from './TimerHistory';
+
+/** How long the "Vrátit zpět" affordance stays on screen after a delete. */
+export const UNDO_WINDOW_MS = 10_000;
 
 interface RunningEntry {
   id: string;
@@ -54,6 +66,10 @@ export function TimerLists({
   const [history, setHistory] = useState<HistoryEntryView[]>(initialHistory);
   const [historyNowMs, setHistoryNowMs] = useState(initialNowMs);
   const [now, setNow] = useState<number | null>(null);
+  const t = useTranslations('timer.undo');
+  const [undoId, setUndoId] = useState<string | null>(null);
+  const [undoError, setUndoError] = useState<string | null>(null);
+  const [, startTransition] = useTransition();
   const hasRunning = running.length > 0;
 
   useEffect(() => {
@@ -65,6 +81,13 @@ export function TimerLists({
     const t = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(t);
   }, [hasRunning]);
+
+  // The undo affordance is transient — it expires on its own.
+  useEffect(() => {
+    if (!undoId) return;
+    const timer = setTimeout(() => setUndoId(null), UNDO_WINDOW_MS);
+    return () => clearTimeout(timer);
+  }, [undoId]);
 
   useEffect(() => {
     let cancelled = false;
@@ -103,6 +126,42 @@ export function TimerLists({
   };
   const handleDeleted = (id: string): void => {
     setHistory((hs) => hs.filter((h) => h.id !== id));
+    setUndoError(null);
+    setUndoId(id);
+  };
+
+  const handleUndo = (): void => {
+    const id = undoId;
+    if (!id) return;
+    setUndoId(null);
+    // The action MUST run inside the `startTransition` returned by
+    // `useTransition()` above — as it does in TrashList. React 19 routes *that*
+    // transition's rejected async action to the nearest error boundary, which is
+    // the only way `unstable_rethrow`'s re-thrown redirect digest can reach
+    // `RedirectBoundary`. From a bare `void (async () => …)()` the rejection
+    // belongs to a promise nobody holds, so it surfaces as an
+    // `unhandledrejection` — no navigation, and no error Alert either.
+    //
+    // The top-level `startTransition` imported from 'react' is NOT a substitute:
+    // it passes the rejection to `reportGlobalError`, reinstating the same bug
+    // with an identical-looking call site. See docs/gotchas.md.
+    startTransition(async () => {
+      try {
+        const result = await restoreEntryAction(id);
+        if (!result.ok) {
+          // e.g. the entry was purged from the trash in the meantime.
+          setUndoError(t('failed'));
+          return;
+        }
+        notifyTimerChanged();
+      } catch (err) {
+        // Re-throws Next's control-flow digests (redirect() from
+        // requireActiveCompany on session expiry, notFound(), …) and returns for
+        // everything else, so a genuine failure still reaches the Alert below.
+        unstable_rethrow(err);
+        setUndoError(t('failed'));
+      }
+    });
   };
 
   return (
@@ -114,6 +173,19 @@ export function TimerLists({
           onStopped={handleStopped}
           autoStackOverlaps={autoStackOverlaps}
         />
+      ) : null}
+      {undoId ? (
+        <Alert tone="info" className="mb-3 flex items-center justify-between gap-3">
+          <span>{t('deleted')}</span>
+          <Button size="sm" variant="ghost" onClick={handleUndo}>
+            {t('action')}
+          </Button>
+        </Alert>
+      ) : null}
+      {undoError ? (
+        <Alert tone="danger" className="mb-3">
+          {undoError}
+        </Alert>
       ) : null}
       <TimerHistory
         entries={history}

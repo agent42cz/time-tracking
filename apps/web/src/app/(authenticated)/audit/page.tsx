@@ -17,22 +17,7 @@ import { prisma, requireAdmin } from '@/lib/session';
 import { PageHeader } from '@/components/PageHeader';
 import { listAuditLog } from '@/lib/services/audit-query';
 import type { AuditAction } from '@prisma/client';
-
-const ALL_ACTIONS: AuditAction[] = [
-  'create',
-  'update',
-  'delete',
-  'restore',
-  'invite',
-  'invite_accepted',
-  'invite_revoked',
-  'remove_member',
-  'role_change',
-  'login',
-  'logout',
-  'totp_enable',
-  'totp_disable',
-];
+import { ALL_ACTIONS } from './audit-actions';
 
 export default async function AuditPage({
   searchParams,

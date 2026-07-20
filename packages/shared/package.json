@@ -8,6 +8,7 @@
   "exports": {
     ".": "./src/index.ts",
     "./time": "./src/time/index.ts",
+    "./time/duration": "./src/time/duration.ts",
     "./validators": "./src/validators/index.ts",
     "./ws": "./src/ws/index.ts"
   },

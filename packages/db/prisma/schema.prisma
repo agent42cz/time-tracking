@@ -28,6 +28,7 @@ enum AuditAction {
   update
   delete
   restore
+  purge
   reorder
   shift
   invite

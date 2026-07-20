@@ -44,9 +44,10 @@ describe('filterVisibleGroups', () => {
     expect(total).toBe(11);
   });
 
-  it('drops Přehledy and Systém for non-admin (all-admin groups)', () => {
+  it('drops Přehledy for non-admin but keeps Systém for the un-gated Koš', () => {
     const result = filterVisibleGroups(navGroups, false);
-    expect(result.map((g) => g.label)).toEqual(['Sledování', 'Správa dat', 'Účet']);
+    expect(result.map((g) => g.label)).toEqual(['Sledování', 'Správa dat', 'Systém', 'Účet']);
+    expect(result.find((g) => g.label === 'Systém')?.items.map((i) => i.href)).toEqual(['/trash']);
   });
 
   it('keeps Správa dat with only Štítky for non-admin', () => {
@@ -118,8 +119,11 @@ describe('getMoreGroups', () => {
     expect(hrefs).toContain('/settings');
   });
 
-  it('for non-admin leaves only the Účet→Rozšíření overflow', () => {
-    expect(getMoreGroups(false).flatMap((g) => g.items.map((i) => i.href))).toEqual(['/extension']);
+  it('for non-admin leaves Koš and the Účet→Rozšíření overflow', () => {
+    expect(getMoreGroups(false).flatMap((g) => g.items.map((i) => i.href))).toEqual([
+      '/trash',
+      '/extension',
+    ]);
   });
 
   it('drops groups left empty after removing primary items', () => {

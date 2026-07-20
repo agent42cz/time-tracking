@@ -24,7 +24,7 @@ Each box maps to the file (and test name) that proves it. v1 was declared comple
   - `apps/web/tests/services/audit.test.ts` — US-46 (restore + audited).
 
 - [x] **Audit log captures all mutations with before/after snapshots.**
-  - `apps/web/tests/services/time-entries.test.ts` — every US-19..28 test asserts the auditLog row count via `auditCount()`.
+  - `apps/web/tests/services/time-entries.test.ts` — not every US-19..28 test asserts an audit row count. The file defines its own local `auditCount(tx, entryId)` helper (`time-entries.test.ts:63`, a third signature distinct from `catalog.test.ts:57` and `auto-stack-save.test.ts:68`), used by US-19, US-20, US-22 and one of the two US-24 tests; other tests in that range query `auditLog.findFirst()`/`findMany()` directly for row content (e.g. the US-24 note test, `US-59: ... forward source to audit`), and several (US-21, US-23, US-25, US-26, US-27, US-28) assert no audit row at all.
   - `apps/web/tests/services/audit.test.ts` — US-44 (firm-wide log), US-45 (per-entry history), immutability boundary test that greps every `services/*` file for forbidden audit mutations.
 
 - [x] **Admin dashboard renders all six widgets with working period selector.**

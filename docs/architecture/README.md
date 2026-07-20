@@ -49,10 +49,10 @@ A mutation flows like this:
 2. **Service** runs the work in a Prisma transaction:
    - Permission check (admin-only routes assert `membership.role === 'admin'`; cross-company outsiders return `not_found` / 404).
    - Domain mutation.
-   - **Exactly one** `writeAudit({ action, entityType, entityId, before, after })` call. The audit table is append-only; no service may call `auditLog.update` or `auditLog.delete`.
+   - **Exactly one audit row**, normally written by `writeAudit({ action, entityType, entityId, before, after })`. (The daily purge is the one batch writer: it inserts its `purge` rows with a single `auditLog.createMany` — see [ADR-0011](../decisions/0011-coolify-scheduled-task-for-purge.md).) The audit table is append-only; no service may call `auditLog.update` or `auditLog.delete`.
 3. **Service** publishes a WS event to Redis on the `user:{id}` and `company:{id}` channels (`apps/ws/src/publish.ts`).
 4. **`apps/ws`** forwards to subscribed sockets — both web tabs and the Chrome popup.
-5. **Background job** (`node-cron` inside `apps/web`) runs daily: trash purge (30-day retention), expired-invite cleanup.
+5. **Background job** — a **Coolify scheduled task** `curl`s `POST /api/cron/purge` daily (bearer `CRON_SECRET`) to run the trash purge, 30-day retention, up to `PURGE_BATCH_SIZE` entries per run. There is no in-process scheduler: `node-cron` is the option [ADR-0011](../decisions/0011-coolify-scheduled-task-for-purge.md) explicitly rejected, and the dependency is gone. Expired invites are not swept by any job — they are rejected at redemption (`apps/web/src/lib/auth/signup.ts`).
 
 ## Auth
 

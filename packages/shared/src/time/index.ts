@@ -18,6 +18,8 @@ import {
   eachDayOfInterval,
 } from 'date-fns';
 
+export { pad2, formatDurationHMS } from './duration.js';
+
 export const APP_TIMEZONE = 'Europe/Prague';
 
 type NowProvider = () => Date;
@@ -84,16 +86,6 @@ export function getPreviousMonthRange(reference: Date = now()): PeriodRange {
 
 export function durationMs(start: Date, end: Date | null): number {
   return (end ?? now()).getTime() - start.getTime();
-}
-
-export const pad2 = (n: number): string => String(n).padStart(2, '0');
-
-export function formatDurationHMS(ms: number): string {
-  const total = Math.max(0, Math.floor(ms / 1000));
-  const h = Math.floor(total / 3600);
-  const m = Math.floor((total % 3600) / 60);
-  const s = total % 60;
-  return `${pad2(h)}:${pad2(m)}:${pad2(s)}`;
 }
 
 /**

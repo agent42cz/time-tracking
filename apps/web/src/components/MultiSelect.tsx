@@ -1,7 +1,8 @@
 'use client';
 
 import type { ReactElement } from 'react';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 
 export interface MultiSelectOption {
   id: string;
@@ -25,9 +26,27 @@ export interface MultiSelectProps {
   onChange?: (selectedIds: string[]) => void;
 }
 
+/** Roughly the popover's tallest realistic height: search + 16rem list + footer. */
+const ESTIMATED_POPOVER_HEIGHT = 340;
+const GAP = 4;
+/** Breathing room between the clamped popover and the viewport edge. */
+const VIEWPORT_MARGIN = 8;
+
+interface PopoverPos {
+  left: number;
+  width: number;
+  top?: number;
+  bottom?: number;
+  maxHeight: number;
+}
+
 /**
  * Chip-based multi-select with search + checkboxes.
  * Renders hidden inputs so it works inside an HTML form (method=GET).
+ *
+ * The popover is portalled to <body> and positioned `fixed`. Both of its usual
+ * parents clip it otherwise: `Card` is `overflow-hidden` and `ConfirmModal`'s
+ * panel is `max-h-[90vh] overflow-y-auto` (AIAGE-51, US-100).
  */
 export function MultiSelect({
   name,
@@ -40,31 +59,84 @@ export function MultiSelect({
   const [selected, setSelected] = useState<Set<string>>(new Set(defaultValues));
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
+  const [pos, setPos] = useState<PopoverPos | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const popoverRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     onChange?.(Array.from(selected));
   }, [selected, onChange]);
 
+  const reposition = useCallback(() => {
+    const el = triggerRef.current;
+    if (!el) return;
+    const r = el.getBoundingClientRect();
+    const spaceBelow = window.innerHeight - r.bottom;
+    const flipUp = spaceBelow < ESTIMATED_POPOVER_HEIGHT && r.top > spaceBelow;
+    // Choosing the roomier side is not enough: on a short viewport neither side
+    // fits. `position: fixed` extends no scroll region, so anything past the
+    // edge is simply unreachable — clamp to the space the chosen side has.
+    const maxHeight = Math.max(0, (flipUp ? r.top : spaceBelow) - GAP - VIEWPORT_MARGIN);
+    setPos(
+      flipUp
+        ? {
+            left: r.left,
+            width: r.width,
+            bottom: window.innerHeight - r.top + GAP,
+            maxHeight,
+          }
+        : { left: r.left, width: r.width, top: r.bottom + GAP, maxHeight },
+    );
+  }, []);
+
+  useLayoutEffect(() => {
+    if (open) reposition();
+  }, [open, reposition]);
+
   useEffect(() => {
     if (!open) return;
     const onDoc = (e: MouseEvent): void => {
-      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
-        setOpen(false);
-      }
+      const t = e.target as Node;
+      // The popover is portalled, so it is NOT inside containerRef. Check both.
+      if (containerRef.current?.contains(t)) return;
+      if (popoverRef.current?.contains(t)) return;
+      setOpen(false);
     };
     const onKey = (e: KeyboardEvent): void => {
       if (e.key === 'Escape') setOpen(false);
     };
+    const onReflow = (): void => reposition();
     document.addEventListener('mousedown', onDoc);
     document.addEventListener('keydown', onKey);
+    // `true` => capture, so scrolls inside any ancestor also reposition us.
+    window.addEventListener('scroll', onReflow, true);
+    window.addEventListener('resize', onReflow);
     inputRef.current?.focus();
     return () => {
       document.removeEventListener('mousedown', onDoc);
       document.removeEventListener('keydown', onKey);
+      window.removeEventListener('scroll', onReflow, true);
+      window.removeEventListener('resize', onReflow);
     };
-  }, [open]);
+  }, [open, reposition]);
+
+  useEffect(() => {
+    if (!open) return;
+    const el = triggerRef.current;
+    if (!el) return;
+    // The trigger is `flex-wrap` with `min-h-[38px]` — a *minimum*, not a fixed
+    // height. Ticking enough options wraps the chips onto a second line, which
+    // grows the trigger's height without firing a window `scroll` or `resize`
+    // event. The popover is `position: fixed` and only measures the trigger at
+    // open time, so without this observer it goes stale and overlaps the
+    // now-taller trigger. This also covers container-width changes (e.g. the
+    // `xl:grid-cols-4` field narrowing) that a window `resize` listener misses.
+    const ro = new ResizeObserver(() => reposition());
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [open, reposition]);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -90,6 +162,95 @@ export function MultiSelect({
     setSelected(new Set());
   }
 
+  const popover =
+    open && pos && typeof document !== 'undefined'
+      ? createPortal(
+          <div
+            ref={popoverRef}
+            data-testid="multiselect-popover"
+            style={{
+              position: 'fixed',
+              left: pos.left,
+              width: pos.width,
+              maxHeight: pos.maxHeight,
+              ...(pos.top !== undefined ? { top: pos.top } : {}),
+              ...(pos.bottom !== undefined ? { bottom: pos.bottom } : {}),
+            }}
+            /* z-[60] clears ConfirmModal's z-50 (the US-89 export dialog).
+               `flex flex-col` + `min-h-0` on the list below let the list absorb
+               the clamp, so its scrollport stays fully visible instead of being
+               cropped by `overflow-hidden` — a cropped scrollport hides options
+               that scrolling can no longer bring into view. */
+            className="z-[60] flex flex-col overflow-hidden rounded-md border border-zinc-200 bg-white shadow-lg dark:border-zinc-700 dark:bg-zinc-800"
+          >
+            <div className="flex items-center gap-2 border-b border-zinc-100 px-2 py-1.5 dark:border-zinc-700/60">
+              <input
+                ref={inputRef}
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="Hledat…"
+                className="flex-1 bg-transparent py-1 text-sm placeholder:text-zinc-400 focus:outline-none dark:placeholder:text-zinc-500"
+              />
+              {selected.size > 0 ? (
+                <button
+                  type="button"
+                  onClick={clearAll}
+                  className="rounded px-1.5 text-xs text-zinc-500 hover:bg-zinc-100 dark:text-zinc-400 dark:hover:bg-zinc-700"
+                >
+                  Vyčistit
+                </button>
+              ) : null}
+            </div>
+            {/* Not role="listbox" — a listbox's children must be role="option",
+                and these are checkbox labels. A testid avoids a false a11y contract. */}
+            <ul
+              data-testid="multiselect-listbox"
+              className="max-h-[min(16rem,60vh)] min-h-0 overflow-y-auto py-1"
+            >
+              {filtered.length === 0 ? (
+                <li className="px-3 py-2 text-sm text-zinc-400 dark:text-zinc-500">{emptyLabel}</li>
+              ) : null}
+              {filtered.map((o) => {
+                const checked = selected.has(o.id);
+                return (
+                  <li key={o.id}>
+                    <label className="flex cursor-pointer items-center gap-2 px-3 py-1.5 text-sm hover:bg-zinc-50 dark:hover:bg-zinc-700">
+                      <input
+                        type="checkbox"
+                        checked={checked}
+                        onChange={() => toggle(o.id)}
+                        className="h-4 w-4 rounded border-zinc-300 text-zinc-900 focus:ring-zinc-900 dark:border-zinc-600 dark:text-zinc-100 dark:focus:ring-zinc-100"
+                      />
+                      {o.color ? (
+                        <span
+                          className="h-2.5 w-2.5 rounded-full"
+                          style={{ backgroundColor: o.color }}
+                          aria-hidden
+                        />
+                      ) : null}
+                      <span className="break-words text-zinc-900 dark:text-zinc-100">
+                        {o.label}
+                      </span>
+                      {o.hint ? (
+                        <span className="ml-auto text-xs text-zinc-500 dark:text-zinc-400">
+                          {o.hint}
+                        </span>
+                      ) : null}
+                    </label>
+                  </li>
+                );
+              })}
+            </ul>
+            {selected.size > 0 ? (
+              <div className="border-t border-zinc-100 px-3 py-1.5 text-xs text-zinc-500 dark:border-zinc-700/60 dark:text-zinc-400">
+                Vybráno: {selected.size}
+              </div>
+            ) : null}
+          </div>,
+          document.body,
+        )
+      : null;
+
   return (
     <div ref={containerRef} className="relative">
       {/* Hidden inputs for form submit */}
@@ -99,19 +260,21 @@ export function MultiSelect({
 
       {/* Trigger */}
       <button
+        ref={triggerRef}
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className="flex w-full min-h-[38px] items-center gap-1 rounded-md border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-2 py-1.5 text-left text-sm text-zinc-900 dark:text-zinc-100 hover:bg-zinc-50 dark:hover:bg-zinc-700 focus:border-zinc-900 dark:focus:border-zinc-100 focus:outline-none focus:ring-2 focus:ring-zinc-900/10 dark:focus:ring-zinc-100/10"
+        className="flex min-h-[38px] w-full items-center gap-1 rounded-md border border-zinc-200 bg-white px-2 py-1.5 text-left text-sm text-zinc-900 hover:bg-zinc-50 focus:border-zinc-900 focus:outline-none focus:ring-2 focus:ring-zinc-900/10 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-100 dark:hover:bg-zinc-700 dark:focus:border-zinc-100 dark:focus:ring-zinc-100/10"
         aria-expanded={open}
       >
         {selectedLabels.length === 0 ? (
           <span className="px-1 text-zinc-400 dark:text-zinc-500">{placeholder}</span>
         ) : (
           <div className="flex flex-1 flex-wrap gap-1">
+            {/* Deliberate: at most 4 chips + a +N badge. Not the US-100 bug. */}
             {selectedLabels.slice(0, 4).map((o) => (
               <span
                 key={o.id}
-                className="inline-flex items-center gap-1 rounded-full bg-zinc-100 dark:bg-zinc-700 px-2 py-0.5 text-xs text-zinc-800 dark:text-zinc-200"
+                className="inline-flex items-center gap-1 rounded-full bg-zinc-100 px-2 py-0.5 text-xs text-zinc-800 dark:bg-zinc-700 dark:text-zinc-200"
                 style={o.color ? { backgroundColor: o.color, color: '#fff' } : undefined}
               >
                 {o.label}
@@ -140,67 +303,7 @@ export function MultiSelect({
         </span>
       </button>
 
-      {/* Popover */}
-      {open ? (
-        <div className="absolute z-40 mt-1 w-full overflow-hidden rounded-md border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 shadow-lg">
-          <div className="flex items-center gap-2 border-b border-zinc-100 dark:border-zinc-700/60 px-2 py-1.5">
-            <input
-              ref={inputRef}
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder="Hledat…"
-              className="flex-1 bg-transparent py-1 text-sm placeholder:text-zinc-400 dark:placeholder:text-zinc-500 focus:outline-none"
-            />
-            {selected.size > 0 ? (
-              <button
-                type="button"
-                onClick={clearAll}
-                className="rounded px-1.5 text-xs text-zinc-500 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-700"
-              >
-                Vyčistit
-              </button>
-            ) : null}
-          </div>
-          <ul className="max-h-[min(16rem,60vh)] overflow-y-auto py-1">
-            {filtered.length === 0 ? (
-              <li className="px-3 py-2 text-sm text-zinc-400 dark:text-zinc-500">{emptyLabel}</li>
-            ) : null}
-            {filtered.map((o) => {
-              const checked = selected.has(o.id);
-              return (
-                <li key={o.id}>
-                  <label className="flex cursor-pointer items-center gap-2 px-3 py-1.5 text-sm hover:bg-zinc-50 dark:hover:bg-zinc-700">
-                    <input
-                      type="checkbox"
-                      checked={checked}
-                      onChange={() => toggle(o.id)}
-                      className="h-4 w-4 rounded border-zinc-300 dark:border-zinc-600 text-zinc-900 dark:text-zinc-100 focus:ring-zinc-900 dark:focus:ring-zinc-100"
-                    />
-                    {o.color ? (
-                      <span
-                        className="h-2.5 w-2.5 rounded-full"
-                        style={{ backgroundColor: o.color }}
-                        aria-hidden
-                      />
-                    ) : null}
-                    <span className="break-words text-zinc-900 dark:text-zinc-100">{o.label}</span>
-                    {o.hint ? (
-                      <span className="ml-auto text-xs text-zinc-500 dark:text-zinc-400">
-                        {o.hint}
-                      </span>
-                    ) : null}
-                  </label>
-                </li>
-              );
-            })}
-          </ul>
-          {selected.size > 0 ? (
-            <div className="border-t border-zinc-100 dark:border-zinc-700/60 px-3 py-1.5 text-xs text-zinc-500 dark:text-zinc-400">
-              Vybráno: {selected.size}
-            </div>
-          ) : null}
-        </div>
-      ) : null}
+      {popover}
     </div>
   );
 }

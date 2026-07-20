@@ -88,6 +88,11 @@ jobs:
       - run: pnpm test:trace
       - run: pnpm build
 
+      # Playwright caches browsers per user (~/.cache/ms-playwright), not per
+      # workspace package, and @tt/web and @tt/extension resolve the same
+      # @playwright/test (one entry in pnpm-lock.yaml) — so this one install
+      # serves both e2e suites. The extension re-runs `install` below to
+      # self-heal if those versions ever drift apart.
       - name: Install Playwright browsers
         run: pnpm --filter @tt/web exec playwright install --with-deps chromium
 
@@ -106,6 +111,22 @@ jobs:
           # app interprets form times in. Under the runner's default UTC the seed
           # and the candidate stop overlapping, so the overlap dialog never shows.
           TZ: Europe/Prague
+
+      # US-92 and US-99 have their ONLY tests here. `pnpm test:trace` greps files
+      # for a US id; it cannot know whether the file ever executes, so without
+      # this step the coverage report vouches for two stories nothing runs.
+      # No database: the suite stubs chrome.* and every /api/v1 route, and its
+      # webServer serves the built bundle via `vite preview`.
+      #
+      # `--with-deps`, not a bare `install`: today this is a no-op (same
+      # @playwright/test as @tt/web, browser already cached). The day the versions
+      # drift it fetches a new browser revision, which without its system
+      # libraries would fail to launch — a bare `install` cannot self-heal drift,
+      # it only relocates the failure.
+      - name: Install Playwright browsers for the extension suite
+        run: pnpm --filter @tt/extension exec playwright install --with-deps chromium
+
+      - run: pnpm test:e2e:ext
 
   deploy:
     name: Deploy to Coolify
