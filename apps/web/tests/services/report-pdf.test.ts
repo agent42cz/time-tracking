@@ -8,7 +8,6 @@ const STR: ReportPdfStrings = {
   date: 'Datum',
   user: 'Uživatel',
   description: 'Popis',
-  tags: 'Štítky',
   duration: 'Trvání',
   subtotal: 'Mezisoučet',
   grandTotal: 'Celkem',
@@ -31,7 +30,6 @@ function sampleRow(): ReportRow {
     startedAt: new Date('2026-05-04T08:00:00Z'),
     endedAt: new Date('2026-05-04T10:00:00Z'),
     durationMs: 2 * H,
-    tags: [{ id: 't1', name: 'schůzka' }],
   };
 }
 

@@ -10,7 +10,7 @@ import type { Prisma } from '@prisma/client';
 import { getTestPrisma, stopTestPrisma, withTx } from '@tt/db/test';
 import { callsTo, recordingDb, soleCallArg } from '../_helpers/recording-db.js';
 import { createCompany } from '../../src/lib/services/companies.js';
-import { createClient, createTag } from '../../src/lib/services/catalog.js';
+import { createClient } from '../../src/lib/services/catalog.js';
 import {
   createManualEntry,
   getEntryHistory,
@@ -38,7 +38,6 @@ interface World {
   user: string;
   outsider: string;
   company: string;
-  tagId: string;
 }
 
 async function bootstrap(tx: Prisma.TransactionClient, suffix: string): Promise<World> {
@@ -50,14 +49,11 @@ async function bootstrap(tx: Prisma.TransactionClient, suffix: string): Promise<
   const company = await createCompany(tx, { name: `TE ${suffix}`, createdByUserId: admin.id });
   await tx.membership.create({ data: { userId: user.id, companyId: company.id, role: 'user' } });
   await createCompany(tx, { name: `Other ${suffix}`, createdByUserId: outsider.id });
-  const tag = await createTag(tx, admin.id, { companyId: company.id, name: 'work' });
-  if (!tag.ok) throw new Error('setup');
   return {
     admin: admin.id,
     user: user.id,
     outsider: outsider.id,
     company: company.id,
-    tagId: tag.value.id,
   };
 }
 
@@ -82,7 +78,7 @@ describe('time entries', () => {
     });
   });
 
-  it('US-20: attaches client/project/tags after the timer is running', async () => {
+  it('US-20: attaches client/project after the timer is running', async () => {
     await withTx(async (tx) => {
       const w = await bootstrap(tx, 'us20');
       const c = await createClient(tx, w.admin, { companyId: w.company, name: 'Acme' });
@@ -92,15 +88,12 @@ describe('time entries', () => {
 
       const upd = await updateEntry(tx, w.user, start.value.id, {
         clientId: c.value.id,
-        tagIds: [w.tagId],
       });
       expect(upd.ok).toBe(true);
       const reread = await tx.timeEntry.findUniqueOrThrow({
         where: { id: start.value.id },
-        include: { tags: true },
       });
       expect(reread.clientId).toBe(c.value.id);
-      expect(reread.tags).toHaveLength(1);
       // start + update = 2 audit rows
       expect(await auditCount(tx, start.value.id)).toBe(2);
     });
@@ -201,15 +194,12 @@ describe('time entries', () => {
       if (!m.ok) throw new Error('setup');
       const upd = await updateEntry(tx, w.user, m.value.id, {
         description: 'Edited',
-        tagIds: [w.tagId],
       });
       expect(upd.ok).toBe(true);
       const reread = await tx.timeEntry.findUniqueOrThrow({
         where: { id: m.value.id },
-        include: { tags: true },
       });
       expect(reread.description).toBe('Edited');
-      expect(reread.tags).toHaveLength(1);
     });
   });
 

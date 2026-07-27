@@ -77,7 +77,6 @@ export async function GET(req: NextRequest): Promise<Response> {
     date: t('pdf.date'),
     user: t('pdf.user'),
     description: t('pdf.description'),
-    tags: t('pdf.tags'),
     duration: t('pdf.duration'),
     subtotal: t('pdf.subtotal'),
     grandTotal: t('pdf.grandTotal'),

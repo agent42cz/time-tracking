@@ -225,13 +225,9 @@ describe('trash', () => {
   it('US-97: an admin purges an entry permanently, leaving exactly one purge audit row', async () => {
     await withTx(async (tx) => {
       const w = await bootstrap(tx, 'us95');
-      const tag = await tx.tag.create({
-        data: { companyId: w.company, name: 'T', color: '#fff' },
-      });
       const e = await startTimer(tx, w.user, {
         companyId: w.company,
         description: 'doomed',
-        tagIds: [tag.id],
       });
       if (!e.ok) throw new Error('setup');
       await softDeleteEntry(tx, w.user, e.value.id);
@@ -240,9 +236,8 @@ describe('trash', () => {
       const result = await purgeEntry(tx, w.admin, e.value.id);
       expect(result.ok).toBe(true);
 
-      // The row is gone, and so are its tag joins (onDelete: Cascade).
+      // The row is gone.
       expect(await tx.timeEntry.findUnique({ where: { id: e.value.id } })).toBeNull();
-      expect(await tx.timeEntryTag.count({ where: { timeEntryId: e.value.id } })).toBe(0);
 
       const after = await tx.auditLog.count({ where: { companyId: w.company } });
       expect(after - before).toBe(1);
@@ -253,7 +248,7 @@ describe('trash', () => {
       // The snapshot is the entry's only surviving trace, so it has to name the
       // entry's owner: `actorUserId` records the admin who pressed the button.
       expect(row.actorUserId).toBe(w.admin);
-      expect(row.before).toMatchObject({ description: 'doomed', tagIds: [tag.id], userId: w.user });
+      expect(row.before).toMatchObject({ description: 'doomed', userId: w.user });
       expect(row.after).toBeNull();
     });
   });

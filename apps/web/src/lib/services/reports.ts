@@ -1,8 +1,8 @@
 /**
  * Reports service (PRD §8).
  *
- * Filters: date range, clients[], projects[], members[], tags[] (AND/OR),
- * description text. Admin-only sees all members; users only see their own.
+ * Filters: date range, clients[], projects[], members[], description text.
+ * Admin-only sees all members; users only see their own.
  */
 import type { Prisma, PrismaClient } from '@prisma/client';
 import { dayKey } from '@/lib/time-format';
@@ -16,8 +16,6 @@ export interface ReportFilters {
   clientIds?: string[];
   projectIds?: string[];
   memberIds?: string[];
-  tagIds?: string[];
-  tagsMode?: 'and' | 'or';
   search?: string;
 }
 
@@ -33,7 +31,6 @@ export interface ReportRow {
   startedAt: Date;
   endedAt: Date | null;
   durationMs: number;
-  tags: { id: string; name: string }[];
 }
 
 export type Result<T> = { ok: true; value: T } | { ok: false; reason: 'not_found' };
@@ -67,21 +64,12 @@ export async function runReport(
   if (filters.projectIds?.length) where.projectId = { in: filters.projectIds };
   if (filters.search) where.description = { contains: filters.search, mode: 'insensitive' };
 
-  if (filters.tagIds?.length) {
-    if (filters.tagsMode === 'and') {
-      where.AND = filters.tagIds.map((tagId) => ({ tags: { some: { tagId } } }));
-    } else {
-      where.tags = { some: { tagId: { in: filters.tagIds } } };
-    }
-  }
-
   const rows = await db.timeEntry.findMany({
     where,
     include: {
       user: true,
       client: true,
       project: true,
-      tags: { include: { tag: true } },
     },
     orderBy: { startedAt: 'asc' },
   });
@@ -100,7 +88,6 @@ export async function runReport(
       startedAt: r.startedAt,
       endedAt: r.endedAt,
       durationMs: (r.endedAt ?? new Date()).getTime() - r.startedAt.getTime(),
-      tags: r.tags.map((tt) => ({ id: tt.tag.id, name: tt.tag.name })),
     })),
   };
 }
@@ -202,7 +189,6 @@ export function rowsToCsv(rows: ReportRow[]): string {
     'startedAt',
     'endedAt',
     'durationSec',
-    'tags',
   ];
   const escape = (v: string): string => {
     if (/[",\n]/.test(v)) return `"${v.replace(/"/g, '""')}"`;
@@ -220,7 +206,6 @@ export function rowsToCsv(rows: ReportRow[]): string {
         r.startedAt.toISOString(),
         r.endedAt?.toISOString() ?? '',
         Math.round(r.durationMs / 1000).toString(),
-        r.tags.map((t) => t.name).join('|'),
       ]
         .map(escape)
         .join(','),

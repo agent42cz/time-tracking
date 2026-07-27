@@ -1,6 +1,6 @@
 /**
- * Phase 4 — Catalog (clients/projects/tags) tests.
- * Covers US-13, US-14, US-15, US-16, US-17, US-18.
+ * Phase 4 — Catalog (clients/projects) tests.
+ * Covers US-13, US-14, US-15, US-18.
  */
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { Prisma } from '@prisma/client';
@@ -11,17 +11,13 @@ import {
   archiveProject,
   createClient,
   createProject,
-  createTag,
   deleteClient,
   deleteProject,
-  deleteTag,
   listClients,
   listProjects,
-  listTags,
   reorderClients,
   reorderProjects,
   updateClientFund,
-  updateTag,
 } from '../../src/lib/services/catalog.js';
 
 beforeAll(async () => {
@@ -201,47 +197,12 @@ describe('catalog (clients / projects / tags)', () => {
     });
   });
 
-  it('US-16: only admins can rename / recolor / delete tags', async () => {
-    await withTx(async (tx) => {
-      const w = await bootstrap(tx, 'us16');
-      const t = await createTag(tx, w.admin, {
-        companyId: w.company,
-        name: 'design',
-        color: '#3b82f6',
-      });
-      if (!t.ok) throw new Error('setup');
-
-      const userTry = await updateTag(tx, w.user, t.value.id, { name: 'design2' });
-      expect(userTry.ok).toBe(false);
-      const userDel = await deleteTag(tx, w.user, t.value.id);
-      expect(userDel.ok).toBe(false);
-
-      const adminEdit = await updateTag(tx, w.admin, t.value.id, { color: '#10b981' });
-      expect(adminEdit.ok).toBe(true);
-      const reread = await tx.tag.findUniqueOrThrow({ where: { id: t.value.id } });
-      expect(reread.color).toBe('#10b981');
-    });
-  });
-
-  it('US-17: a regular user can create a tag inline', async () => {
-    await withTx(async (tx) => {
-      const w = await bootstrap(tx, 'us17');
-      const t = await createTag(tx, w.user, { companyId: w.company, name: 'urgent' });
-      expect(t.ok).toBe(true);
-      // outsider cannot
-      const cross = await createTag(tx, w.outsider, { companyId: w.company, name: 'sneaky' });
-      expect(cross.ok).toBe(false);
-    });
-  });
-
-  it('US-18: a regular user can read clients/projects/tags but not write them', async () => {
+  it('US-18: a regular user can read clients/projects but not write them', async () => {
     await withTx(async (tx) => {
       const w = await bootstrap(tx, 'us18');
       await createClient(tx, w.admin, { companyId: w.company, name: 'Visible' });
       const list = await listClients(tx, w.user, w.company);
       expect(list.ok).toBe(true);
-      const tagList = await listTags(tx, w.user, w.company);
-      expect(tagList.ok).toBe(true);
 
       const denied = await createClient(tx, w.user, { companyId: w.company, name: 'No' });
       expect(denied.ok).toBe(false);

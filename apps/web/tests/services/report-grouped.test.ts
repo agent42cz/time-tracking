@@ -17,7 +17,6 @@ function row(over: Partial<ReportRow>): ReportRow {
     startedAt: new Date('2026-05-04T08:00:00Z'),
     endedAt: new Date('2026-05-04T10:00:00Z'),
     durationMs: 2 * H,
-    tags: [],
     ...over,
   };
 }

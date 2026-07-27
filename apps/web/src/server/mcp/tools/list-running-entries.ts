@@ -12,7 +12,6 @@ const EntrySchema = z.object({
   startedAt: z.string(),
   clientId: z.string().nullable(),
   projectId: z.string().nullable(),
-  tagIds: z.array(z.string()),
 });
 
 const OutputSchema = z.object({
@@ -43,7 +42,6 @@ toolRegistrars.push((server, ctx: ToolContext) => {
           startedAt: e.startedAt.toISOString(),
           clientId: e.clientId,
           projectId: e.projectId,
-          tagIds: e.tagIds,
         })),
       };
       return {
