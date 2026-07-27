@@ -14,7 +14,7 @@ Self-hosted, multi-tenant time tracker — Next.js web app + Chrome extension. U
 - **Web**: Next.js 15 (App Router), React 19, Tailwind, shadcn-style primitives in `packages/ui`, `next-intl` with `cs.json`
 - **API**: Next.js route handlers + tRPC; server actions in `apps/web/src/lib/actions/`; service layer in `apps/web/src/lib/services/`
 - **DB**: Postgres 16, Prisma 6, schema in `packages/db/prisma/schema.prisma`
-- **Auth**: Auth.js v5 (credentials + magic link), argon2id passwords, custom TOTP via `otplib`
+- **Auth**: custom server-side sessions (opaque hashed tokens in the `sessions` table, sliding renewal); credentials + magic link, argon2id passwords, custom TOTP via `otplib`. No Auth.js — see ADR-0014.
 - **Real-time**: WebSockets (`apps/ws`) over Redis pub/sub
 - **Extension**: Vite + React + MV3 (`apps/extension`), persistent offline queue in `chrome.storage.local`
 - **Tests**: Vitest + testcontainers (real Postgres + Redis) for unit/integration; Playwright E2E in `apps/web/tests/e2e/`
@@ -69,7 +69,7 @@ git push origin main           # CI runs CD job → Coolify deploys via API
 
 ## Project-specific rules (full list in `docs/constitution.md`)
 
-- **Tech stack is locked.** No swapping Prisma → Drizzle, pnpm → npm, Auth.js → custom, etc., without an ADR.
+- **Tech stack is locked.** No swapping Prisma → Drizzle, pnpm → npm, custom sessions → a third-party auth library, etc., without an ADR.
 - **Tests use real Postgres + Redis via testcontainers.** No DB mocks. Ever.
 - **One user-story per `it` block.** Test names embed the US ID: `it('US-21: starts a second timer while one is already running')`.
 - **Cross-company 404 tests are mandatory** for every read endpoint and every mutation. Use 404 (not 403) to avoid existence leaks.
@@ -80,4 +80,4 @@ git push origin main           # CI runs CD job → Coolify deploys via API
 
 ## External docs (Context7 MCP)
 
-For up-to-date third-party docs (Next.js 15, Prisma 6, Auth.js v5, Tailwind, Vitest, Playwright, etc.), prefer the Context7 MCP over web search. Use it whenever a library question comes up — your training data may be stale.
+For up-to-date third-party docs (Next.js 15, Prisma 6, Tailwind, Vitest, Playwright, etc.), prefer the Context7 MCP over web search. Use it whenever a library question comes up — your training data may be stale.

@@ -58,7 +58,7 @@ A mutation flows like this:
 
 ## Auth
 
-- Auth.js v5 with `@auth/prisma-adapter`.
+- Custom server-side sessions (`apps/web/src/lib/auth/`), opaque tokens hashed into the `sessions` table. No Auth.js — see ADR-0014.
 - **Credentials provider** — email + argon2id password hash. Rate-limited per IP and per account in `apps/web/src/lib/auth/rate-limit.ts`.
 - **Magic link provider** — single-use, 15-min expiry, SHA-256 hash on the token in DB.
 - **TOTP layer** — `otplib`-based, layered on top of password login (and over magic link if enabled). 10 single-use recovery codes generated on enable.

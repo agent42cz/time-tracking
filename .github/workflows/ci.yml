@@ -163,6 +163,10 @@ jobs:
       COOLIFY_URL: ${{ vars.COOLIFY_URL || 'https://panelqwertzuiop.agent42.cz' }}
       COOLIFY_APP_UUID: ${{ vars.COOLIFY_APP_UUID || 'cg8145vxiumj2l9lzugtn76y' }}
       COOLIFY_API_TOKEN: ${{ secrets.COOLIFY_API_TOKEN }}
+      # Optional. Only needed while the panel is behind Cloudflare Access; unset is fine
+      # if a Bypass policy covers /api/v1/deploy instead.
+      CF_ACCESS_CLIENT_ID: ${{ secrets.CF_ACCESS_CLIENT_ID }}
+      CF_ACCESS_CLIENT_SECRET: ${{ secrets.CF_ACCESS_CLIENT_SECRET }}
 
     steps:
       - name: Check Coolify secret
@@ -181,11 +185,38 @@ jobs:
         id: trigger
         run: |
           set -euo pipefail
+          # The panel sits behind Cloudflare Access. Without credentials Access answers
+          # the API call with a 302 to its login page, so the token never reaches
+          # Coolify and the JSON parse below fails on HTML. Send an Access service
+          # token when one is configured; create it in Cloudflare (Zero Trust → Access
+          # → Service Auth) and add both halves as repo secrets. Alternatively add a
+          # Bypass policy for /api/v1/deploy and leave these unset.
+          access_headers=()
+          if [ -n "${CF_ACCESS_CLIENT_ID}" ] && [ -n "${CF_ACCESS_CLIENT_SECRET}" ]; then
+            access_headers+=(--header "CF-Access-Client-Id: ${CF_ACCESS_CLIENT_ID}")
+            access_headers+=(--header "CF-Access-Client-Secret: ${CF_ACCESS_CLIENT_SECRET}")
+            echo "Using a Cloudflare Access service token."
+          fi
+
           response=$(curl --silent --show-error --fail-with-body \
             --request GET \
             --header "Authorization: Bearer ${COOLIFY_API_TOKEN}" \
             --header "Accept: application/json" \
+            "${access_headers[@]}" \
             "${COOLIFY_URL}/api/v1/deploy?uuid=${COOLIFY_APP_UUID}&force=false")
+
+          # Diagnose an interception before letting jq fail on HTML with a parse error
+          # that says nothing about the actual cause.
+          if ! printf '%s' "${response}" | jq -e . >/dev/null 2>&1; then
+            echo "Coolify response (not JSON): ${response}"
+            if printf '%s' "${response}" | grep -qi 'cloudflare\|cloudflareaccess\|302 Found'; then
+              echo "::error::Cloudflare Access intercepted the Coolify API — the request never reached Coolify. Add CF_ACCESS_CLIENT_ID and CF_ACCESS_CLIENT_SECRET repo secrets (Zero Trust → Access → Service Auth), or add a Bypass policy for /api/v1/deploy."
+            else
+              echo "::error::Coolify returned a non-JSON response (see above)."
+            fi
+            exit 1
+          fi
+
           echo "Coolify response: ${response}"
           deployment_uuid=$(printf '%s' "${response}" | jq -r '.deployments[0].deployment_uuid // .deployment_uuid // empty')
           if [ -z "${deployment_uuid}" ]; then
