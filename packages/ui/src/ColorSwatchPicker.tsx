@@ -17,7 +17,10 @@ export function ColorSwatchPicker({
   disabled = false,
   label,
 }: ColorSwatchPickerProps): ReactElement {
-  const options = [DEFAULT_CLIENT_COLOR, ...CLIENT_COLORS];
+  // Swatches show the light hex — the stored, canonical value. In dark mode the
+  // rendered client name uses its `dark` counterpart, but the picker stays a
+  // stable identity for the colour rather than shifting under the theme.
+  const options = [DEFAULT_CLIENT_COLOR, ...CLIENT_COLORS.map((c) => c.light)];
   return (
     <div role="radiogroup" aria-label={label} className="flex flex-wrap gap-2">
       {options.map((c) => (
