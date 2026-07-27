@@ -55,7 +55,7 @@ async function auditCount(tx: Prisma.TransactionClient, companyId: string): Prom
   return tx.auditLog.count({ where: { companyId } });
 }
 
-describe('catalog (clients / projects / tags)', () => {
+describe('catalog (clients / projects)', () => {
   it('US-13: admin creates clients and groups projects under them', async () => {
     await withTx(async (tx) => {
       const w = await bootstrap(tx, 'us13');
