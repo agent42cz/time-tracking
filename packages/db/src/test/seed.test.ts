@@ -39,12 +39,10 @@ describe('seed (PRD §14.4)', () => {
     expect(b?.role).toBe('user');
   });
 
-  it('creates clients/projects/tags scoped to companies', async () => {
+  it('creates clients/projects scoped to companies', async () => {
     const prisma = await getTestPrisma();
     const clientsA = await prisma.client.findMany({ where: { companyId: SEED_IDS.companyA } });
     expect(clientsA.map((c) => c.id).sort()).toEqual([SEED_IDS.clientA1, SEED_IDS.clientA2].sort());
-    const tagsB = await prisma.tag.findMany({ where: { companyId: SEED_IDS.companyB } });
-    expect(tagsB.map((t) => t.id)).toEqual([SEED_IDS.tagB1]);
   });
 
   it('creates known-date time entries', async () => {

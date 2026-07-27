@@ -17,9 +17,7 @@ export interface SeededWorld {
 }
 
 async function resetData(prisma: PrismaClient): Promise<void> {
-  await prisma.timeEntryTag.deleteMany();
   await prisma.timeEntry.deleteMany();
-  await prisma.tag.deleteMany();
   await prisma.project.deleteMany();
   await prisma.client.deleteMany();
   await prisma.invite.deleteMany();

@@ -25,7 +25,9 @@ describe('schema constraints', () => {
       const company = await tx.company.create({
         data: { name: 'C', slug: 'c-' + Math.random().toString(36).slice(2, 8) },
       });
-      await tx.membership.create({ data: { userId: user.id, companyId: company.id, role: 'user' } });
+      await tx.membership.create({
+        data: { userId: user.id, companyId: company.id, role: 'user' },
+      });
       await expect(
         tx.membership.create({
           data: { userId: user.id, companyId: company.id, role: 'admin' },
@@ -122,15 +124,12 @@ describe('schema constraints', () => {
     });
   });
 
-  it('enforces unique tag (companyId, name)', async () => {
-    await withTx(async (tx) => {
-      const company = await tx.company.create({
-        data: { name: 'C5', slug: 'c5-' + Math.random().toString(36).slice(2, 8) },
-      });
-      await tx.tag.create({ data: { companyId: company.id, name: 'meeting' } });
-      await expect(
-        tx.tag.create({ data: { companyId: company.id, name: 'meeting' } }),
-      ).rejects.toThrow();
-    });
+  it('US-16: the retired tag tables are gone', async () => {
+    const prisma = await getTestPrisma();
+    const rows = await prisma.$queryRaw<{ table_name: string }[]>`
+      SELECT table_name FROM information_schema.tables
+      WHERE table_schema = 'public' AND table_name IN ('tags', 'time_entry_tags')
+    `;
+    expect(rows).toEqual([]);
   });
 });

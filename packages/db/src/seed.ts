@@ -1,7 +1,7 @@
 /**
  * Deterministic seed per PRD §14.4:
  *   2 companies, 1 cross-company user (Admin in A, User in B),
- *   2 single-company users, clients/projects/tags/entries on known dates.
+ *   2 single-company users, clients/projects/entries on known dates.
  *
  * Stable string IDs (`seed-*`) so tests can target them without lookups.
  * Fixed dates anchored to 2026-05-01 (Friday) to keep period-boundary
@@ -24,9 +24,6 @@ export const SEED_IDS = {
   projectA1: 'seed-project-a1',
   projectA2: 'seed-project-a2',
   projectB1: 'seed-project-b1',
-  tagA1: 'seed-tag-a1',
-  tagA2: 'seed-tag-a2',
-  tagB1: 'seed-tag-b1',
 } as const;
 
 export const SEED_ANCHOR = new Date('2026-05-01T08:00:00.000Z'); // Friday morning UTC.
@@ -97,15 +94,6 @@ export async function seed(prisma: PrismaClient): Promise<void> {
       ],
     });
 
-    // --- Tags
-    await tx.tag.createMany({
-      data: [
-        { id: SEED_IDS.tagA1, companyId: SEED_IDS.companyA, name: 'meeting', color: '#3b82f6' },
-        { id: SEED_IDS.tagA2, companyId: SEED_IDS.companyA, name: 'deep-work', color: '#10b981' },
-        { id: SEED_IDS.tagB1, companyId: SEED_IDS.companyB, name: 'support', color: '#f59e0b' },
-      ],
-    });
-
     // --- Time entries on known dates anchored to SEED_ANCHOR.
     // Cross/admin in A logs 2h Friday morning, User A logs 1.5h Friday afternoon.
     await tx.timeEntry.create({
@@ -118,7 +106,6 @@ export async function seed(prisma: PrismaClient): Promise<void> {
         description: 'Kick-off meeting',
         startedAt: SEED_ANCHOR,
         endedAt: new Date(SEED_ANCHOR.getTime() + hours(2)),
-        tags: { create: [{ tagId: SEED_IDS.tagA1 }] },
       },
     });
     await tx.timeEntry.create({
@@ -131,7 +118,6 @@ export async function seed(prisma: PrismaClient): Promise<void> {
         description: 'Implement login',
         startedAt: new Date(SEED_ANCHOR.getTime() + hours(5)),
         endedAt: new Date(SEED_ANCHOR.getTime() + hours(6) + hours(0.5)),
-        tags: { create: [{ tagId: SEED_IDS.tagA2 }] },
       },
     });
     // User B in company B
@@ -145,7 +131,6 @@ export async function seed(prisma: PrismaClient): Promise<void> {
         description: 'Customer call',
         startedAt: new Date(SEED_ANCHOR.getTime() + hours(1)),
         endedAt: new Date(SEED_ANCHOR.getTime() + hours(2)),
-        tags: { create: [{ tagId: SEED_IDS.tagB1 }] },
       },
     });
   });
