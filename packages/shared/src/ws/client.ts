@@ -16,7 +16,8 @@ export interface WsClient {
 
 export interface WsClientOpts {
   url: string;
-  token: string;
+  /** Omit in the browser: the `tt-session` cookie authenticates instead. */
+  token?: string;
   /** Override for tests (default: global WebSocket). */
   WebSocketCtor?: typeof WebSocket;
   onError?: (err: unknown) => void;
@@ -33,7 +34,7 @@ export function createWsClient(opts: WsClientOpts): WsClient {
 
   function connect(): void {
     if (closed) return;
-    const url = `${opts.url}?token=${encodeURIComponent(opts.token)}`;
+    const url = opts.token ? `${opts.url}?token=${encodeURIComponent(opts.token)}` : opts.url;
     socket = new Ctor(url);
     socket.addEventListener('open', () => {
       backoff = 500;

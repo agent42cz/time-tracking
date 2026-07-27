@@ -10,8 +10,8 @@ function entry(over: Partial<RecentEntryInput>): RecentEntryInput {
     startedAt: '2026-06-02T08:00:00Z',
     endedAt: '2026-06-02T10:00:00Z',
     clientName: 'Acme',
+    clientColor: null,
     projectName: 'Web',
-    tags: [],
     ...over,
   };
 }

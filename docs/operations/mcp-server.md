@@ -26,14 +26,16 @@ When the limit is exceeded the server returns **HTTP 429** with a `Retry-After` 
 
 ## Tools
 
-| Tool                   | Description                                                                                                                                                                                                                                 |
-| ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `list_running_entries` | Returns all currently running (no `endTime`) entries for the authenticated user. Returns an empty array when none are running.                                                                                                              |
-| `list_recent_entries`  | Returns the N most recent entries (running or stopped) for the authenticated user, newest first.                                                                                                                                            |
-| `start_timer`          | Opens a new running entry with an optional `title`, client/project, and tags. Broadcasts `timer.started` over WebSocket.                                                                                                                    |
-| `stop_timer`           | Stops the entry identified by `entryId`. Requires the entry to belong to the authenticated user's company. Broadcasts `timer.stopped`.                                                                                                      |
-| `update_entry`         | Patches one or more fields (`title`, `description`, clientId, projectId, tagIds) of the entry identified by `entryId`. `title` is the entry name; `description` is the longer free-text detail. Writes one audit row with `source = 'mcp'`. |
-| `list_catalog`         | Returns the full list of active clients, projects, and tags for the authenticated company — useful for resolving names to IDs before calling other tools.                                                                                   |
+| Tool                   | Description                                                                                                                                                                                                                         |
+| ---------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `list_running_entries` | Returns all currently running (no `endTime`) entries for the authenticated user. Returns an empty array when none are running.                                                                                                      |
+| `list_recent_entries`  | Returns the N most recent entries (running or stopped) for the authenticated user, newest first.                                                                                                                                    |
+| `start_timer`          | Opens a new running entry with an optional `title`, client/project. Broadcasts `timer.started` over WebSocket.                                                                                                                      |
+| `stop_timer`           | Stops the entry identified by `entryId`. Requires the entry to belong to the authenticated user's company. Broadcasts `timer.stopped`.                                                                                              |
+| `update_entry`         | Patches one or more fields (`title`, `description`, clientId, projectId) of the entry identified by `entryId`. `title` is the entry name; `description` is the longer free-text detail. Writes one audit row with `source = 'mcp'`. |
+| `list_catalog`         | Returns the full list of active clients and projects for the authenticated company — useful for resolving names to IDs before calling other tools.                                                                                  |
+
+> The tag feature was removed in AIAGE-57: `tagIds` is no longer accepted by `start_timer` or `update_entry`, and no tool returns tag data.
 
 ## Error codes
 

@@ -10,29 +10,46 @@ import { EditEntryButton } from '@/components/time/EditEntryButton';
 import { checkOverlap } from '@/components/time/save-with-overlap-check';
 import { AutoStackPreviewDialog } from '@/components/time/AutoStackPreviewDialog';
 import type { AutoStackActionInput } from '@/lib/actions/auto-stack';
+import { ClientName } from '@/components/ClientName';
 
 interface Entry {
   id: string;
   description: string;
   clientName: string | null;
+  clientColor: string | null;
   projectName: string | null;
   startedAt: string;
-  tags: { name: string; color: string }[];
 }
 
 export function RunningTimers({
   entries,
   now,
   onStopped,
+  beforeStop,
+  onStopConflict,
   autoStackOverlaps = false,
 }: {
   entries: Entry[];
   now: number | null;
   onStopped: (id: string) => void;
+  /**
+   * Called at the top of every stop attempt (US-103): re-fetches and
+   * resolves to whether `id` is still genuinely running afterwards. When it
+   * resolves `false`, the caller already refreshed the list and surfaced a
+   * neutral notice — the row must skip its own mutation.
+   */
+  beforeStop: (id: string) => Promise<boolean>;
+  /**
+   * Called when the stop mutation itself discovers the entry was no longer
+   * running (a race lost between `beforeStop` and the mutation reaching the
+   * server) — refreshes the list and surfaces the same neutral notice
+   * instead of an error.
+   */
+  onStopConflict: () => void;
   autoStackOverlaps?: boolean;
 }): ReactElement {
   return (
-    <Card>
+    <Card data-testid="running-timers">
       <CardHeader>
         <CardTitle>Probíhá ({entries.length})</CardTitle>
       </CardHeader>
@@ -43,6 +60,8 @@ export function RunningTimers({
             entry={e}
             now={now}
             onStopped={onStopped}
+            beforeStop={beforeStop}
+            onStopConflict={onStopConflict}
             autoStackOverlaps={autoStackOverlaps}
           />
         ))}
@@ -55,11 +74,15 @@ function RunningRow({
   entry,
   now,
   onStopped,
+  beforeStop,
+  onStopConflict,
   autoStackOverlaps = false,
 }: {
   entry: Entry;
   now: number | null;
   onStopped: (id: string) => void;
+  beforeStop: (id: string) => Promise<boolean>;
+  onStopConflict: () => void;
   autoStackOverlaps?: boolean;
 }): ReactElement {
   const [pending, setPending] = useState(false);
@@ -71,9 +94,24 @@ function RunningRow({
   async function handleStop(): Promise<void> {
     setPending(true);
     try {
+      // US-103: re-fetch before acting on this id at all. Between the last
+      // render and this click, another tab/window/the extension may already
+      // have stopped it — `beforeStop` refetches and tells us whether it's
+      // still genuinely running.
+      const stillRunning = await beforeStop(entry.id);
+      if (!stillRunning) {
+        setPending(false);
+        return;
+      }
       if (!autoStackOverlaps) {
         const r = await stopTimerAction(entry.id);
-        if (r.ok) onStopped(entry.id);
+        if (r.ok) {
+          onStopped(entry.id);
+        } else if (r.reason === 'not_running') {
+          // Narrower race: still running above, stopped elsewhere by the
+          // time this mutation reached the server.
+          onStopConflict();
+        }
         notifyTimerChanged();
         setPending(false);
         return;
@@ -98,7 +136,11 @@ function RunningRow({
         return;
       }
       const r = await stopTimerAction(entry.id);
-      if (r.ok) onStopped(entry.id);
+      if (r.ok) {
+        onStopped(entry.id);
+      } else if (r.reason === 'not_running') {
+        onStopConflict();
+      }
       notifyTimerChanged();
       setPending(false);
     } catch {
@@ -115,17 +157,10 @@ function RunningRow({
             )}
           </p>
           <div className="mt-0.5 flex flex-wrap items-center gap-1.5 text-xs text-zinc-500 dark:text-zinc-400">
-            {entry.clientName ? <span>{entry.clientName}</span> : null}
+            {entry.clientName ? (
+              <ClientName name={entry.clientName} color={entry.clientColor} />
+            ) : null}
             {entry.projectName ? <span>· {entry.projectName}</span> : null}
-            {entry.tags.map((t, i) => (
-              <span
-                key={i}
-                className="rounded-full px-2 py-0.5 text-[10px] font-medium text-white"
-                style={{ backgroundColor: t.color }}
-              >
-                {t.name}
-              </span>
-            ))}
           </div>
         </div>
         <div className="flex shrink-0 w-full sm:w-auto items-center gap-3">
@@ -164,7 +199,11 @@ function RunningRow({
           }}
           onSaveWithoutShift={async () => {
             const r = await stopTimerAction(entry.id);
-            if (r.ok) onStopped(entry.id);
+            if (r.ok) {
+              onStopped(entry.id);
+            } else if (r.reason === 'not_running') {
+              onStopConflict();
+            }
             notifyTimerChanged();
           }}
           onShifted={() => {

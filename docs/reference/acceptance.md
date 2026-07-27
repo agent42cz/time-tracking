@@ -13,8 +13,9 @@ Each box maps to the file (and test name) that proves it. v1 was declared comple
   - `apps/web/tests/services/companies.test.ts` — US-7 (`listMyCompanies` returns each membership with role).
   - Multi-company handling at the data layer is exercised in every cross-company 404 case across the suite.
 
-- [x] **Admin can CRUD clients, projects, and tags within a company.**
-  - `apps/web/tests/services/catalog.test.ts` — US-13 (clients/projects), US-14 (archive), US-15 (cascade vs. orphan), US-16 (tag rename/recolor/delete admin-only), US-17 (user inline tag), US-18 (read-only for users).
+- [x] **Admin can CRUD clients and projects within a company.**
+  - `apps/web/tests/services/catalog.test.ts` — US-13 (clients/projects), US-14 (archive), US-15 (cascade vs. orphan), US-18 (read-only for users).
+  - US-16 and US-17 (company-wide tag list, inline tag creation) were retired in AIAGE-57 when the tags feature was removed; see `docs/reference/features.md`.
 
 - [x] **User can start/stop multiple parallel timers and create manual entries.**
   - `apps/web/tests/services/time-entries.test.ts` — US-19, US-20, US-21 (parallel), US-22 (stop), US-23 (manual + validation).
@@ -83,3 +84,19 @@ Total at v1: **81 tests, ~100s wall**. US coverage: **50/50 (100%)**. Lint + typ
   - `apps/web/tests/services/catalog.test.ts` — US-90 (`updateClientFund` persists config, validates input, writes exactly one audit row).
   - `apps/web/tests/services/dashboard-reports.test.ts` — US-90 (weekly/monthly/day breakdown for a working-days client, team-wide; DST-correct per-day dates across the fall-back week; hours-only client proportional monthly target with no day breakdown; combined bar sums fund clients, cross-company `not_found`), US-91 (null client/project render Czech unassigned labels).
   - `apps/web/tests/services/v1-dashboard-funds-route.test.ts` — US-90 (`GET /api/v1/dashboard/funds`: admin gets fund progress; non-admin and cross-company get 404).
+
+- [x] **Admin sets a per-client colour that tints the client's name across web and the extension.**
+  - `apps/web/tests/services/client-color.test.ts` — US-102 (admin sets colour + one audit row, new client defaults to neutral, non-admin blocked, cross-company `not_found`, off-palette colour rejected).
+  - `apps/web/tests/services/time-entries.test.ts` — US-102 (`listRecentHistory` carries the colour; no client reports a null colour).
+  - `apps/web/src/components/ClientName.test.tsx` — US-102 (component sets the `--tint-light`/`--tint-dark` custom properties + `client-tint` class; neutral default and missing client set no colour).
+  - `apps/web/tests/e2e/client-color.spec.ts` — US-102 (end-to-end: picking a swatch resolves to the tinted `color` in a real browser).
+
+- [x] **`/timer` stays in sync with starts/stops performed on another tab, window, profile, or the extension, without a focus change.**
+  - `apps/web/src/lib/useTimerSync.test.ts` — US-103 (opens a socket only when `wsUrl` is set; fires `onChange` for `timer.*`/`time_entry.*` events only; closes/unsubscribes on unmount).
+  - `apps/web/tests/services/time-entries.test.ts` — US-103 (stopping an already-stopped entry reports `{ ok: false, reason: 'conflict' }` instead of corrupting it).
+  - `apps/web/src/app/(authenticated)/timer/TimerLists.test.tsx` — US-103 (a stop click on an entry another tab already stopped is blocked pre-mutation and surfaces a neutral notice).
+  - `apps/web/tests/e2e/multi-tab-timer.spec.ts` — US-103 (end-to-end: a stop in one visible tab clears the running timer in another, over the socket).
+
+- [x] **Diagnostics: a capped ring buffer in the extension plus a `TT_DIAG`-gated server timeline give one ordered view of timer changes across surfaces.**
+  - `apps/extension/src/diag.test.ts` — US-104 (records events with surface/instance, chronological order, capped at `DIAG_CAP` dropping oldest first, clear empties the buffer).
+  - `apps/web/tests/services/diag-log.test.ts` — US-104 (writes nothing unless `TT_DIAG=1`; one JSON line per call when enabled; a stdout failure never propagates to the caller).

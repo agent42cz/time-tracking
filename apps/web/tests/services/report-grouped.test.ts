@@ -11,13 +11,13 @@ function row(over: Partial<ReportRow>): ReportRow {
     userName: 'Alice',
     clientId: 'c1',
     clientName: 'Acme',
+    clientColor: '#b91c1c',
     projectId: 'p1',
     projectName: 'Web',
     description: 'work',
     startedAt: new Date('2026-05-04T08:00:00Z'),
     endedAt: new Date('2026-05-04T10:00:00Z'),
     durationMs: 2 * H,
-    tags: [],
     ...over,
   };
 }

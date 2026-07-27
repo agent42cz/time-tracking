@@ -31,7 +31,6 @@ async function clearTimeEntries(): Promise<void> {
     where: { email: E2E_ADMIN_EMAIL },
     select: { id: true },
   });
-  await prisma.timeEntryTag.deleteMany({ where: { timeEntry: { userId: admin.id } } });
   await prisma.timeEntry.deleteMany({ where: { userId: admin.id } });
   await prisma.auditLog.deleteMany({ where: { actorUserId: admin.id } });
 }

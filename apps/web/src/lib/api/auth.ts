@@ -26,15 +26,26 @@ export interface ApiSession {
   totpEnabled: boolean;
   theme: ThemePreference;
   autoStackOverlaps: boolean;
+  /**
+   * How this request authenticated: a bearer token (the extension's REST
+   * client) vs. the `tt-session` cookie (a same-origin web request). Used by
+   * US-104 diagnostics to tag which surface performed a timer mutation
+   * without relying on any client-supplied value.
+   */
+  authSource: 'web' | 'extension';
   memberships: { companyId: string; companyName: string; companySlug: string; role: Role }[];
 }
 
 export async function resolveApiSession(req: NextRequest): Promise<ApiSession | null> {
   const auth = req.headers.get('authorization');
   let token: string | null = null;
+  let authSource: 'web' | 'extension' = 'web';
   if (auth) {
     const m = /^bearer\s+(.+)$/i.exec(auth.trim());
-    if (m) token = m[1]!;
+    if (m) {
+      token = m[1]!;
+      authSource = 'extension';
+    }
   }
   if (!token) {
     token = req.cookies.get(SESSION_COOKIE)?.value ?? null;
@@ -54,6 +65,7 @@ export async function resolveApiSession(req: NextRequest): Promise<ApiSession | 
     totpEnabled: user.totpEnabled,
     theme: isThemePreference(user.theme) ? user.theme : 'system',
     autoStackOverlaps: user.autoStackOverlaps,
+    authSource,
     memberships: user.memberships.map((m) => ({
       companyId: m.companyId,
       companyName: m.company.name,

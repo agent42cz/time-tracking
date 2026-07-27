@@ -4,6 +4,7 @@
  * `apiBase` (default: `VITE_DEFAULT_API_BASE` at build time, else
  * localhost:3000 — overridable in popup settings).
  */
+import { DIAG_KEY } from './diag.js';
 import type { StorageAdapter } from './storage.js';
 
 export interface Membership {
@@ -28,22 +29,16 @@ export interface MeResponse {
   autoStackOverlaps?: boolean;
 }
 
-export interface TagDto {
-  id: string;
-  name: string;
-  color: string;
-}
-
 export interface ClientDto {
   id: string;
   name: string;
+  color: string;
   projects: { id: string; name: string }[];
 }
 
 export interface CatalogResponse {
   companyId: string | null;
   clients: ClientDto[];
-  tags: TagDto[];
 }
 
 export interface EntryDto {
@@ -52,11 +47,11 @@ export interface EntryDto {
   note: string;
   clientId: string | null;
   clientName: string | null;
+  clientColor: string | null;
   projectId: string | null;
   projectName: string | null;
   startedAt: string;
   endedAt: string | null;
-  tags: TagDto[];
 }
 
 export interface OverlapInfo {
@@ -159,8 +154,20 @@ export async function setStoredSession(
   storage: StorageAdapter,
   session: ApiSession | null,
 ): Promise<void> {
-  if (session) await storage.set(SESSION_KEY, session);
-  else await storage.remove(SESSION_KEY);
+  if (session) {
+    await storage.set(SESSION_KEY, session);
+    return;
+  }
+  await storage.remove(SESSION_KEY);
+  // Clearing the session also clears the diagnostic buffer (US-104): it holds
+  // entry ids from the session that just ended, and on a shared machine those
+  // should not outlive it. Best-effort — failing to clear diagnostics must not
+  // block the logout itself.
+  try {
+    await storage.remove(DIAG_KEY);
+  } catch {
+    /* non-fatal */
+  }
 }
 
 export async function getApiBase(storage: StorageAdapter): Promise<string> {
@@ -280,6 +287,7 @@ export interface ExtFundDay {
 export interface ExtClientFund {
   clientId: string;
   clientName: string;
+  clientColor: string;
   weekly: ExtFundBar;
   monthly: ExtFundBar;
   days: ExtFundDay[];
@@ -332,7 +340,6 @@ export interface StartTimerInput {
   description?: string;
   clientId?: string | null;
   projectId?: string | null;
-  tagIds?: string[];
 }
 
 export async function startTimer(
@@ -388,7 +395,6 @@ export interface UpdateEntryPatch {
   projectId?: string | null;
   startedAt?: string; // ISO
   endedAt?: string | null; // ISO, or null to clear (re-open a running timer)
-  tagIds?: string[];
 }
 
 export async function updateEntry(
@@ -411,7 +417,6 @@ export interface ManualEntryApiInput {
   projectId?: string | null;
   startedAt: string; // ISO
   endedAt: string; // ISO
-  tagIds?: string[];
 }
 
 export async function createManualEntry(

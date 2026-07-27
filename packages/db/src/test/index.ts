@@ -147,9 +147,7 @@ export async function withTx<T>(fn: (tx: TxClient) => Promise<T>): Promise<T> {
 /** Wipe every app table. Prefer withTx in tests. */
 export async function resetDb(prisma?: PrismaClient): Promise<void> {
   const p = prisma ?? (await getTestPrisma());
-  await p.timeEntryTag.deleteMany();
   await p.timeEntry.deleteMany();
-  await p.tag.deleteMany();
   await p.project.deleteMany();
   await p.client.deleteMany();
   await p.invite.deleteMany();

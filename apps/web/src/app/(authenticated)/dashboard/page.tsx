@@ -15,6 +15,7 @@ import {
   topProjects,
 } from '@/lib/services/dashboard';
 import { ClientFundsCard } from './ClientFundsCard';
+import { ClientName } from '@/components/ClientName';
 
 type Period = 'today' | 'week' | 'month';
 
@@ -152,7 +153,7 @@ export default async function DashboardPage({
                     return (
                       <li key={c.clientId ?? 'none'} className="flex items-center gap-3 text-sm">
                         <span className="w-20 shrink-0 truncate text-zinc-700 dark:text-zinc-300 sm:w-32">
-                          {c.clientName}
+                          <ClientName name={c.clientName} color={c.clientColor} />
                         </span>
                         <div className="h-2 flex-1 overflow-hidden rounded-full bg-zinc-100 dark:bg-zinc-700">
                           <div

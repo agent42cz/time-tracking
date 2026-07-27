@@ -15,6 +15,7 @@ function entry(partial: Partial<RecentEntryInput> & { startedAt: string }): Rece
     startedAt: partial.startedAt,
     endedAt: partial.endedAt ?? null,
     clientName: partial.clientName ?? null,
+    clientColor: partial.clientColor ?? null,
     projectName: partial.projectName ?? null,
   };
 }

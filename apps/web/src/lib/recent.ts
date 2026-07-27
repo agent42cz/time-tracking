@@ -12,8 +12,8 @@ export interface RecentEntryInput {
   startedAt: string; // ISO
   endedAt: string | null; // ISO
   clientName: string | null;
+  clientColor: string | null;
   projectName: string | null;
-  tags: { name: string; color: string }[];
 }
 
 export interface RecentDayGroup {

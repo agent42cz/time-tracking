@@ -14,32 +14,26 @@ export async function GET(req: NextRequest): Promise<Response> {
   if (!session) return errorCors(req, 401, 'unauthorized');
   const preferred = req.nextUrl.searchParams.get('company');
   const active = pickActiveCompany(session, preferred);
-  if (!active) return jsonCors(req, { companyId: null, clients: [], tags: [] });
+  if (!active) return jsonCors(req, { companyId: null, clients: [] });
 
-  const [clients, tags] = await Promise.all([
-    prisma().client.findMany({
-      where: { companyId: active.companyId, archived: false },
-      include: {
-        projects: {
-          where: { archived: false },
-          orderBy: [{ sortOrder: 'asc' }, { name: 'asc' }],
-        },
+  const clients = await prisma().client.findMany({
+    where: { companyId: active.companyId, archived: false },
+    include: {
+      projects: {
+        where: { archived: false },
+        orderBy: [{ sortOrder: 'asc' }, { name: 'asc' }],
       },
-      orderBy: [{ sortOrder: 'asc' }, { name: 'asc' }],
-    }),
-    prisma().tag.findMany({
-      where: { companyId: active.companyId },
-      orderBy: { name: 'asc' },
-    }),
-  ]);
+    },
+    orderBy: [{ sortOrder: 'asc' }, { name: 'asc' }],
+  });
 
   return jsonCors(req, {
     companyId: active.companyId,
     clients: clients.map((c) => ({
       id: c.id,
       name: c.name,
+      color: c.color,
       projects: c.projects.map((p) => ({ id: p.id, name: p.name })),
     })),
-    tags: tags.map((t) => ({ id: t.id, name: t.name, color: t.color })),
   });
 }

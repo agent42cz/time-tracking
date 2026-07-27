@@ -12,7 +12,6 @@ const ROUTES = [
   '/dashboard',
   '/reports',
   '/clients',
-  '/tags',
   '/members',
   '/companies',
   '/audit',

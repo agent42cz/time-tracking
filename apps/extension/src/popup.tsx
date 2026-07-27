@@ -32,11 +32,12 @@ import {
 } from './api.js';
 import { formatDurationHMS } from '@tt/shared/time/duration';
 import { fmtDurationHM } from './format.js';
-import { useExtensionSync } from './sync.js';
+import { useExtensionSync, diag } from './sync.js';
 import { EntrySheet, type EntrySheetInitial } from './EntrySheet.js';
 import { AutoStackSheet } from './AutoStackSheet.js';
 import { NewProjectSheet } from './NewProjectSheet.js';
 import { groupRecentByDay, type RecentEntryInput } from './recent.js';
+import { clientTint } from './client-tint.js';
 import {
   applyThemeClass,
   readShowStats,
@@ -91,6 +92,7 @@ export function Popup(): ReactElement {
       ]);
       setState({ session, me: user, timer, catalog });
       await setPopupCache(storage, { me: user, timer, catalog });
+      void diag.log('refresh:done', { running: (timer.running ?? []).map((e) => e.id) });
 
       const activeCompanyId = timer.companyId ?? companyId;
       const admin = user.memberships.some(
@@ -485,7 +487,6 @@ function AppShell({
         projectId: e.projectId,
         startedAt: e.startedAt,
         endedAt: e.endedAt,
-        tagIds: e.tags.map((t) => t.id),
       },
     });
   }
@@ -522,7 +523,9 @@ function AppShell({
             fund.clients.map((c) => (
               <div key={c.clientId} className="mb-1.5 last:mb-0">
                 <div className="mb-0.5 truncate text-[10px] text-zinc-500 dark:text-zinc-400">
-                  {c.clientName}
+                  <span className="client-tint" style={clientTint(c.clientColor)}>
+                    {c.clientName}
+                  </span>
                 </div>
                 {c.days.length > 0 ? (
                   <div className="flex gap-0.5">
@@ -790,6 +793,7 @@ function MoreMenu({
 }): ReactElement {
   const [open, setOpen] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [diagCopied, setDiagCopied] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -816,6 +820,17 @@ function MoreMenu({
       setRefreshing(false);
       setOpen(false);
     }
+  }
+
+  // No toast component exists in this popup — every other confirmation here
+  // (see "Obnovit"/"Načítám…" above) is a transient label swap on the
+  // triggering menu item itself, so diagnostics copy reuses that pattern
+  // instead of introducing a new notice mechanism (US-104).
+  async function handleCopyDiagnostics(): Promise<void> {
+    const rows = await diag.read();
+    await navigator.clipboard.writeText(JSON.stringify(rows, null, 2));
+    setDiagCopied(true);
+    setTimeout(() => setDiagCopied(false), 2000);
   }
 
   return (
@@ -893,6 +908,17 @@ function MoreMenu({
             <span>{refreshing ? 'Načítám…' : 'Obnovit'}</span>
             <span aria-hidden className="text-zinc-400 dark:text-zinc-500">
               ⟳
+            </span>
+          </button>
+          <button
+            type="button"
+            role="menuitem"
+            onClick={() => void handleCopyDiagnostics()}
+            className="flex w-full items-center justify-between px-3 py-2 text-left text-xs text-zinc-700 hover:bg-zinc-50 dark:text-zinc-300 dark:hover:bg-zinc-700"
+          >
+            <span>{diagCopied ? 'Zkopírováno ✓' : 'Zkopírovat diagnostiku'}</span>
+            <span aria-hidden className="text-zinc-400 dark:text-zinc-500">
+              ⧉
             </span>
           </button>
           <button
@@ -1040,17 +1066,12 @@ function StartRow({
   const [description, setDescription] = useState('');
   const [clientId, setClientId] = useState('');
   const [projectId, setProjectId] = useState('');
-  const [tagIds, setTagIds] = useState<string[]>([]);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const projects = useMemo(
     () => catalog.clients.find((c) => c.id === clientId)?.projects ?? [],
     [catalog.clients, clientId],
   );
-
-  function toggleTag(id: string): void {
-    setTagIds((prev) => (prev.includes(id) ? prev.filter((t) => t !== id) : [...prev, id]));
-  }
 
   async function start(): Promise<void> {
     setPending(true);
@@ -1060,12 +1081,10 @@ function StartRow({
         description,
         clientId: clientId || null,
         projectId: projectId || null,
-        tagIds,
       });
       setDescription('');
       setClientId('');
       setProjectId('');
-      setTagIds([]);
     } catch {
       setError('Nepodařilo se spustit');
     } finally {
@@ -1116,28 +1135,6 @@ function StartRow({
           ))}
         </select>
       </div>
-      {catalog.tags.length > 0 ? (
-        <div className="flex flex-wrap gap-1">
-          {catalog.tags.map((t) => {
-            const active = tagIds.includes(t.id);
-            return (
-              <button
-                key={t.id}
-                type="button"
-                onClick={() => toggleTag(t.id)}
-                className="rounded-full border px-2 py-0.5 text-[10px] font-medium"
-                style={
-                  active
-                    ? { backgroundColor: t.color, borderColor: t.color, color: '#fff' }
-                    : { borderColor: '#52525b', color: '#a1a1aa' }
-                }
-              >
-                {t.name}
-              </button>
-            );
-          })}
-        </div>
-      ) : null}
       <button
         type="button"
         onClick={start}
@@ -1147,6 +1144,33 @@ function StartRow({
         {pending ? 'Spouštím…' : '▶ Spustit'}
       </button>
     </div>
+  );
+}
+
+/**
+ * "Client · Project" line shared by RunningList and HistoryList. The client
+ * half is tinted via `clientTint` (US-102); the project half never is.
+ */
+function ClientProjectLine({
+  clientName,
+  clientColor,
+  projectName,
+}: {
+  clientName: string | null;
+  clientColor: string | null;
+  projectName: string | null;
+}): ReactElement {
+  if (!clientName && !projectName) return <>—</>;
+  return (
+    <>
+      {clientName ? (
+        <span className="client-tint" style={clientTint(clientColor)}>
+          {clientName}
+        </span>
+      ) : null}
+      {clientName && projectName ? ' · ' : null}
+      {projectName}
+    </>
   );
 }
 
@@ -1161,6 +1185,7 @@ function RunningList({
     description: string;
     startedAt: string;
     clientName: string | null;
+    clientColor: string | null;
     projectName: string | null;
   }[];
   now: number;
@@ -1206,7 +1231,11 @@ function RunningList({
               )}
             </div>
             <div className="truncate text-[10px] text-zinc-500 dark:text-zinc-400">
-              {[e.clientName, e.projectName].filter(Boolean).join(' · ') || '—'}
+              <ClientProjectLine
+                clientName={e.clientName}
+                clientColor={e.clientColor}
+                projectName={e.projectName}
+              />
             </div>
           </button>
           <div className="flex items-center gap-2">
@@ -1312,7 +1341,11 @@ function HistoryList({
                             )}
                           </div>
                           <div className="truncate text-[10px] text-zinc-500 dark:text-zinc-400">
-                            {[e.clientName, e.projectName].filter(Boolean).join(' · ') || '—'}
+                            <ClientProjectLine
+                              clientName={e.clientName}
+                              clientColor={e.clientColor}
+                              projectName={e.projectName}
+                            />
                           </div>
                         </button>
                         <div className="flex items-center gap-1.5">

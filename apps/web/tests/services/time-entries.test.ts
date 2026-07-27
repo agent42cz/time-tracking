@@ -8,9 +8,10 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { Prisma } from '@prisma/client';
 import { getTestPrisma, stopTestPrisma, withTx } from '@tt/db/test';
+import { CLIENT_COLORS } from '@tt/shared';
 import { callsTo, recordingDb, soleCallArg } from '../_helpers/recording-db.js';
 import { createCompany } from '../../src/lib/services/companies.js';
-import { createClient, createTag } from '../../src/lib/services/catalog.js';
+import { createClient, updateClientColor } from '../../src/lib/services/catalog.js';
 import {
   createManualEntry,
   getEntryHistory,
@@ -38,7 +39,6 @@ interface World {
   user: string;
   outsider: string;
   company: string;
-  tagId: string;
 }
 
 async function bootstrap(tx: Prisma.TransactionClient, suffix: string): Promise<World> {
@@ -50,14 +50,11 @@ async function bootstrap(tx: Prisma.TransactionClient, suffix: string): Promise<
   const company = await createCompany(tx, { name: `TE ${suffix}`, createdByUserId: admin.id });
   await tx.membership.create({ data: { userId: user.id, companyId: company.id, role: 'user' } });
   await createCompany(tx, { name: `Other ${suffix}`, createdByUserId: outsider.id });
-  const tag = await createTag(tx, admin.id, { companyId: company.id, name: 'work' });
-  if (!tag.ok) throw new Error('setup');
   return {
     admin: admin.id,
     user: user.id,
     outsider: outsider.id,
     company: company.id,
-    tagId: tag.value.id,
   };
 }
 
@@ -82,7 +79,7 @@ describe('time entries', () => {
     });
   });
 
-  it('US-20: attaches client/project/tags after the timer is running', async () => {
+  it('US-20: attaches client/project after the timer is running', async () => {
     await withTx(async (tx) => {
       const w = await bootstrap(tx, 'us20');
       const c = await createClient(tx, w.admin, { companyId: w.company, name: 'Acme' });
@@ -92,15 +89,12 @@ describe('time entries', () => {
 
       const upd = await updateEntry(tx, w.user, start.value.id, {
         clientId: c.value.id,
-        tagIds: [w.tagId],
       });
       expect(upd.ok).toBe(true);
       const reread = await tx.timeEntry.findUniqueOrThrow({
         where: { id: start.value.id },
-        include: { tags: true },
       });
       expect(reread.clientId).toBe(c.value.id);
-      expect(reread.tags).toHaveLength(1);
       // start + update = 2 audit rows
       expect(await auditCount(tx, start.value.id)).toBe(2);
     });
@@ -136,6 +130,23 @@ describe('time entries', () => {
         expect(list.value.find((e) => e.id === a.value.id)).toBeTruthy();
       }
       expect(await auditCount(tx, a.value.id)).toBe(2); // create + stop=update
+    });
+  });
+
+  it('US-103: stopping an entry that is already stopped reports a conflict rather than corrupting it', async () => {
+    await withTx(async (tx) => {
+      const w = await bootstrap(tx, 'us103conflict');
+      const started = await startTimer(tx, w.user, { companyId: w.company, description: 'x' });
+      if (!started.ok) throw new Error('setup failed');
+      const first = await stopTimer(tx, w.user, started.value.id);
+      expect(first.ok).toBe(true);
+      const endedAt = (await tx.timeEntry.findUnique({ where: { id: started.value.id } }))?.endedAt;
+
+      const second = await stopTimer(tx, w.user, started.value.id);
+
+      expect(second).toEqual({ ok: false, reason: 'not_running' });
+      const after = await tx.timeEntry.findUnique({ where: { id: started.value.id } });
+      expect(after?.endedAt).toEqual(endedAt); // the first stop time survives
     });
   });
 
@@ -201,15 +212,12 @@ describe('time entries', () => {
       if (!m.ok) throw new Error('setup');
       const upd = await updateEntry(tx, w.user, m.value.id, {
         description: 'Edited',
-        tagIds: [w.tagId],
       });
       expect(upd.ok).toBe(true);
       const reread = await tx.timeEntry.findUniqueOrThrow({
         where: { id: m.value.id },
-        include: { tags: true },
       });
       expect(reread.description).toBe('Edited');
-      expect(reread.tags).toHaveLength(1);
     });
   });
 
@@ -664,6 +672,62 @@ describe('time entries', () => {
       const cross = await listRecentHistory(tx, w.outsider, w.company, now);
       expect(cross.ok).toBe(false);
       if (!cross.ok) expect(cross.reason).toBe('not_found');
+    });
+  });
+
+  it('US-102: listRecentHistory carries the client colour alongside the name', async () => {
+    await withTx(async (tx) => {
+      const w = await bootstrap(tx, 'us102color');
+      const now = new Date('2026-06-02T09:00:00Z');
+      const c = await createClient(tx, w.admin, { companyId: w.company, name: 'Acme' });
+      if (!c.ok) throw new Error('setup failed');
+      await updateClientColor(tx, w.admin, c.value.id, CLIENT_COLORS[2]!.light);
+
+      const entry = await createManualEntry(
+        tx,
+        w.user,
+        {
+          companyId: w.company,
+          clientId: c.value.id,
+          startedAt: new Date('2026-06-01T08:00:00Z'),
+          endedAt: new Date('2026-06-01T09:00:00Z'),
+        },
+        now,
+      );
+      if (!entry.ok) throw new Error('setup failed');
+
+      const res = await listRecentHistory(tx, w.user, w.company, now);
+      expect(res.ok).toBe(true);
+      if (!res.ok) return;
+      const [row] = res.value;
+      expect(row?.clientName).toBe('Acme');
+      expect(row?.clientColor).toBe(CLIENT_COLORS[2]!.light);
+    });
+  });
+
+  it('US-102: an entry with no client reports a null colour', async () => {
+    await withTx(async (tx) => {
+      const w = await bootstrap(tx, 'us102nocolor');
+      const now = new Date('2026-06-02T09:00:00Z');
+
+      const entry = await createManualEntry(
+        tx,
+        w.user,
+        {
+          companyId: w.company,
+          startedAt: new Date('2026-06-01T08:00:00Z'),
+          endedAt: new Date('2026-06-01T09:00:00Z'),
+        },
+        now,
+      );
+      if (!entry.ok) throw new Error('setup failed');
+
+      const res = await listRecentHistory(tx, w.user, w.company, now);
+      expect(res.ok).toBe(true);
+      if (!res.ok) return;
+      const [row] = res.value;
+      expect(row?.clientName).toBeNull();
+      expect(row?.clientColor).toBeNull();
     });
   });
 });

@@ -9,14 +9,14 @@ export default async function TimerPage(): Promise<ReactElement> {
   const s = await requireActiveCompany();
 
   const now = new Date();
-  const [autoStackUser, running, historyResult, clients, tags] = await Promise.all([
+  const [autoStackUser, running, historyResult, clients] = await Promise.all([
     prisma().user.findUniqueOrThrow({
       where: { id: s.userId },
       select: { autoStackOverlaps: true },
     }),
     prisma().timeEntry.findMany({
       where: { userId: s.userId, companyId: s.activeCompanyId, endedAt: null, deletedAt: null },
-      include: { client: true, project: true, tags: { include: { tag: true } } },
+      include: { client: true, project: true },
       orderBy: { startedAt: 'desc' },
     }),
     listRecentHistory(prisma(), s.userId, s.activeCompanyId, now),
@@ -27,7 +27,6 @@ export default async function TimerPage(): Promise<ReactElement> {
       },
       orderBy: [{ sortOrder: 'asc' }, { name: 'asc' }],
     }),
-    prisma().tag.findMany({ where: { companyId: s.activeCompanyId }, orderBy: { name: 'asc' } }),
   ]);
   const history = historyResult.ok ? historyResult.value : [];
 
@@ -44,28 +43,28 @@ export default async function TimerPage(): Promise<ReactElement> {
             name: c.name,
             projects: c.projects.map((p) => ({ id: p.id, name: p.name })),
           }))}
-          tags={tags.map((t) => ({ id: t.id, name: t.name, color: t.color }))}
           autoStackOverlaps={autoStackUser.autoStackOverlaps}
         />
         <TimerLists
+          wsUrl={process.env.WS_PUBLIC_URL ?? null}
           autoStackOverlaps={autoStackUser.autoStackOverlaps}
           initialNowMs={now.getTime()}
           initialRunning={running.map((r) => ({
             id: r.id,
             description: r.description,
             clientName: r.client?.name ?? null,
+            clientColor: r.client?.color ?? null,
             projectName: r.project?.name ?? null,
             startedAt: r.startedAt.toISOString(),
-            tags: r.tags.map((tt) => ({ name: tt.tag.name, color: tt.tag.color })),
           }))}
           initialHistory={history.map((e) => ({
             id: e.id,
             description: e.description,
             clientName: e.clientName,
+            clientColor: e.clientColor,
             projectName: e.projectName,
             startedAt: e.startedAt.toISOString(),
             endedAt: e.endedAt!.toISOString(),
-            tags: e.tags.map((tt) => ({ name: tt.name, color: tt.color })),
           }))}
         />
       </div>

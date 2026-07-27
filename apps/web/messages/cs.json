@@ -7,7 +7,6 @@
     "timer": "Stopky",
     "clients": "Klienti",
     "projects": "Projekty",
-    "tags": "Štítky",
     "members": "Členové",
     "dashboard": "Dashboard",
     "reports": "Reporty",
@@ -44,11 +43,11 @@
     "description": "Popis činnosti",
     "client": "Klient",
     "project": "Projekt",
-    "tags": "Štítky",
     "today": "Dnes",
     "yesterday": "Včera",
     "addManual": "Přidat ručně",
     "playAgain": "Spustit znovu",
+    "alreadyStopped": "Tento záznam už byl zastaven jinde. Seznam byl aktualizován.",
     "history": {
       "empty": "Žádné dokončené záznamy",
       "emptyHint": "Spusťte nahoře nové měření nebo přidejte ruční zápis."
@@ -72,7 +71,6 @@
       "descriptionPlaceholder": "Podrobnější poznámka k záznamu…",
       "client": "Klient",
       "project": "Projekt",
-      "tags": "Štítky",
       "noClient": "— bez klienta —",
       "noProject": "— bez projektu —",
       "startedAt": "Začátek",
@@ -146,7 +144,6 @@
       "date": "Datum",
       "user": "Uživatel",
       "description": "Popis",
-      "tags": "Štítky",
       "duration": "Trvání",
       "subtotal": "Mezisoučet",
       "grandTotal": "Celkem",
@@ -215,12 +212,6 @@
     "forbidden": "Přístup zamítnut",
     "tryAgain": "Zkusit znovu"
   },
-  "tags": {
-    "confirm": {
-      "deleteTitle": "Smazat štítek „{name}\"?",
-      "deleteDescription": "Štítek bude odstraněn ze všech záznamů, kde je použit."
-    }
-  },
   "companies": {
     "confirm": {
       "leaveTitle": "Opustit firmu „{name}\"?",
@@ -231,6 +222,8 @@
   },
   "clients": {
     "title": "Seznam",
+    "colorLabel": "Barva klienta",
+    "colorError": "Barvu se nepodařilo uložit.",
     "search": {
       "placeholder": "Hledat klienta nebo projekt",
       "ariaLabel": "Hledat klienta nebo projekt",

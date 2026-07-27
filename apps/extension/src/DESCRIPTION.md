@@ -8,20 +8,21 @@ The popup is a self-contained Vite + React app loaded by the MV3 manifest. It au
 
 ## Public surface
 
-| File              | Responsibility                                                                                                                                                           |
-| ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `popup.tsx`       | Top-level popup React tree — Clockify-style layout: company switcher, quick-start row, parallel running timers, "This week" grouped by day with ⋯ menu and "Play again". |
-| `popup-entry.tsx` | Vite entry point — mounts `popup.tsx` into the popup HTML.                                                                                                               |
-| `index.ts`        | Background script (MV3 service worker) — keeps the auth state warm and proxies messages between popup and storage.                                                       |
-| `index.css`       | Tailwind entry for the popup styles.                                                                                                                                     |
-| `api.ts`          | HTTP client for the web app's API surface (route handlers + tRPC). Adds the Bearer session token from `chrome.storage.local`.                                            |
-| `storage.ts`      | Thin wrapper over `chrome.storage.local` for reads/writes of session, queue, and cached state.                                                                           |
-| `sync.ts`         | Connects to `apps/ws`, applies incoming events to local state, wires reconnect via `packages/shared/src/ws/client.ts`.                                                   |
-| `queue.ts`        | The persistent FIFO offline queue. Commit-before-send so a browser kill mid-replay leaves a recoverable queue.                                                           |
-| `queue.test.ts`   | Vitest unit tests for the queue: in-order replay, conflict resolution, transient retry, browser-kill resume, pending-count surface for the unsynced indicator.           |
-| `EntrySheet.tsx`  | Overlay sheet for creating or editing a time entry inline; also supports inline admin project creation without leaving the popup.                                        |
-| `format.ts`       | Formatting helpers — `fmtDurationHM` converts a millisecond duration to a human-readable `Hh Mm` string.                                                                 |
-| `datetime.ts`     | Conversion helpers between `datetime-local` input values and ISO 8601 strings (used by `EntrySheet` to read/write date-time fields).                                     |
+| File              | Responsibility                                                                                                                                                                                                                                                                                         |
+| ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `popup.tsx`       | Top-level popup React tree — Clockify-style layout: company switcher, quick-start row, parallel running timers, "This week" grouped by day with ⋯ menu and "Play again".                                                                                                                               |
+| `popup-entry.tsx` | Vite entry point — mounts `popup.tsx` into the popup HTML.                                                                                                                                                                                                                                             |
+| `index.ts`        | Background script (MV3 service worker) — keeps the auth state warm and proxies messages between popup and storage.                                                                                                                                                                                     |
+| `index.css`       | Tailwind entry for the popup styles.                                                                                                                                                                                                                                                                   |
+| `api.ts`          | HTTP client for the web app's API surface (route handlers + tRPC). Adds the Bearer session token from `chrome.storage.local`.                                                                                                                                                                          |
+| `storage.ts`      | Thin wrapper over `chrome.storage.local` for reads/writes of session, queue, and cached state.                                                                                                                                                                                                         |
+| `sync.ts`         | Connects to `apps/ws`, applies incoming events to local state, wires reconnect via `packages/shared/src/ws/client.ts`.                                                                                                                                                                                 |
+| `queue.ts`        | The persistent FIFO offline queue. Commit-before-send so a browser kill mid-replay leaves a recoverable queue.                                                                                                                                                                                         |
+| `queue.test.ts`   | Vitest unit tests for the queue: in-order replay, conflict resolution, transient retry, browser-kill resume, pending-count surface for the unsynced indicator.                                                                                                                                         |
+| `EntrySheet.tsx`  | Overlay sheet for creating or editing a time entry inline; also supports inline admin project creation without leaving the popup.                                                                                                                                                                      |
+| `format.ts`       | Formatting helpers — `fmtDurationHM` converts a millisecond duration to a human-readable `Hh Mm` string.                                                                                                                                                                                               |
+| `datetime.ts`     | Conversion helpers between `datetime-local` input values and ISO 8601 strings (used by `EntrySheet` to read/write date-time fields).                                                                                                                                                                   |
+| `client-tint.ts`  | `clientTint(color)` — leaf-imports `darkVariantOf` from `@tt/shared/colors` and returns the `--tint-light`/`--tint-dark` inline style consumed by `.client-tint` in `index.css` (US-102). Single source of truth so `popup.tsx`'s running/history/fund rows don't each re-derive the dark counterpart. |
 
 ## Offline queue (the load-bearing piece)
 
@@ -36,7 +37,7 @@ The "commit before send" property means: if the browser is killed mid-flush, the
 
 ## Dependencies
 
-- **Internal:** `@tt/shared/time/duration` is imported (`popup.tsx`, `formatDurationHMS` for the running-row `HH:MM:SS` display, US-92) — a leaf import only, so `zod`, `date-fns-tz` and the WS client stay out of the popup bundle. `@tt/ui` is a declared `package.json` dependency but nothing in `src/` imports it; the popup keeps its own Tailwind + `clsx` primitives instead (see Notes).
+- **Internal:** `@tt/shared/time/duration` is imported (`popup.tsx`, `formatDurationHMS` for the running-row `HH:MM:SS` display, US-92) and `@tt/shared/colors` is imported (`client-tint.ts`, `darkVariantOf` for the client-colour tint, US-102) — leaf imports only, so `zod`, `date-fns-tz` and the WS client stay out of the popup bundle. `@tt/ui` is a declared `package.json` dependency but nothing in `src/` imports it; the popup keeps its own Tailwind + `clsx` primitives instead (see Notes).
 - **External:** `react`, `react-dom`, Tailwind via Vite. No Auth.js — the extension authenticates by holding a session token issued by the web app.
 
 ## Used by

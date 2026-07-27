@@ -25,7 +25,6 @@ export async function POST(req: NextRequest): Promise<Response> {
     projectId?: string | null;
     startedAt?: string;
     endedAt?: string;
-    tagIds?: string[];
   };
   try {
     body = await req.json();
@@ -50,7 +49,6 @@ export async function POST(req: NextRequest): Promise<Response> {
     projectId: body.projectId ?? null,
     startedAt,
     endedAt,
-    tagIds: body.tagIds ?? [],
   });
   if (!result.ok) {
     if (result.reason === 'not_found') return errorCors(req, 404, 'not_found');

@@ -2,6 +2,8 @@
 
 Self-hosted multi-tenant time tracker. Three apps, three packages, deployed to Coolify as a single Docker Compose stack.
 
+The tags/štítky feature (US-16, US-17) was removed entirely in AIAGE-57, down to the `tags` and `time_entry_tags` tables — there is nothing tag-related left to describe in this document; see the retirement note in [`../reference/features.md`](../reference/features.md).
+
 ## Topology
 
 ```
@@ -29,7 +31,7 @@ Self-hosted multi-tenant time tracker. Three apps, three packages, deployed to C
 
 | App           | Path                                     | Stack                                                  | Purpose                                                                                                                                                                                                                                                                                                                                                                                          |
 | ------------- | ---------------------------------------- | ------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| **web**       | [`apps/web`](../../apps/web)             | Next.js 15 App Router, React 19, Tailwind, `next-intl` | Primary UI + tRPC API + route handlers + server actions. Hosts every page from PRD §6.1: `/timer`, `/dashboard`, `/reports`, `/clients`, `/tags`, `/members`, `/audit`, `/trash`, `/settings`, `/companies`, plus `/login`, `/invite/[token]`, `/reset`.                                                                                                                                         |
+| **web**       | [`apps/web`](../../apps/web)             | Next.js 15 App Router, React 19, Tailwind, `next-intl` | Primary UI + tRPC API + route handlers + server actions. Hosts every page from PRD §6.1: `/timer`, `/dashboard`, `/reports`, `/clients`, `/members`, `/audit`, `/trash`, `/settings`, `/companies`, plus `/login`, `/invite/[token]`, `/reset`.                                                                                                                                                  |
 | **ws**        | [`apps/ws`](../../apps/ws)               | `ws` (Node WebSocket library) + `ioredis`              | Real-time fan-out. Authenticates via session cookie or `?token=`. Subscribes each socket to `user:{id}` and `company:{id}` channels via a single Redis `psubscribe`, filters per connection. Mutation routes in `web` publish to Redis; this service forwards.                                                                                                                                   |
 | **extension** | [`apps/extension`](../../apps/extension) | Vite + React 19, MV3 manifest                          | Chrome popup. Mirrors web in real time via `apps/ws`. Persistent FIFO offline queue in `chrome.storage.local` (commit-before-send so a browser kill mid-replay leaves a recoverable queue). Stop-timer replays that detect an overlap write the `OverlapInfo` to the `tt:pending-overlaps` key in `chrome.storage.local`; the popup reads and clears the key when it opens the auto-stack sheet. |
 
@@ -75,6 +77,7 @@ A mutation flows like this:
 - Two WS clients of the same user receive each other's events within ~1s (verified by `apps/ws/src/server.test.ts`).
 - Cross-company isolation is verified over a 3s window: zero events leak (US-31).
 - Reconnect uses exponential backoff in `packages/shared/src/ws/client.ts`.
+- **`apps/web` is itself a WS client, as of AIAGE-57 (US-103).** `/timer` mounts `useTimerSync` (`apps/web/src/lib/useTimerSync.ts`), which wraps the shared `createWsClient` (`packages/shared/src/ws/client.ts`) and refetches on any `timer.*`/`time_entry.*` event; the browser's `tt-session` cookie authenticates the upgrade, so no `?token=` is passed. Before this, `apps/web` imported `createWsClient` nowhere — the module had been exported, unused, since the WS service was built, so two browser tabs that were both _visible_ never learned about each other's starts/stops (see `docs/gotchas.md`, 2026-07-27). `apps/extension` still does **not** use `createWsClient`: its WS handling is a separate, hand-rolled `WebSocket` in `apps/extension/src/sync.ts:157-199`, left as-is deliberately so Phase 3 of AIAGE-57 didn't couple a diagnostics pass to a client migration. `wsUrl` reaching `/timer` unset (no `WS_PUBLIC_URL`) degrades to the pre-existing same-tab-event + `visibilitychange` refetch, not a hard failure.
 
 ## REST API (v1)
 
@@ -89,7 +92,7 @@ Token-authenticated REST surface consumed by the Chrome extension and external t
 | `GET`    | `/api/v1/timer`                           | token        | Running timers + history (start-of-last-month..end-of-this-month) + this-week/month/last-month summary — drives the extension popup.                                                                            |
 | `POST`   | `/api/v1/timer`                           | token        | Start a new running timer in the active company (`?company=`).                                                                                                                                                  |
 | `POST`   | `/api/v1/timer/[id]/stop`                 | token        | Stop the running timer identified by `id`; 404 if not found or cross-company.                                                                                                                                   |
-| `GET`    | `/api/v1/catalog`                         | token        | Return active clients (with projects) and tags for the active company (`?company=`).                                                                                                                            |
+| `GET`    | `/api/v1/catalog`                         | token        | Return active clients (with projects) for the active company (`?company=`).                                                                                                                                     |
 | `POST`   | `/api/v1/entries`                         | token        | Create a manual (completed) entry in the active company (`?company=`); 422 if window invalid (`end ≤ start` or future).                                                                                         |
 | `PATCH`  | `/api/v1/entries/[id]`                    | token        | Edit an entry (owner or admin); 404 cross-company; 422 invalid window.                                                                                                                                          |
 | `DELETE` | `/api/v1/entries/[id]`                    | token        | Soft-delete an entry (owner or admin); 404 cross-company.                                                                                                                                                       |
@@ -112,7 +115,7 @@ Admins can configure a per-`Client` "work fund" — a weekly hour commitment —
 - **Config** — a fund section on the Clients screen (`ClientFundForm.tsx`, under `apps/web/src/app/(authenticated)/clients/`) sets `fundInDashboard` / `weeklyFundMinutes` / `weekStartsOn` (ISO weekday, 1=Mon…7=Sun) / `workingDays` (ISO weekdays; empty ⇒ "hours-only" client, no per-day breakdown). Written via `updateClientFund` (`apps/web/src/lib/services/catalog.ts`) + `updateClientFundAction`, admin-guarded, writes exactly one `client_fund` audit row, cross-company 404.
 - **Aggregation** — `clientFundProgress(db, actorUserId, companyId, reference?)` in `apps/web/src/lib/services/dashboard.ts`: team-wide (all users, not just the actor), admin-gated (`not_found` for non-admin/cross-company). For each fund client it computes a weekly bar (`weekRangeFor(weekStartsOn)`, `packages/shared/src/time/index.ts`) and a monthly bar (working-days clients: Σ working-weekday occurrences in the month × daily target; hours-only clients: `round(weeklyFund × daysInMonth / 7)`, via `isoWorkingDayCountInMonth`/`daysInMonthCount`), plus a per-day green/red breakdown for working-days clients (greedy fill of the week's worked minutes across working days in order) and a combined bar summing all fund clients. All Prague-zoned and DST-correct.
 - **Endpoint** — `GET /api/v1/dashboard/funds` (see REST API table above) returns the `FundProgress` shape.
-- **Web UI** — `ClientFundsCard.tsx` on `/dashboard`: server component seeds initial data, client component polls the endpoint every ~45s (matches the no-WS-on-web architecture used elsewhere on the dashboard).
+- **Web UI** — `ClientFundsCard.tsx` on `/dashboard`: server component seeds initial data, client component polls the endpoint every ~45s. The dashboard does not consume the WS event stream — unlike `/timer`, which gained a WS client in AIAGE-57 (see "Real-time guarantees" above); polling here is a deliberate, narrower choice, not evidence that web has no WS client at all.
 - **Extension UI** — an admin-only header bar in the popup with a user-selectable display mode (`tt:fund-display` = `off` / `combined` / `per-client`, persisted in `chrome.storage.local`), fetched via `getFundProgress()` in `apps/extension/src/api.ts`.
 
 ## Build log
@@ -128,7 +131,7 @@ The chronological v1 build is recorded in [`build-log.md`](build-log.md) — use
 
 Reporty's data flow is:
 
-1. `runReport(db, actorUserId, filters)` — single Prisma query; returns `ReportRow[]` with IDs, names, durations, tags.
+1. `runReport(db, actorUserId, filters)` — single Prisma query; returns `ReportRow[]` with IDs, names, durations.
 2. `buildGroupedReport(rows, { groupBy, clampEnd })` — pure function; groups by project / member / day, computes per-group `subtotalMs` and `grandTotalMs`. Consumed by both the page component and the PDF builder.
 3. `buildReportPdf(report, meta)` — pure async function (pdfmake `PdfPrinter`, ADR-0010); receives all translated strings via `meta.t`, so it is unit-testable without next-intl. Embeds DejaVu Sans for Czech diacritics.
 
@@ -140,6 +143,6 @@ Two export routes hang off `/api/reports/`:
 ## See also
 
 - [`../reference/data-model.md`](../reference/data-model.md) — Prisma entities and relations.
-- [`../reference/features.md`](../reference/features.md) — feature catalogue, US-1..US-91.
+- [`../reference/features.md`](../reference/features.md) — feature catalogue, US-1..US-104.
 - [`../operations/coolify-deploy.md`](../operations/coolify-deploy.md) — production stack and env vars.
 - [`../decisions/`](../decisions/) — ADRs explaining _why_ the stack is what it is.

@@ -6,7 +6,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { Prisma } from '@prisma/client';
 import { getTestPrisma, stopTestPrisma, withTx } from '@tt/db/test';
 import { createCompany, leaveCompany } from '../../src/lib/services/companies.js';
-import { createClient, createProject, createTag } from '../../src/lib/services/catalog.js';
+import { createClient, createProject } from '../../src/lib/services/catalog.js';
 import {
   clientFundProgress,
   clientShare,
@@ -42,7 +42,6 @@ interface DashWorld {
   clientB: string;
   projectA: string;
   projectB: string;
-  tagA: string;
   range: { start: Date; end: Date };
 }
 
@@ -72,8 +71,6 @@ async function buildWorld(tx: Prisma.TransactionClient, suffix: string): Promise
   const projectA = await createProject(tx, admin.id, { clientId: clientA.value.id, name: 'Site' });
   const projectB = await createProject(tx, admin.id, { clientId: clientB.value.id, name: 'API' });
   if (!projectA.ok || !projectB.ok) throw new Error('setup');
-  const tagA = await createTag(tx, admin.id, { companyId: company.id, name: 'meeting' });
-  if (!tagA.ok) throw new Error('setup');
 
   // Seed entries: range = May 1 -> May 8 (one full week)
   const day = (d: number, h: number) =>
@@ -88,7 +85,6 @@ async function buildWorld(tx: Prisma.TransactionClient, suffix: string): Promise
       description: 'Layout work',
       startedAt: day(1, 8),
       endedAt: day(1, 12),
-      tags: { create: [{ tagId: tagA.value.id }] },
     },
   });
   await tx.timeEntry.create({
@@ -126,7 +122,6 @@ async function buildWorld(tx: Prisma.TransactionClient, suffix: string): Promise
     clientB: clientB.value.id,
     projectA: projectA.value.id,
     projectB: projectB.value.id,
-    tagA: tagA.value.id,
     range: {
       start: new Date('2026-05-01T00:00:00Z'),
       end: new Date('2026-05-08T00:00:00Z'),
@@ -277,15 +272,13 @@ describe('dashboard widgets', () => {
 });
 
 describe('reports', () => {
-  it('US-41: filter by client + tag + member at once', async () => {
+  it('US-41: filter by client + member at once', async () => {
     await withTx(async (tx) => {
       const w = await buildWorld(tx, 'us41');
       const res = await runReport(tx, w.admin, {
         companyId: w.company,
         clientIds: [w.clientA],
         memberIds: [w.user],
-        tagIds: [w.tagA],
-        tagsMode: 'and',
         from: w.range.start,
         to: w.range.end,
       });

@@ -1,7 +1,7 @@
 'use client';
 
 import type { FormEvent, ReactElement } from 'react';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useTransition } from 'react';
 import {
   DndContext,
   KeyboardSensor,
@@ -20,14 +20,19 @@ import {
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { useTranslations } from 'next-intl';
-import { Alert, Badge, Button, Input } from '@tt/ui';
-import { renameClientAction, reorderProjectsAction } from '@/lib/actions/catalog';
+import { Alert, Badge, Button, ColorSwatchPicker, Input } from '@tt/ui';
+import {
+  renameClientAction,
+  reorderProjectsAction,
+  updateClientColorAction,
+} from '@/lib/actions/catalog';
 import { ClientFundForm } from './ClientFundForm';
 import { ProjectRow, type ProjectRowItem } from './ProjectRow';
 
 export interface ClientRowItem {
   id: string;
   name: string;
+  color: string;
   archived: boolean;
   entryCount: number;
   fundInDashboard: boolean;
@@ -63,6 +68,7 @@ export function ClientRow({
   onAddProject,
 }: ClientRowProps): ReactElement {
   const t = useTranslations('clients.dnd');
+  const tClients = useTranslations('clients');
   const sortable = useSortable({ id: client.id, disabled: !draggable });
   const style = {
     transform: CSS.Transform.toString(sortable.transform),
@@ -76,6 +82,8 @@ export function ClientRow({
 
   const [projectsMirror, setProjectsMirror] = useState<ProjectRowItem[]>(client.projects);
   const [projectError, setProjectError] = useState<string | null>(null);
+  const [colorPending, startColorTransition] = useTransition();
+  const [colorError, setColorError] = useState<string | null>(null);
   const [isRenaming, setIsRenaming] = useState(false);
   const [renameValue, setRenameValue] = useState(client.name);
   const [renamePending, setRenamePending] = useState(false);
@@ -282,6 +290,19 @@ export function ClientRow({
               Přidat projekt
             </Button>
           </form>
+          {colorError ? <Alert tone="danger">{colorError}</Alert> : null}
+          <ColorSwatchPicker
+            label={tClients('colorLabel')}
+            value={client.color}
+            disabled={colorPending}
+            onChange={(hex) => {
+              setColorError(null);
+              startColorTransition(async () => {
+                const r = await updateClientColorAction(client.id, hex);
+                if (!r.ok) setColorError(tClients('colorError'));
+              });
+            }}
+          />
           <ClientFundForm
             clientId={client.id}
             fundInDashboard={client.fundInDashboard}

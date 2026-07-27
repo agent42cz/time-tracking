@@ -51,22 +51,22 @@ enum AuditSource {
 }
 
 model User {
-  id           String   @id @default(cuid())
-  email        String   @unique
-  passwordHash String?  @map("password_hash")
-  fullName     String   @map("full_name")
-  totpSecret   String?  @map("totp_secret")
-  totpEnabled  Boolean  @default(false) @map("totp_enabled")
+  id                String   @id @default(cuid())
+  email             String   @unique
+  passwordHash      String?  @map("password_hash")
+  fullName          String   @map("full_name")
+  totpSecret        String?  @map("totp_secret")
+  totpEnabled       Boolean  @default(false) @map("totp_enabled")
   /// 'light' | 'dark' | 'system' — shared across web and extension.
-  theme        String   @default("system")
-  autoStackOverlaps Boolean @default(false) @map("auto_stack_overlaps")
-  createdAt    DateTime @default(now()) @map("created_at")
-  updatedAt    DateTime @updatedAt @map("updated_at")
+  theme             String   @default("system")
+  autoStackOverlaps Boolean  @default(false) @map("auto_stack_overlaps")
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt         DateTime @updatedAt @map("updated_at")
 
   memberships    Membership[]
-  invitesCreated Invite[]              @relation("InviteCreator")
+  invitesCreated Invite[]               @relation("InviteCreator")
   timeEntries    TimeEntry[]
-  auditEvents    AuditLog[]            @relation("AuditActor")
+  auditEvents    AuditLog[]             @relation("AuditActor")
   sessions       Session[]
   accounts       Account[]
   recoveryCodes  TotpRecoveryCode[]
@@ -88,7 +88,6 @@ model Company {
 
   memberships Membership[]
   clients     Client[]
-  tags        Tag[]
   invites     Invite[]
   timeEntries TimeEntry[]
   auditLogs   AuditLog[]
@@ -133,16 +132,17 @@ model Invite {
 }
 
 model Client {
-  id        String   @id @default(cuid())
-  companyId String   @map("company_id")
+  id        String  @id @default(cuid())
+  companyId String  @map("company_id")
   name      String
-  archived  Boolean  @default(false)
-  sortOrder Int      @default(0) @map("sort_order")
+  archived  Boolean @default(false)
+  sortOrder Int     @default(0) @map("sort_order")
+  color     String  @default("#6b7280")
 
-  fundInDashboard   Boolean  @default(false) @map("fund_in_dashboard")
-  weeklyFundMinutes Int?     @map("weekly_fund_minutes")
-  weekStartsOn      Int?     @map("week_starts_on")
-  workingDays       Int[]    @default([]) @map("working_days")
+  fundInDashboard   Boolean @default(false) @map("fund_in_dashboard")
+  weeklyFundMinutes Int?    @map("weekly_fund_minutes")
+  weekStartsOn      Int?    @map("week_starts_on")
+  workingDays       Int[]   @default([]) @map("working_days")
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
@@ -173,20 +173,6 @@ model Project {
   @@map("projects")
 }
 
-model Tag {
-  id        String   @id @default(cuid())
-  companyId String   @map("company_id")
-  name      String
-  color     String   @default("#6b7280")
-  createdAt DateTime @default(now()) @map("created_at")
-
-  company     Company           @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  timeEntries TimeEntryTag[]
-
-  @@unique([companyId, name])
-  @@map("tags")
-}
-
 model TimeEntry {
   id          String    @id @default(cuid())
   userId      String    @map("user_id")
@@ -196,33 +182,20 @@ model TimeEntry {
   description String    @default("")
   note        String    @default("")
   startedAt   DateTime  @map("started_at")
-  endedAt    DateTime? @map("ended_at")
+  endedAt     DateTime? @map("ended_at")
   deletedAt   DateTime? @map("deleted_at")
   createdAt   DateTime  @default(now()) @map("created_at")
   updatedAt   DateTime  @updatedAt @map("updated_at")
 
-  user    User           @relation(fields: [userId], references: [id], onDelete: Cascade)
-  company Company        @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  client  Client?        @relation(fields: [clientId], references: [id], onDelete: SetNull)
-  project Project?       @relation(fields: [projectId], references: [id], onDelete: SetNull)
-  tags    TimeEntryTag[]
+  user    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  company Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  client  Client?  @relation(fields: [clientId], references: [id], onDelete: SetNull)
+  project Project? @relation(fields: [projectId], references: [id], onDelete: SetNull)
 
   @@index([companyId, deletedAt, startedAt])
   @@index([userId, deletedAt, startedAt])
   @@index([userId, endedAt]) // running timers (endedAt IS NULL)
   @@map("time_entries")
-}
-
-model TimeEntryTag {
-  timeEntryId String @map("time_entry_id")
-  tagId       String @map("tag_id")
-
-  timeEntry TimeEntry @relation(fields: [timeEntryId], references: [id], onDelete: Cascade)
-  tag       Tag       @relation(fields: [tagId], references: [id], onDelete: Cascade)
-
-  @@id([timeEntryId, tagId])
-  @@index([tagId])
-  @@map("time_entry_tags")
 }
 
 model AuditLog {

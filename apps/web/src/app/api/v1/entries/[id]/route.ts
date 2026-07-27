@@ -24,7 +24,6 @@ export async function PATCH(
     projectId?: string | null;
     startedAt?: string;
     endedAt?: string | null;
-    tagIds?: string[];
   };
   try {
     body = await req.json();
@@ -40,7 +39,6 @@ export async function PATCH(
   if (body.note !== undefined) patch.note = body.note;
   if (body.clientId !== undefined) patch.clientId = body.clientId;
   if (body.projectId !== undefined) patch.projectId = body.projectId;
-  if (body.tagIds !== undefined) patch.tagIds = body.tagIds;
   if (body.startedAt !== undefined) {
     const d = new Date(body.startedAt);
     if (Number.isNaN(d.getTime())) return errorCors(req, 400, 'invalid_date');

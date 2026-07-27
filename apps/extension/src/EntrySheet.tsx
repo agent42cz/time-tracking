@@ -40,7 +40,6 @@ export interface EntrySheetInitial {
   projectId: string | null;
   startedAt: string; // ISO
   endedAt: string | null; // ISO, or null while running
-  tagIds: string[];
 }
 
 export interface EntrySheetProps {
@@ -59,7 +58,6 @@ export function EntrySheet(props: EntrySheetProps): ReactElement {
   const [note, setNote] = useState(initial?.note ?? '');
   const [clientId, setClientId] = useState(initial?.clientId ?? '');
   const [projectId, setProjectId] = useState(initial?.projectId ?? '');
-  const [tagIds, setTagIds] = useState<string[]>(initial?.tagIds ?? []);
   const [startDate, setStartDate] = useState(toDateInput(initial?.startedAt ?? props.nowIso));
   const [startTime, setStartTime] = useState(toTimeInput(initial?.startedAt ?? props.nowIso));
   const [endTime, setEndTime] = useState(initial?.endedAt ? toTimeInput(initial.endedAt) : '');
@@ -88,10 +86,6 @@ export function EntrySheet(props: EntrySheetProps): ReactElement {
     [catalog.clients, clientId],
   );
 
-  function toggleTag(id: string): void {
-    setTagIds((prev) => (prev.includes(id) ? prev.filter((t) => t !== id) : [...prev, id]));
-  }
-
   async function submit(): Promise<void> {
     setPending(true);
     setError(null);
@@ -114,7 +108,6 @@ export function EntrySheet(props: EntrySheetProps): ReactElement {
           projectId: projectId || null,
           startedAt: startIso,
           endedAt: endIso!,
-          tagIds,
         });
       } else if (initial) {
         const patch: UpdateEntryPatch = {
@@ -123,7 +116,6 @@ export function EntrySheet(props: EntrySheetProps): ReactElement {
           clientId: clientId || null,
           projectId: projectId || null,
           startedAt: startIso,
-          tagIds,
         };
         if (!wasRunning || endTime) patch.endedAt = endTime ? endIso : null;
         await props.onSave(initial.id, patch);
@@ -265,28 +257,6 @@ export function EntrySheet(props: EntrySheetProps): ReactElement {
             Změnit datum
           </button>
         )}
-        {catalog.tags.length > 0 ? (
-          <div className="flex flex-wrap gap-1">
-            {catalog.tags.map((t) => {
-              const active = tagIds.includes(t.id);
-              return (
-                <button
-                  key={t.id}
-                  type="button"
-                  onClick={() => toggleTag(t.id)}
-                  className="rounded-full border px-2 py-0.5 text-[10px] font-medium"
-                  style={
-                    active
-                      ? { backgroundColor: t.color, borderColor: t.color, color: '#fff' }
-                      : { borderColor: '#52525b', color: '#a1a1aa' }
-                  }
-                >
-                  {t.name}
-                </button>
-              );
-            })}
-          </div>
-        ) : null}
         <p className="text-xs text-zinc-500 dark:text-zinc-400">
           Odpracováno:{' '}
           <span className="font-mono font-semibold text-zinc-700 dark:text-zinc-300">

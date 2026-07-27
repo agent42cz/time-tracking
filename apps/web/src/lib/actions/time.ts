@@ -15,6 +15,14 @@ import {
 
 export type ActionResult = { ok: true } | { ok: false; error: string };
 
+// A dedicated result type (rather than widening `ActionResult` itself) so
+// only `stopTimerAction`'s caller has to deal with `reason`: it lets the UI
+// tell a stop that lost a race to another surface (US-103) apart from a
+// genuine failure, without every other `ActionResult` caller having to care.
+export type StopTimerActionResult =
+  | { ok: true }
+  | { ok: false; error: string; reason?: 'not_running' };
+
 export async function startTimerAction(formData: FormData): Promise<ActionResult> {
   const s = await requireActiveCompany();
   const result = await startTimer(prisma(), s.userId, {
@@ -22,17 +30,23 @@ export async function startTimerAction(formData: FormData): Promise<ActionResult
     description: String(formData.get('description') ?? ''),
     clientId: (formData.get('clientId') as string) || null,
     projectId: (formData.get('projectId') as string) || null,
-    tagIds: formData.getAll('tagIds').map(String).filter(Boolean),
   });
   if (!result.ok) return { ok: false, error: 'Nepodařilo se spustit měření' };
   revalidatePath('/timer');
   return { ok: true };
 }
 
-export async function stopTimerAction(entryId: string): Promise<ActionResult> {
+export async function stopTimerAction(entryId: string): Promise<StopTimerActionResult> {
   const s = await requireActiveCompany();
   const result = await stopTimer(prisma(), s.userId, entryId);
-  if (!result.ok) return { ok: false, error: 'Měření nelze zastavit' };
+  if (!result.ok) {
+    // `not_running` means someone else (another tab/window/the extension)
+    // already stopped this entry — a conflict to refresh past, not an error.
+    if (result.reason === 'not_running') {
+      return { ok: false, error: 'Měření nelze zastavit', reason: 'not_running' };
+    }
+    return { ok: false, error: 'Měření nelze zastavit' };
+  }
   revalidatePath('/timer');
   return { ok: true };
 }
@@ -57,7 +71,6 @@ export async function createManualAction(formData: FormData): Promise<ActionResu
     description: String(formData.get('description') ?? ''),
     clientId: (formData.get('clientId') as string) || null,
     projectId: (formData.get('projectId') as string) || null,
-    tagIds: formData.getAll('tagIds').map(String).filter(Boolean),
     startedAt,
     endedAt,
   });
@@ -79,7 +92,6 @@ export async function updateEntryAction(
     note?: string;
     clientId?: string | null;
     projectId?: string | null;
-    tagIds?: string[];
     startedAt?: string;
     endedAt?: string | null;
   },
@@ -90,7 +102,6 @@ export async function updateEntryAction(
     note: patch.note,
     clientId: patch.clientId ?? undefined,
     projectId: patch.projectId ?? undefined,
-    tagIds: patch.tagIds,
     ...(patch.startedAt ? { startedAt: new Date(patch.startedAt) } : {}),
     ...(patch.endedAt !== undefined
       ? { endedAt: patch.endedAt ? new Date(patch.endedAt) : null }
@@ -114,12 +125,15 @@ export interface EntryEditContext {
     note: string;
     clientId: string | null;
     projectId: string | null;
-    tagIds: string[];
     startedAt: string; // ISO
     endedAt: string | null; // ISO
   };
-  clients: { id: string; name: string; projects: { id: string; name: string }[] }[];
-  tags: { id: string; name: string; color: string }[];
+  clients: {
+    id: string;
+    name: string;
+    color: string;
+    projects: { id: string; name: string }[];
+  }[];
 }
 
 export async function getEntryEditContextAction(
@@ -128,7 +142,6 @@ export async function getEntryEditContextAction(
   const s = await requireActiveCompany();
   const entry = await prisma().timeEntry.findUnique({
     where: { id: entryId },
-    include: { tags: true },
   });
   // Existence-safe: not-found / cross-company / non-owner-non-admin / deleted all
   // collapse to the same not_found string updateEntryAction returns (no leaks).
@@ -141,16 +154,13 @@ export async function getEntryEditContextAction(
     return { ok: false, error: 'Nelze upravit' };
   }
 
-  const [clients, tags] = await Promise.all([
-    prisma().client.findMany({
-      where: { companyId: s.activeCompanyId, archived: false },
-      include: {
-        projects: { where: { archived: false }, orderBy: [{ sortOrder: 'asc' }, { name: 'asc' }] },
-      },
-      orderBy: [{ sortOrder: 'asc' }, { name: 'asc' }],
-    }),
-    prisma().tag.findMany({ where: { companyId: s.activeCompanyId }, orderBy: { name: 'asc' } }),
-  ]);
+  const clients = await prisma().client.findMany({
+    where: { companyId: s.activeCompanyId, archived: false },
+    include: {
+      projects: { where: { archived: false }, orderBy: [{ sortOrder: 'asc' }, { name: 'asc' }] },
+    },
+    orderBy: [{ sortOrder: 'asc' }, { name: 'asc' }],
+  });
 
   return {
     ok: true,
@@ -160,16 +170,15 @@ export async function getEntryEditContextAction(
         note: entry.note,
         clientId: entry.clientId,
         projectId: entry.projectId,
-        tagIds: entry.tags.map((t) => t.tagId),
         startedAt: entry.startedAt.toISOString(),
         endedAt: entry.endedAt?.toISOString() ?? null,
       },
       clients: clients.map((c) => ({
         id: c.id,
         name: c.name,
+        color: c.color,
         projects: c.projects.map((p) => ({ id: p.id, name: p.name })),
       })),
-      tags: tags.map((t) => ({ id: t.id, name: t.name, color: t.color })),
     },
   };
 }
@@ -204,7 +213,6 @@ export async function playAgainAction(entryId: string): Promise<ActionResult> {
   const s = await requireActiveCompany();
   const original = await prisma().timeEntry.findUnique({
     where: { id: entryId },
-    include: { tags: true },
   });
   if (!original || original.companyId !== s.activeCompanyId) {
     return { ok: false, error: 'Záznam nenalezen' };
@@ -214,7 +222,6 @@ export async function playAgainAction(entryId: string): Promise<ActionResult> {
     description: original.description,
     clientId: original.clientId,
     projectId: original.projectId,
-    tagIds: original.tags.map((t) => t.tagId),
   });
   revalidatePath('/timer');
   return { ok: true };

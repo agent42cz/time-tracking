@@ -20,8 +20,6 @@ interface Initial {
   clientIds: string[];
   projectIds: string[];
   memberIds: string[];
-  tagIds: string[];
-  tagsMode: 'and' | 'or';
   search: string;
   groupBy: GroupBy;
 }
@@ -34,7 +32,6 @@ interface Props {
   clients: Option[];
   projects: Option[];
   members: Option[];
-  tags: { id: string; name: string; color: string }[];
   initial: Initial;
 }
 
@@ -44,12 +41,10 @@ export function ReportFiltersForm({
   clients,
   projects,
   members,
-  tags,
   initial,
 }: Props): ReactElement {
   const [from, setFrom] = useState(initial.from);
   const [to, setTo] = useState(initial.to);
-  const [tagsMode, setTagsMode] = useState<'and' | 'or'>(initial.tagsMode);
   const [search, setSearch] = useState(initial.search);
   const t = useTranslations('reports');
   const [groupBy, setGroupBy] = useState(initial.groupBy);
@@ -70,7 +65,6 @@ export function ReportFiltersForm({
     initial.clientIds.length +
     initial.projectIds.length +
     initial.memberIds.length +
-    initial.tagIds.length +
     (initial.search ? 1 : 0) +
     (initial.from || initial.to ? 1 : 0);
 
@@ -193,46 +187,6 @@ export function ReportFiltersForm({
             />
           </Field>
         ) : null}
-        {/* Tags — custom header instead of <Field label> because the inline
-            OR/AND toggle uses <button>s and a real <label> can't contain them. */}
-        <div className="space-y-1.5">
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-            <span className="block text-sm font-medium text-zinc-700 dark:text-zinc-300">
-              Štítky
-            </span>
-            <span className="inline-flex overflow-hidden rounded-full border border-zinc-200 dark:border-zinc-700 text-xs font-medium sm:text-[10px]">
-              <button
-                type="button"
-                onClick={() => setTagsMode('or')}
-                className={`px-3 py-1 sm:px-2 sm:py-0.5 ${
-                  tagsMode === 'or'
-                    ? 'bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900'
-                    : 'text-zinc-600 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-700'
-                }`}
-              >
-                Aspoň jeden
-              </button>
-              <button
-                type="button"
-                onClick={() => setTagsMode('and')}
-                className={`px-3 py-1 sm:px-2 sm:py-0.5 ${
-                  tagsMode === 'and'
-                    ? 'bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900'
-                    : 'text-zinc-600 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-700'
-                }`}
-              >
-                Všechny
-              </button>
-            </span>
-          </div>
-          <input type="hidden" name="tagsMode" value={tagsMode} />
-          <MultiSelect
-            name="tag"
-            options={tags.map((t) => ({ id: t.id, label: t.name, color: t.color }))}
-            defaultValues={initial.tagIds}
-            placeholder="Žádný štítek"
-          />
-        </div>
       </div>
 
       {/* Description search */}

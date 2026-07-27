@@ -9,6 +9,7 @@ import { notifyTimerChanged } from '@/lib/timer-events';
 import { EditEntryButton } from '@/components/time/EditEntryButton';
 import { fmtTime, fmtDur } from '@/lib/time-format';
 import { groupRecentByDay, type RecentEntryInput } from '@/lib/recent';
+import { ClientName } from '@/components/ClientName';
 
 export interface HistoryEntryView extends RecentEntryInput {
   endedAt: string; // history entries are always completed
@@ -126,17 +127,10 @@ function Row({
           )}
         </p>
         <div className="mt-0.5 flex flex-wrap items-center gap-1.5 text-xs text-zinc-500 dark:text-zinc-400">
-          {entry.clientName ? <span>{entry.clientName}</span> : null}
+          {entry.clientName ? (
+            <ClientName name={entry.clientName} color={entry.clientColor} />
+          ) : null}
           {entry.projectName ? <span>· {entry.projectName}</span> : null}
-          {entry.tags.map((tag, i) => (
-            <span
-              key={i}
-              className="rounded-full px-1.5 py-0.5 text-[10px] font-medium text-white"
-              style={{ backgroundColor: tag.color }}
-            >
-              {tag.name}
-            </span>
-          ))}
         </div>
       </div>
       <div className="flex shrink-0 w-full sm:w-auto items-center gap-3 text-sm text-zinc-600 dark:text-zinc-400">

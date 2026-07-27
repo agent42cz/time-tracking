@@ -88,7 +88,7 @@ export default async function AuditPage({
               <input
                 name="entity"
                 defaultValue={sp.entity ?? ''}
-                placeholder="TimeEntry, Tag, …"
+                placeholder="TimeEntry, Project, …"
                 className="w-full md:w-auto rounded-md border border-zinc-200 dark:border-zinc-700 px-3 py-1.5 text-sm"
               />
             </label>

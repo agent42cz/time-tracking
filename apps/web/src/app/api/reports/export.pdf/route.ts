@@ -62,8 +62,6 @@ export async function GET(req: NextRequest): Promise<Response> {
     clientIds: sp.getAll('client'),
     projectIds: sp.getAll('project'),
     memberIds: sp.getAll('member'),
-    tagIds: sp.getAll('tag'),
-    tagsMode: sp.get('tagsMode') === 'and' ? 'and' : 'or',
     search: sp.get('search') ?? undefined,
   });
   if (!result.ok) return new Response('not found', { status: 404 });
@@ -79,7 +77,6 @@ export async function GET(req: NextRequest): Promise<Response> {
     date: t('pdf.date'),
     user: t('pdf.user'),
     description: t('pdf.description'),
-    tags: t('pdf.tags'),
     duration: t('pdf.duration'),
     subtotal: t('pdf.subtotal'),
     grandTotal: t('pdf.grandTotal'),

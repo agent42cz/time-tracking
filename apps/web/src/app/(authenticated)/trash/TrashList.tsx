@@ -17,12 +17,14 @@ import {
 } from '@tt/ui';
 import { restoreEntryAction, purgeEntryAction } from '@/lib/actions/time';
 import { fmtDur, fmtTime } from '@/lib/time-format';
+import { ClientName } from '@/components/ClientName';
 
 interface Entry {
   id: string;
   description: string;
   userName: string;
   clientName: string | null;
+  clientColor: string | null;
   projectName: string | null;
   startedAt: string;
   endedAt: string | null;
@@ -104,7 +106,8 @@ export function TrashList({
                 </Td>
                 {isAdmin ? <Td>{e.userName}</Td> : null}
                 <Td className="text-zinc-700 dark:text-zinc-300">
-                  {e.clientName ?? '—'} {e.projectName ? `· ${e.projectName}` : ''}
+                  <ClientName name={e.clientName} color={e.clientColor} />{' '}
+                  {e.projectName ? `· ${e.projectName}` : ''}
                 </Td>
                 <Td className="font-mono text-xs tabular-nums">{timeRange(e)}</Td>
                 <Td className="font-mono text-xs font-semibold tabular-nums">{duration(e)}</Td>
@@ -144,7 +147,8 @@ export function TrashList({
               {isAdmin ? <DataCardRow label="Uživatel">{e.userName}</DataCardRow> : null}
               <DataCardRow label="Klient">
                 <span className="text-zinc-700 dark:text-zinc-300">
-                  {e.clientName ?? '—'} {e.projectName ? `· ${e.projectName}` : ''}
+                  <ClientName name={e.clientName} color={e.clientColor} />{' '}
+                  {e.projectName ? `· ${e.projectName}` : ''}
                 </span>
               </DataCardRow>
               <DataCardRow label="Kdy">

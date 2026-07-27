@@ -18,3 +18,4 @@ export {
 } from './confirm-provider.js';
 export { SearchInput, type SearchInputProps } from './search-input.js';
 export { DataCard, DataCardRow, DataCardActions } from './data-cards.js';
+export { ColorSwatchPicker, type ColorSwatchPickerProps } from './ColorSwatchPicker.js';

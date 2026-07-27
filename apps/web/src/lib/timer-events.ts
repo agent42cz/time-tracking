@@ -11,16 +11,10 @@ const TimerEntrySchema = z.object({
   id: z.string(),
   description: z.string(),
   clientName: z.string().nullable(),
+  clientColor: z.string().nullable(),
   projectName: z.string().nullable(),
   startedAt: z.string(),
   endedAt: z.string().nullable(),
-  tags: z.array(
-    z.object({
-      id: z.string(),
-      name: z.string(),
-      color: z.string(),
-    }),
-  ),
 });
 
 export const TimerStateResponseSchema = z.object({

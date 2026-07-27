@@ -52,3 +52,15 @@ pre {
 :root.dark {
   color-scheme: dark;
 }
+
+/*
+ * Client-colour tint (US-102). `--tint-light`/`--tint-dark` are set inline by
+ * ClientName; this rule picks the right one per theme because Tailwind's
+ * `dark:` variant cannot reach an inline style and the hue is per-row dynamic.
+ */
+.client-tint {
+  color: var(--tint-light);
+}
+.dark .client-tint {
+  color: var(--tint-dark);
+}

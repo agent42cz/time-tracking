@@ -24,18 +24,12 @@ interface ClientWithProjects {
   name: string;
   projects: { id: string; name: string }[];
 }
-interface Tag {
-  id: string;
-  name: string;
-  color: string;
-}
 
 interface EntryPatch {
   description: string;
   note: string;
   clientId: string | null;
   projectId: string | null;
-  tagIds: string[];
   startedAt: string;
   endedAt?: string | null;
 }
@@ -81,9 +75,7 @@ export function EditEntryDialog({
   const [note, setNote] = useState('');
   const [clientId, setClientId] = useState('');
   const [projectId, setProjectId] = useState('');
-  const [tagIds, setTagIds] = useState<string[]>([]);
   const [clients, setClients] = useState<ClientWithProjects[]>([]);
-  const [tags, setTags] = useState<Tag[]>([]);
   const [loadingContext, setLoadingContext] = useState(false);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -104,8 +96,8 @@ export function EditEntryDialog({
     [clients, clientId],
   );
 
-  // Load the catalog + the entry's current description/client/project/tags when
-  // the dialog opens. Start/end are NOT touched here — they stay synchronous.
+  // Load the catalog + the entry's current description/client/project when the
+  // dialog opens. Start/end are NOT touched here — they stay synchronous.
   useEffect(() => {
     if (!open) return;
     let cancelled = false;
@@ -118,9 +110,7 @@ export function EditEntryDialog({
         setNote(r.data.entry.note);
         setClientId(r.data.entry.clientId ?? '');
         setProjectId(r.data.entry.projectId ?? '');
-        setTagIds(r.data.entry.tagIds);
         setClients(r.data.clients);
-        setTags(r.data.tags);
       } else {
         setError(r.error);
       }
@@ -131,17 +121,12 @@ export function EditEntryDialog({
     };
   }, [open, entryId]);
 
-  function toggleTag(id: string): void {
-    setTagIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
-  }
-
   function buildPatch(startIso: string, endIso: string | null): EntryPatch {
     const patch: EntryPatch = {
       description,
       note,
       clientId: clientId || null,
       projectId: projectId || null,
-      tagIds,
       startedAt: startIso,
     };
     // Only include endedAt when the user filled it in (running timers stay running).
@@ -157,7 +142,7 @@ export function EditEntryDialog({
     const r = await updateEntryAction(entryId, patch);
     if (r.ok) {
       onSaved({ startedAt: startIso, endedAt: end ? endIso : null });
-      // Refresh server-rendered lists so description/client/project/tag changes
+      // Refresh server-rendered lists so description/client/project changes
       // are reflected on the timer running rows, history, and reports.
       router.refresh();
       onClose();
@@ -277,36 +262,6 @@ export function EditEntryDialog({
               </Select>
             </Field>
           </div>
-          {tags.length > 0 ? (
-            <div>
-              <p className="mb-1.5 text-sm font-medium text-zinc-700 dark:text-zinc-300">
-                {t('tags')}
-              </p>
-              <div className="flex flex-wrap gap-1.5">
-                {tags.map((tag) => {
-                  const active = tagIds.includes(tag.id);
-                  return (
-                    <button
-                      key={tag.id}
-                      type="button"
-                      disabled={loadingContext}
-                      onClick={() => toggleTag(tag.id)}
-                      className={`rounded-full border px-2.5 py-1 sm:py-0.5 text-xs font-medium transition-colors disabled:opacity-50 ${
-                        active
-                          ? 'border-zinc-900 dark:border-zinc-100 bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900'
-                          : 'border-zinc-200 dark:border-zinc-700 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-700'
-                      }`}
-                      style={
-                        active ? { backgroundColor: tag.color, borderColor: tag.color } : undefined
-                      }
-                    >
-                      {tag.name}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          ) : null}
           <Field label={t('startedAt')} htmlFor="edit-entry-start">
             <Input
               id="edit-entry-start"
@@ -365,7 +320,6 @@ export function EditEntryDialog({
               note,
               clientId: clientId || null,
               projectId: projectId || null,
-              tagIds,
             });
             if (!r.ok) {
               setError(r.error);

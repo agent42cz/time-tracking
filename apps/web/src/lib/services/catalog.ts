@@ -1,8 +1,5 @@
 /**
- * Clients, projects, and tags — the "catalog" admins maintain and
- * users pick from. Tags are unique here: any member (incl. non-admin)
- * can create one inline while filling out a time entry (US-17), but
- * only admins can rename / recolor / delete (US-16).
+ * Clients and projects — the "catalog" admins maintain and users pick from.
  *
  * Archive vs. delete: PRD §3.2 — archiving keeps history readable but
  * hides from new-timer pickers (callers filter `archived=false` for
@@ -10,6 +7,7 @@
  * is parameterized at the API layer via `cascade: boolean` (US-15).
  */
 import type { Prisma, PrismaClient, Role } from '@prisma/client';
+import { isClientColor } from '@tt/shared';
 import { writeAudit } from './audit.js';
 
 type Db = PrismaClient | Prisma.TransactionClient;
@@ -123,7 +121,7 @@ export async function listClients(
   actorUserId: string,
   companyId: string,
   opts: { includeArchived?: boolean } = {},
-): Promise<Result<{ id: string; name: string; archived: boolean }[]>> {
+): Promise<Result<{ id: string; name: string; archived: boolean; color: string }[]>> {
   const auth = await requireMember(db, actorUserId, companyId);
   if (!auth.ok) return auth;
   const rows = await db.client.findMany({
@@ -132,7 +130,7 @@ export async function listClients(
   });
   return {
     ok: true,
-    value: rows.map((c) => ({ id: c.id, name: c.name, archived: c.archived })),
+    value: rows.map((c) => ({ id: c.id, name: c.name, archived: c.archived, color: c.color })),
   };
 }
 
@@ -188,6 +186,30 @@ export async function updateClientFund(
       workingDays: c.workingDays,
     },
     after: { ...patch, workingDays: dedupSortedDays },
+  });
+  return { ok: true, value: true };
+}
+
+export async function updateClientColor(
+  db: Db,
+  actorUserId: string,
+  clientId: string,
+  color: string,
+): Promise<Result<true, 'not_found' | 'invalid'>> {
+  if (!isClientColor(color)) return { ok: false, reason: 'invalid' };
+  const c = await db.client.findUnique({ where: { id: clientId } });
+  if (!c) return { ok: false, reason: 'not_found' };
+  const auth = await requireAdmin(db, actorUserId, c.companyId);
+  if (!auth.ok) return { ok: false, reason: 'not_found' };
+  await db.client.update({ where: { id: clientId }, data: { color } });
+  await writeAudit(db, {
+    companyId: c.companyId,
+    actorUserId,
+    action: 'update',
+    entityType: 'client_color',
+    entityId: clientId,
+    before: { color: c.color },
+    after: { color },
   });
   return { ok: true, value: true };
 }
@@ -370,49 +392,6 @@ export async function reorderProjects(
   return { ok: true, value: true };
 }
 
-// --- Tags ---
-export async function createTag(
-  db: Db,
-  actorUserId: string,
-  input: { companyId: string; name: string; color?: string },
-): Promise<Result<{ id: string }>> {
-  // US-17: any member (admin or user) can create a tag inline.
-  const auth = await requireMember(db, actorUserId, input.companyId);
-  if (!auth.ok) return auth;
-  const tag = await db.tag.create({
-    data: {
-      companyId: input.companyId,
-      name: input.name,
-      ...(input.color ? { color: input.color } : {}),
-    },
-  });
-  return { ok: true, value: { id: tag.id } };
-}
-
-export async function updateTag(
-  db: Db,
-  actorUserId: string,
-  tagId: string,
-  patch: { name?: string; color?: string },
-): Promise<Result<true>> {
-  const tag = await db.tag.findUnique({ where: { id: tagId } });
-  if (!tag) return { ok: false, reason: 'not_found' };
-  // Only admins can rename / recolor (US-16).
-  const auth = await requireAdmin(db, actorUserId, tag.companyId);
-  if (!auth.ok) return auth;
-  await db.tag.update({ where: { id: tagId }, data: patch });
-  return { ok: true, value: true };
-}
-
-export async function deleteTag(db: Db, actorUserId: string, tagId: string): Promise<Result<true>> {
-  const tag = await db.tag.findUnique({ where: { id: tagId } });
-  if (!tag) return { ok: false, reason: 'not_found' };
-  const auth = await requireAdmin(db, actorUserId, tag.companyId);
-  if (!auth.ok) return auth;
-  await db.tag.delete({ where: { id: tagId } });
-  return { ok: true, value: true };
-}
-
 export async function listProjects(
   db: Db,
   actorUserId: string,
@@ -437,19 +416,5 @@ export async function listProjects(
       clientId: p.clientId,
       archived: p.archived,
     })),
-  };
-}
-
-export async function listTags(
-  db: Db,
-  actorUserId: string,
-  companyId: string,
-): Promise<Result<{ id: string; name: string; color: string }[]>> {
-  const auth = await requireMember(db, actorUserId, companyId);
-  if (!auth.ok) return auth;
-  const rows = await db.tag.findMany({ where: { companyId }, orderBy: { name: 'asc' } });
-  return {
-    ok: true,
-    value: rows.map((t) => ({ id: t.id, name: t.name, color: t.color })),
   };
 }

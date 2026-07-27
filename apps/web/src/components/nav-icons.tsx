@@ -23,12 +23,6 @@ const PATHS: Record<GlyphName, ReactElement> = {
       <path d="M3 20a6 6 0 0 1 12 0M16 5a3 3 0 0 1 0 6M21 20a6 6 0 0 0-5-5.9" />
     </>
   ),
-  tags: (
-    <>
-      <path d="M3 3h7l11 11-7 7L3 10V3z" />
-      <circle cx="7.5" cy="7.5" r="1.5" />
-    </>
-  ),
   dashboard: (
     <>
       <rect x="3" y="3" width="7" height="9" rx="1" />

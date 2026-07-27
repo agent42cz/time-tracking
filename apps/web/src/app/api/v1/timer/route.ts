@@ -17,6 +17,7 @@ import { corsPreflight, errorCors, jsonCors } from '@/lib/api/cors';
 import { prisma } from '@/lib/session';
 import { listRecentHistory, startTimer } from '@/lib/services/time-entries';
 import { getPeriodRange } from '@tt/shared/time';
+import { logTimerDiag } from '@/lib/diag-log';
 
 export const dynamic = 'force-dynamic';
 
@@ -54,7 +55,7 @@ export async function GET(req: NextRequest): Promise<Response> {
         endedAt: null,
         deletedAt: null,
       },
-      include: { client: true, project: true, tags: { include: { tag: true } } },
+      include: { client: true, project: true },
       orderBy: { startedAt: 'desc' },
     }),
     listRecentHistory(prisma(), session.userId, active.companyId, now),
@@ -84,11 +85,11 @@ export async function GET(req: NextRequest): Promise<Response> {
       note: e.note,
       clientId: e.clientId,
       clientName: e.client?.name ?? null,
+      clientColor: e.client?.color ?? null,
       projectId: e.projectId,
       projectName: e.project?.name ?? null,
       startedAt: e.startedAt.toISOString(),
       endedAt: e.endedAt?.toISOString() ?? null,
-      tags: e.tags.map((tt) => ({ id: tt.tag.id, name: tt.tag.name, color: tt.tag.color })),
     };
   }
   function historyDto(e: (typeof history)[number]): unknown {
@@ -98,11 +99,11 @@ export async function GET(req: NextRequest): Promise<Response> {
       note: e.note,
       clientId: e.clientId,
       clientName: e.clientName,
+      clientColor: e.clientColor,
       projectId: e.projectId,
       projectName: e.projectName,
       startedAt: e.startedAt.toISOString(),
       endedAt: e.endedAt ? e.endedAt.toISOString() : null,
-      tags: e.tags.map((tt) => ({ id: tt.id, name: tt.name, color: tt.color })),
     };
   }
   return jsonCors(req, {
@@ -123,7 +124,6 @@ export async function POST(req: NextRequest): Promise<Response> {
     description?: string;
     clientId?: string | null;
     projectId?: string | null;
-    tagIds?: string[];
   };
   try {
     body = await req.json();
@@ -135,8 +135,23 @@ export async function POST(req: NextRequest): Promise<Response> {
     description: body.description ?? '',
     clientId: body.clientId ?? null,
     projectId: body.projectId ?? null,
-    tagIds: body.tagIds ?? [],
   });
-  if (!result.ok) return errorCors(req, 400, 'cannot_start');
+  if (!result.ok) {
+    logTimerDiag({
+      actorUserId: session.userId,
+      entryId: null,
+      source: session.authSource,
+      action: 'start',
+      outcome: 'error',
+    });
+    return errorCors(req, 400, 'cannot_start');
+  }
+  logTimerDiag({
+    actorUserId: session.userId,
+    entryId: result.value.id,
+    source: session.authSource,
+    action: 'start',
+    outcome: 'ok',
+  });
   return jsonCors(req, { id: result.value.id });
 }

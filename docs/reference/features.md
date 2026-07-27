@@ -1,4 +1,4 @@
-# Features (US-1 … US-101)
+# Features (US-1 … US-104)
 
 Feature catalogue keyed by user-story IDs from PRD §13. Test names embed the US ID so [`../../scripts/test-trace.ts`](../../scripts/test-trace.ts) can verify 100% coverage.
 
@@ -20,19 +20,19 @@ Feature catalogue keyed by user-story IDs from PRD §13. Test names embed the US
 - **US-11** — Admin removes a member from the company; their historical TimeEntries remain under their name.
 - **US-12** — Admin deletes the entire company (with confirmation).
 
-## Clients, projects, and tags
+## Clients and projects
 
 - **US-13** — Admin creates clients and groups projects under them.
 - **US-14** — Admin archives a client or project (vs. delete) so historical entries stay readable.
 - **US-15** — When deleting a client/project with linked TimeEntries: prompt to delete those too or keep them as orphaned.
-- **US-16** — Admin manages a company-wide tag list (rename, recolor, delete).
-- **US-17** — User creates a new tag inline while filling out an entry.
-- **US-18** — User sees (read-only) the canonical list of clients, projects, and tags.
+- **US-16** — ~~Admin manages a company-wide tag list (rename, recolor, delete).~~ **Retired in AIAGE-57** (tags removed).
+- **US-17** — ~~User creates a new tag inline while filling out an entry.~~ **Retired in AIAGE-57** (tags removed).
+- **US-18** — User sees (read-only) the canonical list of clients and projects.
 
 ## Time tracking — web
 
 - **US-19** — User starts a timer with one click after typing a description.
-- **US-20** — User attaches client / project / tags to a timer before or while running.
+- **US-20** — User attaches client / project to a timer before or while running.
 - **US-21** — User runs multiple timers in parallel.
 - **US-22** — User stops a timer; it appears in today's list immediately.
 - **US-23** — User adds a manual entry for any past date (not future; `end > start`).
@@ -59,7 +59,7 @@ Feature catalogue keyed by user-story IDs from PRD §13. Test names embed the US
 - **US-38** — Click a member to drill down into their full entry list with descriptions.
 - **US-39** — Members with **zero entries** in the selected period are highlighted.
 - **US-40** — Daily breakdown stacked by client (or by user — toggle).
-- **US-41** — Reports filter matrix: date / client / project / member / tag / description text.
+- **US-41** — Reports filter matrix: date / client / project / member / description text.
 - **US-42** — Filtered view exports to CSV, XLSX, PDF. _(CSV done; PDF done via pdfmake/ADR-0010; XLSX still pending.)_
 - **US-43** — User filters and exports their own entries.
 
@@ -142,11 +142,17 @@ Feature catalogue keyed by user-story IDs from PRD §13. Test names embed the US
 - **US-94** — `/trash` is scoped by role: a member sees only their own deleted entries; an admin sees every member's in the active company; a non-member gets `not_found`.
 - **US-95** — Trash rows expose start, end and duration, so an entry with no description is identifiable. A soft-deleted _running_ entry shows a null end.
 - **US-96** — After deleting an entry, an undo affordance restores it; letting it expire (10 s) leaves the entry in the trash.
-- **US-97** — An admin purges an entry permanently from the trash. The row is hard-deleted (cascading its tag joins) and exactly one `purge` audit row survives, carrying the `before` snapshot. Members cannot purge; cross-company returns `not_found`.
+- **US-97** — An admin purges an entry permanently from the trash. The row is hard-deleted and exactly one `purge` audit row survives, carrying the `before` snapshot. Members cannot purge; cross-company returns `not_found`.
 - **US-98** — `POST /api/cron/purge` hard-deletes entries soft-deleted more than 30 days ago, writing one actor-less `purge` audit row each; entries younger than 30 days are kept. A missing or incorrect `CRON_SECRET` returns 401. Driven by a Coolify scheduled task (ADR-0011).
 - **US-99** — Opening an entry sheet in the extension while the popup is scrolled shows the sheet's header and `Název` field, because the sheet is pinned to the viewport (`fixed`, not `absolute`, which stretched it across the document-tall root).
 - **US-100** — The `MultiSelect` popover renders above its clipping ancestors (`Card`'s `overflow-hidden`, `ConfirmModal`'s `overflow-y-auto`) and scrolls when its options exceed its max height.
 - **US-101** — The audit action filter offers every `AuditAction` value, derived from the Prisma enum so it cannot drift.
+
+## Timer feature (AIAGE-57)
+
+- **US-102** — Admin picks a client colour from a fixed ten-colour palette; the client's name renders in that colour in the timer lists, reports, dashboard, trash and the extension. Clients created before the feature keep the neutral grey default, which renders exactly as before. The PDF export stays monochrome. Non-admins cannot set a colour, cross-company returns `not_found`, and the update writes exactly one audit row.
+- **US-103** — `/timer` reflects a start or stop performed elsewhere (another tab, another window, another Chrome profile, the extension) without a focus change, over the WebSocket. Stopping an entry another surface already stopped refreshes the list and reports it neutrally instead of erroring.
+- **US-104** — The extension popup and service worker append diagnostic records to a capped `chrome.storage.local` ring buffer tagged with a per-instance id, and the popup exports them as JSON. With `TT_DIAG=1` the server emits one JSON line per timer start/stop, giving one ordered timeline across every surface.
 
 ## Coverage check
 
@@ -154,4 +160,4 @@ Feature catalogue keyed by user-story IDs from PRD §13. Test names embed the US
 pnpm test:trace
 ```
 
-Walks every test file (`*.test.{ts,tsx}`, `*.spec.{ts,tsx}`, `tests/**`) and looks for `\bUS-N\b`. Exits non-zero if any of US-1..US-101 has zero matches.
+Walks every test file (`*.test.{ts,tsx}`, `*.spec.{ts,tsx}`, `tests/**`) and looks for `\bUS-N\b`. Exits non-zero if any of US-1..US-104 has zero matches, except US-16 and US-17, which are retired (the tag feature they described was removed in AIAGE-57) and are excluded from both the miss list and the coverage denominator.

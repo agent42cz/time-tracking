@@ -1,8 +1,8 @@
 /**
  * Reports service (PRD §8).
  *
- * Filters: date range, clients[], projects[], members[], tags[] (AND/OR),
- * description text. Admin-only sees all members; users only see their own.
+ * Filters: date range, clients[], projects[], members[], description text.
+ * Admin-only sees all members; users only see their own.
  */
 import type { Prisma, PrismaClient } from '@prisma/client';
 import { dayKey } from '@/lib/time-format';
@@ -16,8 +16,6 @@ export interface ReportFilters {
   clientIds?: string[];
   projectIds?: string[];
   memberIds?: string[];
-  tagIds?: string[];
-  tagsMode?: 'and' | 'or';
   search?: string;
 }
 
@@ -27,13 +25,13 @@ export interface ReportRow {
   userName: string;
   clientId: string | null;
   clientName: string | null;
+  clientColor: string | null;
   projectId: string | null;
   projectName: string | null;
   description: string;
   startedAt: Date;
   endedAt: Date | null;
   durationMs: number;
-  tags: { id: string; name: string }[];
 }
 
 export type Result<T> = { ok: true; value: T } | { ok: false; reason: 'not_found' };
@@ -67,21 +65,12 @@ export async function runReport(
   if (filters.projectIds?.length) where.projectId = { in: filters.projectIds };
   if (filters.search) where.description = { contains: filters.search, mode: 'insensitive' };
 
-  if (filters.tagIds?.length) {
-    if (filters.tagsMode === 'and') {
-      where.AND = filters.tagIds.map((tagId) => ({ tags: { some: { tagId } } }));
-    } else {
-      where.tags = { some: { tagId: { in: filters.tagIds } } };
-    }
-  }
-
   const rows = await db.timeEntry.findMany({
     where,
     include: {
       user: true,
       client: true,
       project: true,
-      tags: { include: { tag: true } },
     },
     orderBy: { startedAt: 'asc' },
   });
@@ -94,13 +83,13 @@ export async function runReport(
       userName: r.user.fullName,
       clientId: r.clientId,
       clientName: r.client?.name ?? null,
+      clientColor: r.client?.color ?? null,
       projectId: r.projectId,
       projectName: r.project?.name ?? null,
       description: r.description,
       startedAt: r.startedAt,
       endedAt: r.endedAt,
       durationMs: (r.endedAt ?? new Date()).getTime() - r.startedAt.getTime(),
-      tags: r.tags.map((tt) => ({ id: tt.tag.id, name: tt.tag.name })),
     })),
   };
 }
@@ -115,6 +104,7 @@ export interface ReportGroup {
   key: string;
   label: string;
   clientName: string | null;
+  clientColor: string | null;
   subtotalMs: number;
   rows: ReportRow[];
 }
@@ -147,22 +137,26 @@ export function buildGroupedReport(
     let key: string;
     let label: string;
     let clientName: string | null;
+    let clientColor: string | null;
     if (groupBy === 'project') {
       key = r.projectId ?? 'none';
       label = r.projectName ?? 'Bez projektu';
       clientName = r.clientName;
+      clientColor = r.clientColor;
     } else if (groupBy === 'member') {
       key = r.userId;
       label = r.userName;
       clientName = null;
+      clientColor = null;
     } else {
       key = dayKey(r.startedAt);
       label = key;
       clientName = null;
+      clientColor = null;
     }
     let g = map.get(key);
     if (!g) {
-      g = { key, label, clientName, subtotalMs: 0, rows: [] };
+      g = { key, label, clientName, clientColor, subtotalMs: 0, rows: [] };
       map.set(key, g);
     }
     const ms = effectiveMs(r, clampEnd);
@@ -202,7 +196,6 @@ export function rowsToCsv(rows: ReportRow[]): string {
     'startedAt',
     'endedAt',
     'durationSec',
-    'tags',
   ];
   const escape = (v: string): string => {
     if (/[",\n]/.test(v)) return `"${v.replace(/"/g, '""')}"`;
@@ -220,7 +213,6 @@ export function rowsToCsv(rows: ReportRow[]): string {
         r.startedAt.toISOString(),
         r.endedAt?.toISOString() ?? '',
         Math.round(r.durationMs / 1000).toString(),
-        r.tags.map((t) => t.name).join('|'),
       ]
         .map(escape)
         .join(','),

@@ -8,7 +8,7 @@ import {
 } from './nav.js';
 
 describe('navGroups', () => {
-  it('contains all 11 nav items across 5 groups in expected order', () => {
+  it('contains all 10 nav items across 5 groups in expected order', () => {
     expect(navGroups.map((g) => g.label)).toEqual([
       'Sledování',
       'Přehledy',
@@ -17,14 +17,14 @@ describe('navGroups', () => {
       'Účet',
     ]);
     const total = navGroups.reduce((sum, g) => sum + g.items.length, 0);
-    expect(total).toBe(11);
+    expect(total).toBe(10);
   });
 
   it('lists items in the spec-defined order within each group', () => {
     const byLabel = Object.fromEntries(navGroups.map((g) => [g.label, g.items.map((i) => i.href)]));
     expect(byLabel['Sledování']).toEqual(['/timer']);
     expect(byLabel['Přehledy']).toEqual(['/dashboard', '/reports']);
-    expect(byLabel['Správa dat']).toEqual(['/clients', '/tags', '/members']);
+    expect(byLabel['Správa dat']).toEqual(['/clients', '/members']);
     expect(byLabel['Systém']).toEqual(['/audit', '/trash']);
     expect(byLabel['Účet']).toEqual(['/extension', '/settings', '/companies']);
   });
@@ -41,19 +41,19 @@ describe('filterVisibleGroups', () => {
       'Účet',
     ]);
     const total = result.reduce((sum, g) => sum + g.items.length, 0);
-    expect(total).toBe(11);
+    expect(total).toBe(10);
   });
 
-  it('drops Přehledy for non-admin but keeps Systém for the un-gated Koš', () => {
+  it('drops Přehledy and Správa dat for non-admin but keeps Systém for the un-gated Koš', () => {
     const result = filterVisibleGroups(navGroups, false);
-    expect(result.map((g) => g.label)).toEqual(['Sledování', 'Správa dat', 'Systém', 'Účet']);
+    expect(result.map((g) => g.label)).toEqual(['Sledování', 'Systém', 'Účet']);
     expect(result.find((g) => g.label === 'Systém')?.items.map((i) => i.href)).toEqual(['/trash']);
   });
 
-  it('keeps Správa dat with only Štítky for non-admin', () => {
+  it('US-18: hides Správa dat entirely for a non-admin', () => {
     const result = filterVisibleGroups(navGroups, false);
     const data = result.find((g) => g.label === 'Správa dat');
-    expect(data?.items.map((i) => i.label)).toEqual(['Štítky']);
+    expect(data).toBeUndefined();
   });
 
   it('keeps Sledování and Účet intact for non-admin', () => {
@@ -96,9 +96,9 @@ describe('getBottomTabs', () => {
   it('returns the first 4 visible items for non-admin (admin items filtered out)', () => {
     expect(getBottomTabs(false).map((i) => i.href)).toEqual([
       '/timer',
-      '/tags',
       '/settings',
       '/companies',
+      '/trash',
     ]);
   });
 
@@ -119,11 +119,8 @@ describe('getMoreGroups', () => {
     expect(hrefs).toContain('/settings');
   });
 
-  it('for non-admin leaves Koš and the Účet→Rozšíření overflow', () => {
-    expect(getMoreGroups(false).flatMap((g) => g.items.map((i) => i.href))).toEqual([
-      '/trash',
-      '/extension',
-    ]);
+  it('for non-admin leaves just the Účet→Rozšíření overflow (Koš now fits in the primary 4)', () => {
+    expect(getMoreGroups(false).flatMap((g) => g.items.map((i) => i.href))).toEqual(['/extension']);
   });
 
   it('drops groups left empty after removing primary items', () => {

@@ -7,8 +7,7 @@
  *  - createManual: end > start required; future timestamps rejected; any
  *    past date allowed (US-19, US-20, US-22, US-23).
  *  - updateEntry: owner edits any field; admins of the company can edit
- *    anyone's entry (US-24, US-28). Tag list is reset to the supplied
- *    `tagIds` (none → no tags).
+ *    anyone's entry (US-24, US-28).
  *  - softDelete / restore: owners can soft-delete their own; admins can
  *    soft-delete any. Both produce an audit row. Soft-deleted entries
  *    are hidden from normal queries (US-25, US-47).
@@ -20,7 +19,7 @@
  *  - getHistory: returns the audit rows for a single entry (US-27, US-45).
  *  - listRecentHistory: completed entries in the ~2-month timer-history window (US-26).
  */
-import type { AuditSource, Prisma, PrismaClient, Role } from '@prisma/client';
+import type { AuditSource, Prisma, PrismaClient, Role, TimeEntry } from '@prisma/client';
 import { getPeriodRange } from '@tt/shared/time';
 import { writeAudit } from './audit.js';
 import { publishTimeEntry } from '../realtime.js';
@@ -67,8 +66,6 @@ function validateWindow(
   return { ok: true };
 }
 
-type EntryWithTags = Prisma.TimeEntryGetPayload<{ include: { tags: true } }>;
-
 /**
  * The audit `before`/`after` shape.
  *
@@ -89,11 +86,10 @@ type EntrySnapshot = {
   projectId: string | null;
   startedAt: string;
   endedAt: string | null;
-  tagIds: string[];
   deletedAt: string | null;
 };
 
-function snapshotOf(e: EntryWithTags): EntrySnapshot {
+function snapshotOf(e: TimeEntry): EntrySnapshot {
   return {
     userId: e.userId,
     description: e.description,
@@ -102,13 +98,12 @@ function snapshotOf(e: EntryWithTags): EntrySnapshot {
     projectId: e.projectId,
     startedAt: e.startedAt.toISOString(),
     endedAt: e.endedAt?.toISOString() ?? null,
-    tagIds: e.tags.map((t) => t.tagId).sort(),
     deletedAt: e.deletedAt?.toISOString() ?? null,
   };
 }
 
 async function snapshot(db: Db, id: string): Promise<EntrySnapshot | null> {
-  const e = await db.timeEntry.findUnique({ where: { id }, include: { tags: true } });
+  const e = await db.timeEntry.findUnique({ where: { id } });
   if (!e) return null;
   return snapshotOf(e);
 }
@@ -119,7 +114,6 @@ export interface StartTimerInput {
   description?: string;
   clientId?: string | null;
   projectId?: string | null;
-  tagIds?: string[];
 }
 
 export async function startTimer(
@@ -139,9 +133,6 @@ export async function startTimer(
       clientId: input.clientId ?? null,
       projectId: input.projectId ?? null,
       startedAt: now,
-      tags: input.tagIds?.length
-        ? { create: input.tagIds.map((id) => ({ tagId: id })) }
-        : undefined,
     },
   });
   await writeAudit(db, {
@@ -223,9 +214,6 @@ export async function createManualEntry(
       projectId: input.projectId ?? null,
       startedAt: input.startedAt,
       endedAt: input.endedAt,
-      tags: input.tagIds?.length
-        ? { create: input.tagIds.map((id) => ({ tagId: id })) }
-        : undefined,
     },
   });
   await writeAudit(db, {
@@ -252,7 +240,6 @@ export interface UpdateEntryPatch {
   projectId?: string | null;
   startedAt?: Date;
   endedAt?: Date | null;
-  tagIds?: string[];
 }
 
 export async function updateEntry(
@@ -293,14 +280,6 @@ export async function updateEntry(
   if (patch.endedAt !== undefined) update.endedAt = patch.endedAt;
 
   await db.timeEntry.update({ where: { id: entryId }, data: update });
-  if (patch.tagIds !== undefined) {
-    await db.timeEntryTag.deleteMany({ where: { timeEntryId: entryId } });
-    if (patch.tagIds.length > 0) {
-      await db.timeEntryTag.createMany({
-        data: patch.tagIds.map((tagId) => ({ timeEntryId: entryId, tagId })),
-      });
-    }
-  }
 
   await writeAudit(db, {
     companyId: entry.companyId,
@@ -426,7 +405,7 @@ export async function restoreEntry(
  * Audits *before* deleting — and must stay in sync with `purgeOldDeleted`,
  * which makes the same trade for the same reason. The `before` snapshot is the
  * entry's only surviving trace, and it has to be captured before the delete
- * cascades `TimeEntryTag` away (US-97). The cost is that a purge that then
+ * removes the row (US-97). The cost is that a purge that then
  * loses the race below leaves an audit row for an entry that still exists;
  * that is the acceptable direction of failure. Delete-then-audit would lose
  * the snapshot outright.
@@ -443,10 +422,7 @@ export async function purgeEntry(
   actorUserId: string,
   entryId: string,
 ): Promise<Result<true>> {
-  const entry = await db.timeEntry.findUnique({
-    where: { id: entryId },
-    include: { tags: true },
-  });
+  const entry = await db.timeEntry.findUnique({ where: { id: entryId } });
   if (!entry || !entry.deletedAt) return { ok: false, reason: 'not_found' };
   const role = await getMembership(db, actorUserId, entry.companyId);
   if (!role || role !== 'admin') return { ok: false, reason: 'not_found' };
@@ -508,7 +484,6 @@ export async function purgeOldDeleted(db: Db, now: Date = new Date()): Promise<{
   const cutoff = new Date(now.getTime() - TRASH_RETENTION_MS);
   const doomed = await db.timeEntry.findMany({
     where: { deletedAt: { lt: cutoff } },
-    include: { tags: true },
     // Oldest first, so a backlog drains in retention order and each run is
     // deterministic. `take` bounds every bind-parameter count below.
     orderBy: { deletedAt: 'asc' },
@@ -549,6 +524,7 @@ export interface TrashEntryView {
   userName: string;
   description: string;
   clientName: string | null;
+  clientColor: string | null;
   projectName: string | null;
   startedAt: Date;
   /** null when a *running* entry was soft-deleted. */
@@ -584,6 +560,7 @@ export async function listTrash(
       userName: r.user.fullName,
       description: r.description,
       clientName: r.client?.name ?? null,
+      clientColor: r.client?.color ?? null,
       projectName: r.project?.name ?? null,
       startedAt: r.startedAt,
       endedAt: r.endedAt,
@@ -605,7 +582,6 @@ export async function listRunningEntries(
       startedAt: Date;
       clientId: string | null;
       projectId: string | null;
-      tagIds: string[];
     }[]
   >
 > {
@@ -614,7 +590,6 @@ export async function listRunningEntries(
   const rows = await db.timeEntry.findMany({
     where: { userId: actorUserId, companyId, endedAt: null, deletedAt: null },
     orderBy: { startedAt: 'asc' },
-    include: { tags: true },
   });
   return {
     ok: true,
@@ -625,7 +600,6 @@ export async function listRunningEntries(
       startedAt: r.startedAt,
       clientId: r.clientId,
       projectId: r.projectId,
-      tagIds: r.tags.map((t) => t.tagId),
     })),
   };
 }
@@ -645,7 +619,6 @@ export async function listRecentEntries(
       endedAt: Date | null;
       clientId: string | null;
       projectId: string | null;
-      tagIds: string[];
     }[]
   >
 > {
@@ -656,7 +629,6 @@ export async function listRecentEntries(
     where: { userId: actorUserId, companyId, deletedAt: null },
     orderBy: { startedAt: 'desc' },
     take: capped,
-    include: { tags: true },
   });
   return {
     ok: true,
@@ -668,7 +640,6 @@ export async function listRecentEntries(
       endedAt: r.endedAt,
       clientId: r.clientId,
       projectId: r.projectId,
-      tagIds: r.tags.map((t) => t.tagId),
     })),
   };
 }
@@ -679,19 +650,19 @@ export interface HistoryEntry {
   note: string;
   clientId: string | null;
   clientName: string | null;
+  clientColor: string | null;
   projectId: string | null;
   projectName: string | null;
   startedAt: Date;
   endedAt: Date | null;
-  tags: { id: string; name: string; color: string }[];
 }
 
 /**
  * Completed entries for the timer-page history window: start-of-last-month to
  * max(end-of-this-week, end-of-this-month) — extended to the ISO week end so a
  * week spanning the month boundary isn't cut off. Newest-first, with client /
- * project names + tag colors for the rich rows. Backs both /api/v1/timer and
- * the /timer page SSR.
+ * project names for the rich rows. Backs both /api/v1/timer and the /timer
+ * page SSR.
  */
 export async function listRecentHistory(
   db: Db,
@@ -718,7 +689,7 @@ export async function listRecentHistory(
       endedAt: { not: null },
       startedAt: { gte: lastMonthRange.start, lt: historyEnd },
     },
-    include: { client: true, project: true, tags: { include: { tag: true } } },
+    include: { client: true, project: true },
     orderBy: { startedAt: 'desc' },
   });
 
@@ -730,11 +701,11 @@ export async function listRecentHistory(
       note: r.note,
       clientId: r.clientId,
       clientName: r.client?.name ?? null,
+      clientColor: r.client?.color ?? null,
       projectId: r.projectId,
       projectName: r.project?.name ?? null,
       startedAt: r.startedAt,
       endedAt: r.endedAt,
-      tags: r.tags.map((tt) => ({ id: tt.tag.id, name: tt.tag.name, color: tt.tag.color })),
     })),
   };
 }

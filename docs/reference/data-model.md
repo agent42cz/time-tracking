@@ -13,8 +13,7 @@ User
 Company
 ├── id, name, slug (unique), created_at, created_by
 ├── members[] → User (via Membership)
-├── clients[] → Client
-└── tags[] → Tag
+└── clients[] → Client
 
 Membership
 ├── user_id, company_id, role (admin | user), joined_at
@@ -36,16 +35,11 @@ Client
 Project
 ├── id, client_id, name, archived (bool), created_at
 
-Tag
-├── id, company_id, name, color, created_at
-└── company-scoped (every member of a company sees the same set)
-
 TimeEntry
 ├── id, user_id, company_id
 ├── client_id (nullable), project_id (nullable)
 ├── description (text)
 ├── started_at, ended_at (nullable while running)
-├── tags[] → Tag (many-to-many)
 ├── deleted_at (nullable; soft delete)
 └── created_at, updated_at
 

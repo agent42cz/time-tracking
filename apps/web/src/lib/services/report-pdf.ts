@@ -35,7 +35,6 @@ export interface ReportPdfStrings {
   date: string;
   user: string;
   description: string;
-  tags: string;
   duration: string;
   subtotal: string;
   grandTotal: string;
@@ -91,7 +90,6 @@ export function buildReportPdf(report: GroupedReport, meta: ReportPdfMeta): Prom
       const header: TableCell[] = [{ text: t.date, style: 'th' }];
       if (showUser) header.push({ text: t.user, style: 'th' });
       header.push({ text: t.description, style: 'th' });
-      header.push({ text: t.tags, style: 'th' });
       header.push({ text: t.duration, style: 'th', alignment: 'right' });
       const body: TableCell[][] = [header];
 
@@ -99,12 +97,11 @@ export function buildReportPdf(report: GroupedReport, meta: ReportPdfMeta): Prom
         const cells: TableCell[] = [{ text: `${ymd(r.startedAt)} ${fmtTime(r.startedAt)}` }];
         if (showUser) cells.push({ text: r.userName });
         cells.push({ text: r.description });
-        cells.push({ text: r.tags.map((x) => x.name).join(', ') });
         cells.push({ text: hm(r.durationMs), alignment: 'right' });
         body.push(cells);
       }
 
-      const span = showUser ? 4 : 3;
+      const span = showUser ? 3 : 2;
       const subtotal: TableCell[] = [
         { text: t.subtotal, colSpan: span, bold: true, alignment: 'right' },
         ...Array.from({ length: span - 1 }, () => ({ text: '' })),
@@ -115,7 +112,7 @@ export function buildReportPdf(report: GroupedReport, meta: ReportPdfMeta): Prom
       content.push({
         table: {
           headerRows: 1,
-          widths: showUser ? ['auto', 'auto', '*', 'auto', 'auto'] : ['auto', '*', 'auto', 'auto'],
+          widths: showUser ? ['auto', 'auto', '*', 'auto'] : ['auto', '*', 'auto'],
           body,
         },
         layout: 'lightHorizontalLines',
