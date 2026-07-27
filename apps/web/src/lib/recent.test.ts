@@ -11,7 +11,6 @@ function entry(over: Partial<RecentEntryInput>): RecentEntryInput {
     endedAt: '2026-06-02T10:00:00Z',
     clientName: 'Acme',
     projectName: 'Web',
-    tags: [],
     ...over,
   };
 }

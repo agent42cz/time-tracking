@@ -14,8 +14,6 @@ interface SP {
   client?: string | string[];
   project?: string | string[];
   member?: string | string[];
-  tag?: string | string[];
-  tagsMode?: string;
   search?: string;
   groupBy?: string;
 }
@@ -34,7 +32,7 @@ export default async function ReportsPage({
   const sp = await searchParams;
   const isAdmin = s.activeRole === 'admin';
 
-  const [autoStackUser, clients, projects, members, tags] = await Promise.all([
+  const [autoStackUser, clients, projects, members] = await Promise.all([
     prisma().user.findUniqueOrThrow({
       where: { id: s.userId },
       select: { autoStackOverlaps: true },
@@ -55,10 +53,6 @@ export default async function ReportsPage({
           orderBy: { user: { fullName: 'asc' } },
         })
       : Promise.resolve([]),
-    prisma().tag.findMany({
-      where: { companyId: s.activeCompanyId },
-      orderBy: { name: 'asc' },
-    }),
   ]);
 
   const filters = {
@@ -68,8 +62,6 @@ export default async function ReportsPage({
     clientIds: asArray(sp.client),
     projectIds: asArray(sp.project),
     memberIds: asArray(sp.member),
-    tagIds: asArray(sp.tag),
-    tagsMode: sp.tagsMode === 'and' ? ('and' as const) : ('or' as const),
     search: sp.search || undefined,
   };
 
@@ -109,15 +101,12 @@ export default async function ReportsPage({
               clients={clients.map((c) => ({ id: c.id, name: c.name }))}
               projects={projects.map((p) => ({ id: p.id, name: `${p.client.name} → ${p.name}` }))}
               members={members.map((m) => ({ id: m.userId, name: m.user.fullName }))}
-              tags={tags.map((tag) => ({ id: tag.id, name: tag.name, color: tag.color }))}
               initial={{
                 from: sp.from ?? '',
                 to: sp.to ?? '',
                 clientIds: asArray(sp.client),
                 projectIds: asArray(sp.project),
                 memberIds: asArray(sp.member),
-                tagIds: asArray(sp.tag),
-                tagsMode: filters.tagsMode,
                 search: sp.search ?? '',
                 groupBy,
               }}

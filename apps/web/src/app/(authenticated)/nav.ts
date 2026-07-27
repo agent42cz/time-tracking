@@ -3,7 +3,6 @@ export type NavIcon =
   | 'reports'
   | 'clients'
   | 'members'
-  | 'tags'
   | 'dashboard'
   | 'settings'
   | 'companies'
@@ -27,7 +26,6 @@ export const navGroups: NavGroup[] = [
     label: 'Správa dat',
     items: [
       { href: '/clients', label: 'Klienti', admin: true, icon: 'clients' },
-      { href: '/tags', label: 'Štítky', icon: 'tags' },
       { href: '/members', label: 'Členové', admin: true, icon: 'members' },
     ],
   },
@@ -66,7 +64,6 @@ export const BOTTOM_BAR_ORDER: string[] = [
   '/reports',
   '/clients',
   '/members',
-  '/tags',
   '/dashboard',
   '/settings',
   '/companies',

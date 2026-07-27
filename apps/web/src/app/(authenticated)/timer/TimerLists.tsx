@@ -24,7 +24,6 @@ interface RunningEntry {
   clientName: string | null;
   projectName: string | null;
   startedAt: string;
-  tags: { name: string; color: string }[];
 }
 
 function toRunning(e: TimerEntry): RunningEntry {
@@ -34,7 +33,6 @@ function toRunning(e: TimerEntry): RunningEntry {
     clientName: e.clientName,
     projectName: e.projectName,
     startedAt: e.startedAt,
-    tags: e.tags.map((t) => ({ name: t.name, color: t.color })),
   };
 }
 
@@ -47,7 +45,6 @@ function toHistory(e: TimerEntry): HistoryEntryView | null {
     projectName: e.projectName,
     startedAt: e.startedAt,
     endedAt: e.endedAt,
-    tags: e.tags.map((t) => ({ name: t.name, color: t.color })),
   };
 }
 

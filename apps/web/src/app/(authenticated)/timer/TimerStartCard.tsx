@@ -26,26 +26,18 @@ interface ClientWithProjects {
   name: string;
   projects: { id: string; name: string }[];
 }
-interface Tag {
-  id: string;
-  name: string;
-  color: string;
-}
 
 export function TimerStartCard({
   clients,
-  tags,
   autoStackOverlaps = false,
 }: {
   clients: ClientWithProjects[];
-  tags: Tag[];
   autoStackOverlaps?: boolean;
 }): ReactElement {
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
   const [showManual, setShowManual] = useState(false);
   const [clientId, setClientId] = useState('');
-  const [tagIds, setTagIds] = useState<string[]>([]);
   const [autoStackOpen, setAutoStackOpen] = useState(false);
   const [pendingCandidate, setPendingCandidate] = useState<
     AutoStackActionInput['candidate'] | null
@@ -57,10 +49,6 @@ export function TimerStartCard({
     () => clients.find((c) => c.id === clientId)?.projects ?? [],
     [clients, clientId],
   );
-
-  function toggleTag(id: string): void {
-    setTagIds((prev) => (prev.includes(id) ? prev.filter((t) => t !== id) : [...prev, id]));
-  }
 
   return (
     <>
@@ -87,7 +75,6 @@ export function TimerStartCard({
                 e.preventDefault();
                 const form = e.currentTarget;
                 const fd = new FormData(form);
-                for (const id of tagIds) fd.append('tagIds', id);
                 setError(null);
                 setPending(true);
                 try {
@@ -104,7 +91,6 @@ export function TimerStartCard({
                       return;
                     }
                     form.reset();
-                    setTagIds([]);
                     setShowManual(false);
                     notifyTimerChanged();
                     startTransition(() => {
@@ -171,7 +157,6 @@ export function TimerStartCard({
                 clientId={clientId}
                 setClientId={setClientId}
               />
-              <TagPicker tags={tags} selected={tagIds} onToggle={toggleTag} />
               <div className="mt-4 flex justify-end">
                 <Button type="submit" loading={pending} className="w-full sm:w-auto">
                   Uložit záznam
@@ -184,7 +169,6 @@ export function TimerStartCard({
                 e.preventDefault();
                 const form = e.currentTarget;
                 const fd = new FormData(form);
-                for (const id of tagIds) fd.append('tagIds', id);
                 setError(null);
                 setPending(true);
                 try {
@@ -194,7 +178,6 @@ export function TimerStartCard({
                     return;
                   }
                   form.reset();
-                  setTagIds([]);
                   setClientId('');
                   notifyTimerChanged();
                   startTransition(() => {
@@ -219,7 +202,6 @@ export function TimerStartCard({
                 clientId={clientId}
                 setClientId={setClientId}
               />
-              <TagPicker tags={tags} selected={tagIds} onToggle={toggleTag} />
               <div className="mt-4 flex justify-end">
                 <Button type="submit" size="lg" loading={pending} className="w-full sm:w-auto">
                   ▶ Spustit
@@ -244,7 +226,6 @@ export function TimerStartCard({
               setError(r.error);
               return;
             }
-            setTagIds([]);
             setShowManual(false);
             notifyTimerChanged();
             startTransition(() => {
@@ -252,7 +233,6 @@ export function TimerStartCard({
             });
           }}
           onShifted={() => {
-            setTagIds([]);
             setShowManual(false);
             notifyTimerChanged();
             startTransition(() => {
@@ -303,43 +283,6 @@ function PickerRow({
           ))}
         </Select>
       </Field>
-    </div>
-  );
-}
-
-function TagPicker({
-  tags,
-  selected,
-  onToggle,
-}: {
-  tags: Tag[];
-  selected: string[];
-  onToggle: (id: string) => void;
-}): ReactElement | null {
-  if (tags.length === 0) return null;
-  return (
-    <div className="mt-3">
-      <p className="mb-1.5 text-sm font-medium text-zinc-700 dark:text-zinc-300">Štítky</p>
-      <div className="flex flex-wrap gap-1.5">
-        {tags.map((t) => {
-          const active = selected.includes(t.id);
-          return (
-            <button
-              key={t.id}
-              type="button"
-              onClick={() => onToggle(t.id)}
-              className={`rounded-full border px-2.5 py-1 sm:py-0.5 text-xs font-medium transition-colors ${
-                active
-                  ? 'border-zinc-900 dark:border-zinc-100 bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900'
-                  : 'border-zinc-200 dark:border-zinc-700 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-700'
-              }`}
-              style={active ? { backgroundColor: t.color, borderColor: t.color } : undefined}
-            >
-              {t.name}
-            </button>
-          );
-        })}
-      </div>
     </div>
   );
 }

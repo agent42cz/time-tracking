@@ -17,7 +17,6 @@ interface Entry {
   clientName: string | null;
   projectName: string | null;
   startedAt: string;
-  tags: { name: string; color: string }[];
 }
 
 export function RunningTimers({
@@ -117,15 +116,6 @@ function RunningRow({
           <div className="mt-0.5 flex flex-wrap items-center gap-1.5 text-xs text-zinc-500 dark:text-zinc-400">
             {entry.clientName ? <span>{entry.clientName}</span> : null}
             {entry.projectName ? <span>· {entry.projectName}</span> : null}
-            {entry.tags.map((t, i) => (
-              <span
-                key={i}
-                className="rounded-full px-2 py-0.5 text-[10px] font-medium text-white"
-                style={{ backgroundColor: t.color }}
-              >
-                {t.name}
-              </span>
-            ))}
           </div>
         </div>
         <div className="flex shrink-0 w-full sm:w-auto items-center gap-3">

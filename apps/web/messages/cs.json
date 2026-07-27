@@ -7,7 +7,6 @@
     "timer": "Stopky",
     "clients": "Klienti",
     "projects": "Projekty",
-    "tags": "Štítky",
     "members": "Členové",
     "dashboard": "Dashboard",
     "reports": "Reporty",
@@ -44,7 +43,6 @@
     "description": "Popis činnosti",
     "client": "Klient",
     "project": "Projekt",
-    "tags": "Štítky",
     "today": "Dnes",
     "yesterday": "Včera",
     "addManual": "Přidat ručně",
@@ -72,7 +70,6 @@
       "descriptionPlaceholder": "Podrobnější poznámka k záznamu…",
       "client": "Klient",
       "project": "Projekt",
-      "tags": "Štítky",
       "noClient": "— bez klienta —",
       "noProject": "— bez projektu —",
       "startedAt": "Začátek",
@@ -146,7 +143,6 @@
       "date": "Datum",
       "user": "Uživatel",
       "description": "Popis",
-      "tags": "Štítky",
       "duration": "Trvání",
       "subtotal": "Mezisoučet",
       "grandTotal": "Celkem",
@@ -214,12 +210,6 @@
     "notFound": "Nenalezeno",
     "forbidden": "Přístup zamítnut",
     "tryAgain": "Zkusit znovu"
-  },
-  "tags": {
-    "confirm": {
-      "deleteTitle": "Smazat štítek „{name}\"?",
-      "deleteDescription": "Štítek bude odstraněn ze všech záznamů, kde je použit."
-    }
   },
   "companies": {
     "confirm": {

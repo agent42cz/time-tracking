@@ -57,7 +57,6 @@ export function ReportGrouped({ report, autoStackOverlaps, labels }: Props): Rea
                       {showClientProject ? <Th>Klient</Th> : null}
                       {showClientProject ? <Th>Projekt</Th> : null}
                       <Th>Popis</Th>
-                      <Th>Štítky</Th>
                       <Th className="text-right">Čas</Th>
                       <Th>Akce</Th>
                     </tr>
@@ -81,18 +80,6 @@ export function ReportGrouped({ report, autoStackOverlaps, labels }: Props): Rea
                         ) : null}
                         <Td className="max-w-xs truncate" title={r.description}>
                           {r.description}
-                        </Td>
-                        <Td>
-                          <div className="flex flex-wrap gap-1">
-                            {r.tags.map((tag) => (
-                              <span
-                                key={tag.id}
-                                className="rounded-full bg-zinc-100 dark:bg-zinc-700 px-1.5 py-0.5 text-[10px] text-zinc-700 dark:text-zinc-300"
-                              >
-                                {tag.name}
-                              </span>
-                            ))}
-                          </div>
                         </Td>
                         <Td className="text-right font-mono">{fmtDur(r.durationMs)}</Td>
                         <Td>
@@ -125,20 +112,6 @@ export function ReportGrouped({ report, autoStackOverlaps, labels }: Props): Rea
                         <DataCardRow label="Projekt">{r.projectName ?? '—'}</DataCardRow>
                       ) : null}
                       <DataCardRow label="Popis">{r.description}</DataCardRow>
-                      {r.tags.length > 0 ? (
-                        <DataCardRow label="Štítky">
-                          <div className="flex flex-wrap justify-end gap-1">
-                            {r.tags.map((tag) => (
-                              <span
-                                key={tag.id}
-                                className="rounded-full bg-zinc-100 dark:bg-zinc-700 px-1.5 py-0.5 text-[10px] text-zinc-700 dark:text-zinc-300"
-                              >
-                                {tag.name}
-                              </span>
-                            ))}
-                          </div>
-                        </DataCardRow>
-                      ) : null}
                       <DataCardRow label="Čas">
                         <span className="font-mono font-semibold text-zinc-900 dark:text-zinc-100">
                           {fmtDur(r.durationMs)}
