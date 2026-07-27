@@ -7,6 +7,7 @@
  * is parameterized at the API layer via `cascade: boolean` (US-15).
  */
 import type { Prisma, PrismaClient, Role } from '@prisma/client';
+import { isClientColor } from '@tt/shared';
 import { writeAudit } from './audit.js';
 
 type Db = PrismaClient | Prisma.TransactionClient;
@@ -185,6 +186,30 @@ export async function updateClientFund(
       workingDays: c.workingDays,
     },
     after: { ...patch, workingDays: dedupSortedDays },
+  });
+  return { ok: true, value: true };
+}
+
+export async function updateClientColor(
+  db: Db,
+  actorUserId: string,
+  clientId: string,
+  color: string,
+): Promise<Result<true, 'not_found' | 'invalid'>> {
+  if (!isClientColor(color)) return { ok: false, reason: 'invalid' };
+  const c = await db.client.findUnique({ where: { id: clientId } });
+  if (!c) return { ok: false, reason: 'not_found' };
+  const auth = await requireAdmin(db, actorUserId, c.companyId);
+  if (!auth.ok) return { ok: false, reason: 'not_found' };
+  await db.client.update({ where: { id: clientId }, data: { color } });
+  await writeAudit(db, {
+    companyId: c.companyId,
+    actorUserId,
+    action: 'update',
+    entityType: 'client_color',
+    entityId: clientId,
+    before: { color: c.color },
+    after: { color },
   });
   return { ok: true, value: true };
 }

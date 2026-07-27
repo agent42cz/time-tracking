@@ -13,6 +13,7 @@ import {
   renameProject,
   reorderClients,
   reorderProjects,
+  updateClientColor,
   updateClientFund,
 } from '../services/catalog.js';
 import type { ClientFundPatch } from '../services/catalog.js';
@@ -74,6 +75,18 @@ export async function updateClientFundAction(
     return { ok: false, error: r.reason === 'invalid' ? 'Neplatné hodnoty fondu' : 'Nelze uložit' };
   revalidatePath('/clients');
   revalidatePath('/dashboard');
+  return { ok: true };
+}
+
+export async function updateClientColorAction(
+  clientId: string,
+  color: string,
+): Promise<ActionResult> {
+  const s = await requireAdmin();
+  const r = await updateClientColor(prisma(), s.userId, clientId, color);
+  if (!r.ok)
+    return { ok: false, error: r.reason === 'invalid' ? 'Neplatná barva' : 'Nelze uložit' };
+  revalidatePath('/clients');
   return { ok: true };
 }
 
