@@ -25,6 +25,14 @@ Source of truth for development: [`../../.env.example`](../../.env.example). Pro
 | `BACKUP_RETENTION_DAYS` | Days to keep dumps before pruning. Default `14`.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        | `14`                                                                   |
 | `CRON_SECRET`           | Bearer token for `POST /api/cron/purge`, called daily by a Coolify scheduled task. **Generate with `openssl rand -hex 32`.** Unset ⇒ the endpoint rejects every request.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                | `<32-byte hex>`                                                        |
 
+## Optional
+
+Not required for the app to run; opt in for diagnostics.
+
+| Var       | Purpose                                                                                            | Example |
+| --------- | -------------------------------------------------------------------------------------------------- | ------- |
+| `TT_DIAG` | Set to `1` to emit one JSON line per timer start/stop for cross-surface debugging. Off by default. | `1`     |
+
 ## Local development
 
 `pnpm db:up` brings up the dev stack on host-friendly ports (Postgres 5433, Redis 6380, MailHog 1025/8025). Copy [`../../.env.example`](../../.env.example) to `.env` and adjust if you have other Postgres/Redis instances on the host. The port offsets are deliberate — see [`../decisions/0005-local-dev-port-offsets.md`](../decisions/0005-local-dev-port-offsets.md).

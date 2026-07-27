@@ -4,6 +4,7 @@ import { corsPreflight, errorCors, jsonCors } from '@/lib/api/cors';
 import { prisma } from '@/lib/session';
 import { stopTimer } from '@/lib/services/time-entries';
 import { previewAutoStack } from '@/lib/services/auto-stack-save';
+import { logTimerDiag } from '@/lib/diag-log';
 
 export const dynamic = 'force-dynamic';
 
@@ -19,7 +20,23 @@ export async function POST(
   if (!session) return errorCors(req, 401, 'unauthorized');
   const { id } = await params;
   const result = await stopTimer(prisma(), session.userId, id);
-  if (!result.ok) return errorCors(req, 404, result.reason);
+  if (!result.ok) {
+    logTimerDiag({
+      actorUserId: session.userId,
+      entryId: id,
+      source: session.authSource,
+      action: 'stop',
+      outcome: result.reason === 'not_running' ? 'conflict' : 'error',
+    });
+    return errorCors(req, 404, result.reason);
+  }
+  logTimerDiag({
+    actorUserId: session.userId,
+    entryId: id,
+    source: session.authSource,
+    action: 'stop',
+    outcome: 'ok',
+  });
 
   let overlap: { entryId: string; startedAt: string; endedAt: string } | null = null;
   if (session.autoStackOverlaps) {

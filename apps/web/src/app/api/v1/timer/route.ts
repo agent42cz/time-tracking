@@ -17,6 +17,7 @@ import { corsPreflight, errorCors, jsonCors } from '@/lib/api/cors';
 import { prisma } from '@/lib/session';
 import { listRecentHistory, startTimer } from '@/lib/services/time-entries';
 import { getPeriodRange } from '@tt/shared/time';
+import { logTimerDiag } from '@/lib/diag-log';
 
 export const dynamic = 'force-dynamic';
 
@@ -135,6 +136,22 @@ export async function POST(req: NextRequest): Promise<Response> {
     clientId: body.clientId ?? null,
     projectId: body.projectId ?? null,
   });
-  if (!result.ok) return errorCors(req, 400, 'cannot_start');
+  if (!result.ok) {
+    logTimerDiag({
+      actorUserId: session.userId,
+      entryId: null,
+      source: session.authSource,
+      action: 'start',
+      outcome: 'error',
+    });
+    return errorCors(req, 400, 'cannot_start');
+  }
+  logTimerDiag({
+    actorUserId: session.userId,
+    entryId: result.value.id,
+    source: session.authSource,
+    action: 'start',
+    outcome: 'ok',
+  });
   return jsonCors(req, { id: result.value.id });
 }
