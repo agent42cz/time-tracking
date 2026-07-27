@@ -11,6 +11,9 @@ const TOTAL_US = 101;
 
 const USIDS = Array.from({ length: TOTAL_US }, (_, i) => `US-${i + 1}`);
 
+/** Retired user stories — the feature they described was removed. */
+const RETIRED = new Set(['US-16', 'US-17']); // tags, removed in AIAGE-57
+
 const skipDirs = new Set([
   'node_modules',
   'dist',
@@ -61,12 +64,14 @@ function main(): void {
 
   const missing: string[] = [];
   for (const id of USIDS) {
+    if (RETIRED.has(id)) continue;
     if (found.get(id)!.size === 0) missing.push(id);
   }
 
-  const covered = TOTAL_US - missing.length;
-  const pct = ((covered / TOTAL_US) * 100).toFixed(1);
-  process.stdout.write(`US coverage: ${covered}/${TOTAL_US} (${pct}%)\n`);
+  const expected = TOTAL_US - RETIRED.size;
+  const covered = expected - missing.length;
+  const pct = ((covered / expected) * 100).toFixed(1);
+  process.stdout.write(`US coverage: ${covered}/${expected} (${pct}%, ${RETIRED.size} retired)\n`);
 
   if (missing.length > 0) {
     process.stdout.write(`Missing tests for: ${missing.join(', ')}\n`);

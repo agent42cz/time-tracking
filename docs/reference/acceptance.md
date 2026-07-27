@@ -13,8 +13,8 @@ Each box maps to the file (and test name) that proves it. v1 was declared comple
   - `apps/web/tests/services/companies.test.ts` — US-7 (`listMyCompanies` returns each membership with role).
   - Multi-company handling at the data layer is exercised in every cross-company 404 case across the suite.
 
-- [x] **Admin can CRUD clients, projects, and tags within a company.**
-  - `apps/web/tests/services/catalog.test.ts` — US-13 (clients/projects), US-14 (archive), US-15 (cascade vs. orphan), US-16 (tag rename/recolor/delete admin-only), US-17 (user inline tag), US-18 (read-only for users).
+- [x] **Admin can CRUD clients and projects within a company.**
+  - `apps/web/tests/services/catalog.test.ts` — US-13 (clients/projects), US-14 (archive), US-15 (cascade vs. orphan), US-18 (read-only for users).
 
 - [x] **User can start/stop multiple parallel timers and create manual entries.**
   - `apps/web/tests/services/time-entries.test.ts` — US-19, US-20, US-21 (parallel), US-22 (stop), US-23 (manual + validation).
