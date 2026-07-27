@@ -137,6 +137,7 @@ model Client {
   name      String
   archived  Boolean @default(false)
   sortOrder Int     @default(0) @map("sort_order")
+  color     String  @default("#6b7280")
 
   fundInDashboard   Boolean @default(false) @map("fund_in_dashboard")
   weeklyFundMinutes Int?    @map("weekly_fund_minutes")
