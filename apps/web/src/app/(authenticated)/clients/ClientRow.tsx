@@ -28,6 +28,7 @@ import { ProjectRow, type ProjectRowItem } from './ProjectRow';
 export interface ClientRowItem {
   id: string;
   name: string;
+  color: string;
   archived: boolean;
   entryCount: number;
   fundInDashboard: boolean;

@@ -32,6 +32,7 @@ export async function GET(req: NextRequest): Promise<Response> {
     clients: clients.map((c) => ({
       id: c.id,
       name: c.name,
+      color: c.color,
       projects: c.projects.map((p) => ({ id: p.id, name: p.name })),
     })),
   });

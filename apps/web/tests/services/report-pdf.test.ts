@@ -35,6 +35,7 @@ function sampleRow(): ReportRow {
     userName: 'Žluťoučký kůň', // exercises Czech glyphs
     clientId: 'c1',
     clientName: 'Acme',
+    clientColor: '#b91c1c',
     projectId: 'p1',
     projectName: 'Příliš žluťoučký projekt',
     description: 'Ladění úložiště',

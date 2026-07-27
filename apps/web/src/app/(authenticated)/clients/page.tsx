@@ -29,6 +29,7 @@ export default async function ClientsPage(): Promise<ReactElement> {
             clients={clients.map((c) => ({
               id: c.id,
               name: c.name,
+              color: c.color,
               archived: c.archived,
               entryCount: c._count.timeEntries,
               fundInDashboard: c.fundInDashboard,

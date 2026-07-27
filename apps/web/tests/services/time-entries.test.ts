@@ -8,9 +8,10 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { Prisma } from '@prisma/client';
 import { getTestPrisma, stopTestPrisma, withTx } from '@tt/db/test';
+import { CLIENT_COLORS } from '@tt/shared';
 import { callsTo, recordingDb, soleCallArg } from '../_helpers/recording-db.js';
 import { createCompany } from '../../src/lib/services/companies.js';
-import { createClient } from '../../src/lib/services/catalog.js';
+import { createClient, updateClientColor } from '../../src/lib/services/catalog.js';
 import {
   createManualEntry,
   getEntryHistory,
@@ -654,6 +655,62 @@ describe('time entries', () => {
       const cross = await listRecentHistory(tx, w.outsider, w.company, now);
       expect(cross.ok).toBe(false);
       if (!cross.ok) expect(cross.reason).toBe('not_found');
+    });
+  });
+
+  it('US-102: listRecentHistory carries the client colour alongside the name', async () => {
+    await withTx(async (tx) => {
+      const w = await bootstrap(tx, 'us102color');
+      const now = new Date('2026-06-02T09:00:00Z');
+      const c = await createClient(tx, w.admin, { companyId: w.company, name: 'Acme' });
+      if (!c.ok) throw new Error('setup failed');
+      await updateClientColor(tx, w.admin, c.value.id, CLIENT_COLORS[2]!.light);
+
+      const entry = await createManualEntry(
+        tx,
+        w.user,
+        {
+          companyId: w.company,
+          clientId: c.value.id,
+          startedAt: new Date('2026-06-01T08:00:00Z'),
+          endedAt: new Date('2026-06-01T09:00:00Z'),
+        },
+        now,
+      );
+      if (!entry.ok) throw new Error('setup failed');
+
+      const res = await listRecentHistory(tx, w.user, w.company, now);
+      expect(res.ok).toBe(true);
+      if (!res.ok) return;
+      const [row] = res.value;
+      expect(row?.clientName).toBe('Acme');
+      expect(row?.clientColor).toBe(CLIENT_COLORS[2]!.light);
+    });
+  });
+
+  it('US-102: an entry with no client reports a null colour', async () => {
+    await withTx(async (tx) => {
+      const w = await bootstrap(tx, 'us102nocolor');
+      const now = new Date('2026-06-02T09:00:00Z');
+
+      const entry = await createManualEntry(
+        tx,
+        w.user,
+        {
+          companyId: w.company,
+          startedAt: new Date('2026-06-01T08:00:00Z'),
+          endedAt: new Date('2026-06-01T09:00:00Z'),
+        },
+        now,
+      );
+      if (!entry.ok) throw new Error('setup failed');
+
+      const res = await listRecentHistory(tx, w.user, w.company, now);
+      expect(res.ok).toBe(true);
+      if (!res.ok) return;
+      const [row] = res.value;
+      expect(row?.clientName).toBeNull();
+      expect(row?.clientColor).toBeNull();
     });
   });
 });

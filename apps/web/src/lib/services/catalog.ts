@@ -121,7 +121,7 @@ export async function listClients(
   actorUserId: string,
   companyId: string,
   opts: { includeArchived?: boolean } = {},
-): Promise<Result<{ id: string; name: string; archived: boolean }[]>> {
+): Promise<Result<{ id: string; name: string; archived: boolean; color: string }[]>> {
   const auth = await requireMember(db, actorUserId, companyId);
   if (!auth.ok) return auth;
   const rows = await db.client.findMany({
@@ -130,7 +130,7 @@ export async function listClients(
   });
   return {
     ok: true,
-    value: rows.map((c) => ({ id: c.id, name: c.name, archived: c.archived })),
+    value: rows.map((c) => ({ id: c.id, name: c.name, archived: c.archived, color: c.color })),
   };
 }
 

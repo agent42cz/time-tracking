@@ -113,7 +113,12 @@ export interface EntryEditContext {
     startedAt: string; // ISO
     endedAt: string | null; // ISO
   };
-  clients: { id: string; name: string; projects: { id: string; name: string }[] }[];
+  clients: {
+    id: string;
+    name: string;
+    color: string;
+    projects: { id: string; name: string }[];
+  }[];
 }
 
 export async function getEntryEditContextAction(
@@ -156,6 +161,7 @@ export async function getEntryEditContextAction(
       clients: clients.map((c) => ({
         id: c.id,
         name: c.name,
+        color: c.color,
         projects: c.projects.map((p) => ({ id: p.id, name: p.name })),
       })),
     },

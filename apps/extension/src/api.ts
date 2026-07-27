@@ -31,6 +31,7 @@ export interface MeResponse {
 export interface ClientDto {
   id: string;
   name: string;
+  color: string;
   projects: { id: string; name: string }[];
 }
 
@@ -45,6 +46,7 @@ export interface EntryDto {
   note: string;
   clientId: string | null;
   clientName: string | null;
+  clientColor: string | null;
   projectId: string | null;
   projectName: string | null;
   startedAt: string;

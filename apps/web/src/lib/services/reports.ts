@@ -25,6 +25,7 @@ export interface ReportRow {
   userName: string;
   clientId: string | null;
   clientName: string | null;
+  clientColor: string | null;
   projectId: string | null;
   projectName: string | null;
   description: string;
@@ -82,6 +83,7 @@ export async function runReport(
       userName: r.user.fullName,
       clientId: r.clientId,
       clientName: r.client?.name ?? null,
+      clientColor: r.client?.color ?? null,
       projectId: r.projectId,
       projectName: r.project?.name ?? null,
       description: r.description,
@@ -102,6 +104,7 @@ export interface ReportGroup {
   key: string;
   label: string;
   clientName: string | null;
+  clientColor: string | null;
   subtotalMs: number;
   rows: ReportRow[];
 }
@@ -134,22 +137,26 @@ export function buildGroupedReport(
     let key: string;
     let label: string;
     let clientName: string | null;
+    let clientColor: string | null;
     if (groupBy === 'project') {
       key = r.projectId ?? 'none';
       label = r.projectName ?? 'Bez projektu';
       clientName = r.clientName;
+      clientColor = r.clientColor;
     } else if (groupBy === 'member') {
       key = r.userId;
       label = r.userName;
       clientName = null;
+      clientColor = null;
     } else {
       key = dayKey(r.startedAt);
       label = key;
       clientName = null;
+      clientColor = null;
     }
     let g = map.get(key);
     if (!g) {
-      g = { key, label, clientName, subtotalMs: 0, rows: [] };
+      g = { key, label, clientName, clientColor, subtotalMs: 0, rows: [] };
       map.set(key, g);
     }
     const ms = effectiveMs(r, clampEnd);

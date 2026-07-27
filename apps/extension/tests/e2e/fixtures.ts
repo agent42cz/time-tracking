@@ -79,6 +79,7 @@ export function buildApiFixture(
       note: '',
       clientId: null,
       clientName: null,
+      clientColor: null,
       projectId: null,
       projectName: null,
       startedAt: startedAt.toISOString(),
@@ -102,7 +103,14 @@ export function buildApiFixture(
     },
     catalog: {
       companyId: COMPANY_ID,
-      clients: [{ id: 'cli-1', name: 'Klient A', projects: [{ id: 'prj-1', name: 'Projekt A' }] }],
+      clients: [
+        {
+          id: 'cli-1',
+          name: 'Klient A',
+          color: '#6b7280',
+          projects: [{ id: 'prj-1', name: 'Projekt A' }],
+        },
+      ],
     },
     timer: {
       companyId: COMPANY_ID,
@@ -114,6 +122,7 @@ export function buildApiFixture(
               note: '',
               clientId: null,
               clientName: null,
+              clientColor: null,
               projectId: null,
               projectName: null,
               startedAt: runningStartedAt,

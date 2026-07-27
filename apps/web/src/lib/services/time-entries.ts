@@ -648,6 +648,7 @@ export interface HistoryEntry {
   note: string;
   clientId: string | null;
   clientName: string | null;
+  clientColor: string | null;
   projectId: string | null;
   projectName: string | null;
   startedAt: Date;
@@ -698,6 +699,7 @@ export async function listRecentHistory(
       note: r.note,
       clientId: r.clientId,
       clientName: r.client?.name ?? null,
+      clientColor: r.client?.color ?? null,
       projectId: r.projectId,
       projectName: r.project?.name ?? null,
       startedAt: r.startedAt,

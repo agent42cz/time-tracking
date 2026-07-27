@@ -11,6 +11,7 @@ function row(over: Partial<ReportRow>): ReportRow {
     userName: 'Alice',
     clientId: 'c1',
     clientName: 'Acme',
+    clientColor: '#b91c1c',
     projectId: 'p1',
     projectName: 'Web',
     description: 'work',

@@ -10,6 +10,7 @@
  */
 import type { Prisma, PrismaClient } from '@prisma/client';
 import { addDays } from 'date-fns';
+import { DEFAULT_CLIENT_COLOR } from '@tt/shared';
 import { dayKey } from '../time-format';
 import {
   weekRangeFor,
@@ -111,7 +112,11 @@ export async function clientShare(
   actorUserId: string,
   companyId: string,
   range: DateRange,
-): Promise<DashResult<{ clientId: string | null; clientName: string; totalMs: number }[]>> {
+): Promise<
+  DashResult<
+    { clientId: string | null; clientName: string; clientColor: string; totalMs: number }[]
+  >
+> {
   if (!(await requireAdmin(db, actorUserId, companyId))) return { ok: false, reason: 'not_found' };
   const entries = await db.timeEntry.findMany({
     where: {
@@ -121,7 +126,7 @@ export async function clientShare(
     },
     include: { client: true },
   });
-  const buckets = new Map<string | null, { name: string; totalMs: number }>();
+  const buckets = new Map<string | null, { name: string; color: string; totalMs: number }>();
   for (const e of entries) {
     const key = e.clientId;
     const existing = buckets.get(key);
@@ -131,6 +136,7 @@ export async function clientShare(
     } else {
       buckets.set(key, {
         name: e.client?.name ?? 'Nepřiřazený klient',
+        color: e.client?.color ?? DEFAULT_CLIENT_COLOR,
         totalMs: dur,
       });
     }
@@ -140,6 +146,7 @@ export async function clientShare(
     value: Array.from(buckets.entries()).map(([clientId, b]) => ({
       clientId,
       clientName: b.name,
+      clientColor: b.color,
       totalMs: b.totalMs,
     })),
   };
@@ -257,6 +264,7 @@ export interface FundDay {
 export interface ClientFund {
   clientId: string;
   clientName: string;
+  clientColor: string;
   weekly: FundBar;
   monthly: FundBar;
   days: FundDay[]; // [] for hours-only clients
@@ -380,6 +388,7 @@ export async function clientFundProgress(
     out.push({
       clientId: c.id,
       clientName: c.name,
+      clientColor: c.color,
       weekly: {
         targetMinutes: weeklyTarget,
         workedMinutes: weekWorked,
