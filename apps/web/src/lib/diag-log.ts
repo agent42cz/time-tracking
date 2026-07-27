@@ -11,6 +11,14 @@
 export interface TimerDiagEntry {
   actorUserId: string;
   entryId: string | null;
+  /**
+   * `'mcp'` is currently unreachable: the MCP `start_timer`/`stop_timer` tools
+   * call the `startTimer`/`stopTimer` service functions directly and never go
+   * through the `v1/timer` HTTP routes where `logTimerDiag` is called. Kept in
+   * the union for when that changes rather than removed, but until then an
+   * MCP-originated start/stop does not appear in this timeline — don't assume
+   * it's complete.
+   */
   source: 'web' | 'extension' | 'mcp';
   action: 'start' | 'stop';
   outcome: 'ok' | 'conflict' | 'error';

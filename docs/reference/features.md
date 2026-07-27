@@ -1,4 +1,4 @@
-# Features (US-1 … US-101)
+# Features (US-1 … US-104)
 
 Feature catalogue keyed by user-story IDs from PRD §13. Test names embed the US ID so [`../../scripts/test-trace.ts`](../../scripts/test-trace.ts) can verify 100% coverage.
 
@@ -27,7 +27,7 @@ Feature catalogue keyed by user-story IDs from PRD §13. Test names embed the US
 - **US-15** — When deleting a client/project with linked TimeEntries: prompt to delete those too or keep them as orphaned.
 - **US-16** — ~~Admin manages a company-wide tag list (rename, recolor, delete).~~ **Retired in AIAGE-57** (tags removed).
 - **US-17** — ~~User creates a new tag inline while filling out an entry.~~ **Retired in AIAGE-57** (tags removed).
-- **US-18** — User sees (read-only) the canonical list of clients, projects.
+- **US-18** — User sees (read-only) the canonical list of clients and projects.
 
 ## Time tracking — web
 
@@ -148,10 +148,16 @@ Feature catalogue keyed by user-story IDs from PRD §13. Test names embed the US
 - **US-100** — The `MultiSelect` popover renders above its clipping ancestors (`Card`'s `overflow-hidden`, `ConfirmModal`'s `overflow-y-auto`) and scrolls when its options exceed its max height.
 - **US-101** — The audit action filter offers every `AuditAction` value, derived from the Prisma enum so it cannot drift.
 
+## Timer feature (AIAGE-57)
+
+- **US-102** — Admin picks a client colour from a fixed ten-colour palette; the client's name renders in that colour in the timer lists, reports, dashboard, trash and the extension. Clients created before the feature keep the neutral grey default, which renders exactly as before. The PDF export stays monochrome. Non-admins cannot set a colour, cross-company returns `not_found`, and the update writes exactly one audit row.
+- **US-103** — `/timer` reflects a start or stop performed elsewhere (another tab, another window, another Chrome profile, the extension) without a focus change, over the WebSocket. Stopping an entry another surface already stopped refreshes the list and reports it neutrally instead of erroring.
+- **US-104** — The extension popup and service worker append diagnostic records to a capped `chrome.storage.local` ring buffer tagged with a per-instance id, and the popup exports them as JSON. With `TT_DIAG=1` the server emits one JSON line per timer start/stop, giving one ordered timeline across every surface.
+
 ## Coverage check
 
 ```bash
 pnpm test:trace
 ```
 
-Walks every test file (`*.test.{ts,tsx}`, `*.spec.{ts,tsx}`, `tests/**`) and looks for `\bUS-N\b`. Exits non-zero if any of US-1..US-101 has zero matches, except US-16 and US-17, which are retired (the tag feature they described was removed in AIAGE-57) and are excluded from both the miss list and the coverage denominator.
+Walks every test file (`*.test.{ts,tsx}`, `*.spec.{ts,tsx}`, `tests/**`) and looks for `\bUS-N\b`. Exits non-zero if any of US-1..US-104 has zero matches, except US-16 and US-17, which are retired (the tag feature they described was removed in AIAGE-57) and are excluded from both the miss list and the coverage denominator.

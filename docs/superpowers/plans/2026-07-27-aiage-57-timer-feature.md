@@ -1651,12 +1651,21 @@ Adjust the helper names to whatever `time-entries.test.ts` already uses for seed
 Run: `pnpm vitest run apps/web/tests/services/time-entries.test.ts`
 Expected: If it already PASSES, the service is fine and only the UI needs work — record that and skip Step 3. If it FAILS, the second stop is overwriting `endedAt`; fix `stopTimer` to return `{ ok: false, reason: 'conflict' }` when `endedAt` is already set, and re-run until green.
 
-- [ ] **Step 3: Re-fetch immediately before a stop or start**
+- [ ] **Step 3: Re-fetch immediately before a stop**
 
 The socket closes the window but does not eliminate it: a click landing between an
 external change and the frame that applies it still acts on a stale id. In
-`TimerLists.tsx`, `await refetch()` at the top of the stop and start handlers, then read
-the entry id from the freshly-set state rather than from the value captured at render:
+`TimerLists.tsx`, `await refetch()` at the top of the stop handler, then read
+the entry id from the freshly-set state rather than from the value captured at render.
+
+This guard is stop-only — start needs no equivalent, and that is deliberate rather than
+an oversight. Both start paths create a **new** entry rather than acting on an
+existing id: `TimerStartCard`'s quick-start form builds a fresh `FormData` from the
+form on submit, and `playAgain` re-validates server-side before opening a new timer.
+Neither can go stale the way a captured `id` can, because neither captures one. US-21
+also explicitly permits multiple running timers concurrently, so there is no "only one
+can be running" invariant for a stale start to violate. Re-fetching before start would
+add latency with nothing to guard against.
 
 ```ts
 const handleStop = async (id: string): Promise<void> => {

@@ -1,13 +1,13 @@
 /**
  * test-trace: scans test files for US-N references and reports any user
  * stories from PRD §13 that have zero matching tests. Exits non-zero if
- * coverage is below 100% of US-1..US-50.
+ * coverage is below 100% of US-1..US-104 (excluding the `RETIRED` set below).
  */
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 
 const ROOT = process.cwd();
-const TOTAL_US = 101;
+const TOTAL_US = 104;
 
 const USIDS = Array.from({ length: TOTAL_US }, (_, i) => `US-${i + 1}`);
 

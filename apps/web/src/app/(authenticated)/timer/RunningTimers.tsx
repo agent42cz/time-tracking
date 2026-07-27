@@ -49,7 +49,7 @@ export function RunningTimers({
   autoStackOverlaps?: boolean;
 }): ReactElement {
   return (
-    <Card>
+    <Card data-testid="running-timers">
       <CardHeader>
         <CardTitle>Probíhá ({entries.length})</CardTitle>
       </CardHeader>

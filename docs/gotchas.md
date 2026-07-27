@@ -171,3 +171,22 @@ jsdom` docblock (not a global `environment: 'jsdom'` — most tests here are
 
 **See also.** Task 10 / AIAGE-57 (US-102), `apps/web/src/components/ClientName.tsx`,
 `apps/web/src/app/globals.css`.
+
+### 2026-07-27 — Two visible browser tabs never saw each other's timers
+
+`apps/web` had no WebSocket client at all — `grep -rln "createWsClient" apps/web/src` was
+empty — while `packages/shared/src/ws/client.ts` had exported one, unused, since the WS
+service was built. `/timer` refetched only on its own same-tab CustomEvent and on
+`visibilitychange`, so two tabs that were both _visible_ (two windows, two monitors) held
+divergent state and acted on stale entry ids: Stop hit an already-stopped entry, Start
+created a duplicate.
+
+Fix: `useTimerSync` in `apps/web/src/lib/`, built on the existing `createWsClient`, which
+gained optional-token support so the browser's `tt-session` cookie authenticates it —
+`apps/ws/src/server.ts` already accepted either.
+
+Lesson: an exported module with no importers is not "shared infrastructure", it is dead
+code. Grep for consumers before assuming a capability is wired up.
+
+**See also.** Task 11-13 / AIAGE-57 (US-103), `apps/web/src/lib/useTimerSync.ts`,
+`apps/web/tests/e2e/multi-tab-timer.spec.ts`.
