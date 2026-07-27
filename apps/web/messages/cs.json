@@ -47,6 +47,7 @@
     "yesterday": "Včera",
     "addManual": "Přidat ručně",
     "playAgain": "Spustit znovu",
+    "alreadyStopped": "Tento záznam už byl zastaven jinde. Seznam byl aktualizován.",
     "history": {
       "empty": "Žádné dokončené záznamy",
       "emptyHint": "Spusťte nahoře nové měření nebo přidejte ruční zápis."

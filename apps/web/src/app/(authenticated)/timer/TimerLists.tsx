@@ -18,6 +18,8 @@ import { TimerHistory, type HistoryEntryView } from './TimerHistory';
 
 /** How long the "Vrátit zpět" affordance stays on screen after a delete. */
 export const UNDO_WINDOW_MS = 10_000;
+/** How long the "already stopped elsewhere" notice stays on screen (US-103). */
+const NOTICE_WINDOW_MS = 6_000;
 
 interface RunningEntry {
   id: string;
@@ -70,10 +72,21 @@ export function TimerLists({
   const [historyNowMs, setHistoryNowMs] = useState(initialNowMs);
   const [now, setNow] = useState<number | null>(null);
   const t = useTranslations('timer.undo');
+  const tTimer = useTranslations('timer');
   const [undoId, setUndoId] = useState<string | null>(null);
   const [undoError, setUndoError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
   const [, startTransition] = useTransition();
   const hasRunning = running.length > 0;
+
+  // Mirrors `running` so an `async` handler can read the value that was just
+  // set by `refetch()`, rather than the stale snapshot closed over at render
+  // time. Updated synchronously alongside every `setRunning` call (not via a
+  // `useEffect`), so it reflects the fresh list the instant `refetch()`'s
+  // returned promise resolves — independent of whether React has re-rendered
+  // yet. Reading `running` directly here would silently defeat the whole
+  // point of Task 13's pre-mutation refetch (US-103).
+  const runningRef = useRef<RunningEntry[]>(initialRunning);
 
   useEffect(() => {
     if (!hasRunning) {
@@ -92,6 +105,13 @@ export function TimerLists({
     return () => clearTimeout(timer);
   }, [undoId]);
 
+  // So is the "already stopped elsewhere" notice (US-103).
+  useEffect(() => {
+    if (!notice) return;
+    const timer = setTimeout(() => setNotice(null), NOTICE_WINDOW_MS);
+    return () => clearTimeout(timer);
+  }, [notice]);
+
   // Guards against a stale in-flight fetch resolving after unmount and
   // calling setState on a gone component. A ref (not a `useEffect`-local
   // `let`) so `refetch` can be hoisted into a stable `useCallback` below and
@@ -104,7 +124,13 @@ export function TimerLists({
       if (!res.ok) return;
       const parsed = TimerStateResponseSchema.safeParse(await res.json());
       if (!parsed.success || cancelledRef.current) return;
-      setRunning((parsed.data.running ?? []).map(toRunning));
+      const nextRunning = (parsed.data.running ?? []).map(toRunning);
+      // Set the ref first (or at least in the same synchronous tick as the
+      // state): callers that `await refetch()` and then read `runningRef`
+      // must see this value, and that must not depend on React having
+      // re-rendered in between.
+      runningRef.current = nextRunning;
+      setRunning(nextRunning);
       setHistory(
         (parsed.data.history ?? []).map(toHistory).filter((e): e is HistoryEntryView => e !== null),
       );
@@ -136,8 +162,38 @@ export function TimerLists({
   useTimerSync(wsUrl, refetch);
 
   const handleStopped = (id: string): void => {
+    runningRef.current = runningRef.current.filter((r) => r.id !== id);
     setRunning((rs) => rs.filter((r) => r.id !== id));
   };
+
+  // Re-fetches before a stop is even attempted (US-103): the socket closes
+  // the race window between an external change and the frame that applies
+  // it, but doesn't eliminate it — a click can still land against a stale
+  // entry id. Returns whether `id` is genuinely still running *after* the
+  // refetch; when it isn't, this already refreshed the list and surfaced a
+  // neutral notice, so the caller only needs to skip its own mutation.
+  const guardStillRunning = useCallback(
+    async (id: string): Promise<boolean> => {
+      await refetch();
+      const stillRunning = runningRef.current.some((r) => r.id === id);
+      if (!stillRunning) {
+        setNotice(tTimer('alreadyStopped'));
+      }
+      return stillRunning;
+    },
+    [refetch, tTimer],
+  );
+
+  // Narrower race: the guard above saw the entry as running, but another
+  // surface stopped it in the gap before our own mutation reached the
+  // server. The mutation call site detects this from the action's result
+  // (`reason: 'not_running'`) and reports it here instead of showing an
+  // error.
+  const reportStopConflict = useCallback((): void => {
+    setNotice(tTimer('alreadyStopped'));
+    void refetch();
+  }, [refetch, tTimer]);
+
   const handleDeleted = (id: string): void => {
     setHistory((hs) => hs.filter((h) => h.id !== id));
     setUndoError(null);
@@ -185,8 +241,15 @@ export function TimerLists({
           entries={running}
           now={now}
           onStopped={handleStopped}
+          beforeStop={guardStillRunning}
+          onStopConflict={reportStopConflict}
           autoStackOverlaps={autoStackOverlaps}
         />
+      ) : null}
+      {notice ? (
+        <Alert tone="info" className="mb-3">
+          {notice}
+        </Alert>
       ) : null}
       {undoId ? (
         <Alert tone="info" className="mb-3 flex items-center justify-between gap-3">

@@ -25,11 +25,27 @@ export function RunningTimers({
   entries,
   now,
   onStopped,
+  beforeStop,
+  onStopConflict,
   autoStackOverlaps = false,
 }: {
   entries: Entry[];
   now: number | null;
   onStopped: (id: string) => void;
+  /**
+   * Called at the top of every stop attempt (US-103): re-fetches and
+   * resolves to whether `id` is still genuinely running afterwards. When it
+   * resolves `false`, the caller already refreshed the list and surfaced a
+   * neutral notice — the row must skip its own mutation.
+   */
+  beforeStop: (id: string) => Promise<boolean>;
+  /**
+   * Called when the stop mutation itself discovers the entry was no longer
+   * running (a race lost between `beforeStop` and the mutation reaching the
+   * server) — refreshes the list and surfaces the same neutral notice
+   * instead of an error.
+   */
+  onStopConflict: () => void;
   autoStackOverlaps?: boolean;
 }): ReactElement {
   return (
@@ -44,6 +60,8 @@ export function RunningTimers({
             entry={e}
             now={now}
             onStopped={onStopped}
+            beforeStop={beforeStop}
+            onStopConflict={onStopConflict}
             autoStackOverlaps={autoStackOverlaps}
           />
         ))}
@@ -56,11 +74,15 @@ function RunningRow({
   entry,
   now,
   onStopped,
+  beforeStop,
+  onStopConflict,
   autoStackOverlaps = false,
 }: {
   entry: Entry;
   now: number | null;
   onStopped: (id: string) => void;
+  beforeStop: (id: string) => Promise<boolean>;
+  onStopConflict: () => void;
   autoStackOverlaps?: boolean;
 }): ReactElement {
   const [pending, setPending] = useState(false);
@@ -72,9 +94,24 @@ function RunningRow({
   async function handleStop(): Promise<void> {
     setPending(true);
     try {
+      // US-103: re-fetch before acting on this id at all. Between the last
+      // render and this click, another tab/window/the extension may already
+      // have stopped it — `beforeStop` refetches and tells us whether it's
+      // still genuinely running.
+      const stillRunning = await beforeStop(entry.id);
+      if (!stillRunning) {
+        setPending(false);
+        return;
+      }
       if (!autoStackOverlaps) {
         const r = await stopTimerAction(entry.id);
-        if (r.ok) onStopped(entry.id);
+        if (r.ok) {
+          onStopped(entry.id);
+        } else if (r.reason === 'not_running') {
+          // Narrower race: still running above, stopped elsewhere by the
+          // time this mutation reached the server.
+          onStopConflict();
+        }
         notifyTimerChanged();
         setPending(false);
         return;
@@ -99,7 +136,11 @@ function RunningRow({
         return;
       }
       const r = await stopTimerAction(entry.id);
-      if (r.ok) onStopped(entry.id);
+      if (r.ok) {
+        onStopped(entry.id);
+      } else if (r.reason === 'not_running') {
+        onStopConflict();
+      }
       notifyTimerChanged();
       setPending(false);
     } catch {
@@ -158,7 +199,11 @@ function RunningRow({
           }}
           onSaveWithoutShift={async () => {
             const r = await stopTimerAction(entry.id);
-            if (r.ok) onStopped(entry.id);
+            if (r.ok) {
+              onStopped(entry.id);
+            } else if (r.reason === 'not_running') {
+              onStopConflict();
+            }
             notifyTimerChanged();
           }}
           onShifted={() => {

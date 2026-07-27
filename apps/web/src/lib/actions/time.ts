@@ -15,6 +15,14 @@ import {
 
 export type ActionResult = { ok: true } | { ok: false; error: string };
 
+// A dedicated result type (rather than widening `ActionResult` itself) so
+// only `stopTimerAction`'s caller has to deal with `reason`: it lets the UI
+// tell a stop that lost a race to another surface (US-103) apart from a
+// genuine failure, without every other `ActionResult` caller having to care.
+export type StopTimerActionResult =
+  | { ok: true }
+  | { ok: false; error: string; reason?: 'not_running' };
+
 export async function startTimerAction(formData: FormData): Promise<ActionResult> {
   const s = await requireActiveCompany();
   const result = await startTimer(prisma(), s.userId, {
@@ -28,10 +36,17 @@ export async function startTimerAction(formData: FormData): Promise<ActionResult
   return { ok: true };
 }
 
-export async function stopTimerAction(entryId: string): Promise<ActionResult> {
+export async function stopTimerAction(entryId: string): Promise<StopTimerActionResult> {
   const s = await requireActiveCompany();
   const result = await stopTimer(prisma(), s.userId, entryId);
-  if (!result.ok) return { ok: false, error: 'Měření nelze zastavit' };
+  if (!result.ok) {
+    // `not_running` means someone else (another tab/window/the extension)
+    // already stopped this entry — a conflict to refresh past, not an error.
+    if (result.reason === 'not_running') {
+      return { ok: false, error: 'Měření nelze zastavit', reason: 'not_running' };
+    }
+    return { ok: false, error: 'Měření nelze zastavit' };
+  }
   revalidatePath('/timer');
   return { ok: true };
 }

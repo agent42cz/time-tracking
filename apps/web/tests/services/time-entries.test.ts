@@ -133,6 +133,23 @@ describe('time entries', () => {
     });
   });
 
+  it('US-103: stopping an entry that is already stopped reports a conflict rather than corrupting it', async () => {
+    await withTx(async (tx) => {
+      const w = await bootstrap(tx, 'us103conflict');
+      const started = await startTimer(tx, w.user, { companyId: w.company, description: 'x' });
+      if (!started.ok) throw new Error('setup failed');
+      const first = await stopTimer(tx, w.user, started.value.id);
+      expect(first.ok).toBe(true);
+      const endedAt = (await tx.timeEntry.findUnique({ where: { id: started.value.id } }))?.endedAt;
+
+      const second = await stopTimer(tx, w.user, started.value.id);
+
+      expect(second).toEqual({ ok: false, reason: 'not_running' });
+      const after = await tx.timeEntry.findUnique({ where: { id: started.value.id } });
+      expect(after?.endedAt).toEqual(endedAt); // the first stop time survives
+    });
+  });
+
   it('US-23: manual entry — past dates allowed, future rejected, end > start required', async () => {
     await withTx(async (tx) => {
       const w = await bootstrap(tx, 'us23');
