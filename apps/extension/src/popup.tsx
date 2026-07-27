@@ -32,7 +32,7 @@ import {
 } from './api.js';
 import { formatDurationHMS } from '@tt/shared/time/duration';
 import { fmtDurationHM } from './format.js';
-import { useExtensionSync } from './sync.js';
+import { useExtensionSync, diag } from './sync.js';
 import { EntrySheet, type EntrySheetInitial } from './EntrySheet.js';
 import { AutoStackSheet } from './AutoStackSheet.js';
 import { NewProjectSheet } from './NewProjectSheet.js';
@@ -92,6 +92,7 @@ export function Popup(): ReactElement {
       ]);
       setState({ session, me: user, timer, catalog });
       await setPopupCache(storage, { me: user, timer, catalog });
+      void diag.log('refresh:done', { running: (timer.running ?? []).map((e) => e.id) });
 
       const activeCompanyId = timer.companyId ?? companyId;
       const admin = user.memberships.some(
@@ -792,6 +793,7 @@ function MoreMenu({
 }): ReactElement {
   const [open, setOpen] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [diagCopied, setDiagCopied] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -818,6 +820,17 @@ function MoreMenu({
       setRefreshing(false);
       setOpen(false);
     }
+  }
+
+  // No toast component exists in this popup — every other confirmation here
+  // (see "Obnovit"/"Načítám…" above) is a transient label swap on the
+  // triggering menu item itself, so diagnostics copy reuses that pattern
+  // instead of introducing a new notice mechanism (US-104).
+  async function handleCopyDiagnostics(): Promise<void> {
+    const rows = await diag.read();
+    await navigator.clipboard.writeText(JSON.stringify(rows, null, 2));
+    setDiagCopied(true);
+    setTimeout(() => setDiagCopied(false), 2000);
   }
 
   return (
@@ -895,6 +908,17 @@ function MoreMenu({
             <span>{refreshing ? 'Načítám…' : 'Obnovit'}</span>
             <span aria-hidden className="text-zinc-400 dark:text-zinc-500">
               ⟳
+            </span>
+          </button>
+          <button
+            type="button"
+            role="menuitem"
+            onClick={() => void handleCopyDiagnostics()}
+            className="flex w-full items-center justify-between px-3 py-2 text-left text-xs text-zinc-700 hover:bg-zinc-50 dark:text-zinc-300 dark:hover:bg-zinc-700"
+          >
+            <span>{diagCopied ? 'Zkopírováno ✓' : 'Zkopírovat diagnostiku'}</span>
+            <span aria-hidden className="text-zinc-400 dark:text-zinc-500">
+              ⧉
             </span>
           </button>
           <button

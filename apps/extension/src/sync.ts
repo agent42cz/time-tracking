@@ -29,6 +29,7 @@ import {
 } from './api.js';
 import { OfflineQueue, type Mutation } from './queue.js';
 import { PendingOverlaps } from './pending-overlaps.js';
+import { Diag } from './diag.js';
 import {
   InMemoryStorageAdapter,
   createChromeStorageAdapter,
@@ -42,6 +43,12 @@ const storage: StorageAdapter =
 
 const queue = new OfflineQueue(storage);
 const pendingOverlaps = new PendingOverlaps(storage);
+/**
+ * One id per popup mount (module re-evaluates every time the popup opens),
+ * so the merged diagnostic timeline can tell separate windows/profiles apart
+ * (US-104). Exported so the popup can read/clear the same buffer.
+ */
+export const diag = new Diag(storage, 'popup', crypto.randomUUID());
 
 interface UseSyncArgs {
   session: ApiSession | null;
@@ -142,6 +149,7 @@ export function useExtensionSync({ session, wsUrl, companyId, onRefresh }: UseSy
         onConflict: () => setConflicts((c) => c + 1),
       },
     );
+    void diag.log('queue:flush', { applied: result.applied, conflicts: result.conflicts });
     setPending(await queue.size());
     await refreshPendingOverlap();
     if (result.applied > 0 || result.conflicts > 0) {
@@ -170,11 +178,13 @@ export function useExtensionSync({ session, wsUrl, companyId, onRefresh }: UseSy
       }
       ws.addEventListener('open', () => {
         backoff = 500;
+        void diag.log('ws:open');
       });
       ws.addEventListener('message', (e: MessageEvent<string>) => {
         try {
           const msg = JSON.parse(e.data) as { type?: string; channel?: string };
           if (msg.type && (msg.type.startsWith('time_entry.') || msg.type.startsWith('timer.'))) {
+            void diag.log('ws:event', { type: msg.type });
             void refreshRef.current();
           }
         } catch {
@@ -182,6 +192,7 @@ export function useExtensionSync({ session, wsUrl, companyId, onRefresh }: UseSy
         }
       });
       ws.addEventListener('close', () => {
+        void diag.log('ws:close');
         if (cancelled) return;
         setTimeout(connect, backoff);
         backoff = Math.min(30_000, backoff * 2);
@@ -213,6 +224,8 @@ export function useExtensionSync({ session, wsUrl, companyId, onRefresh }: UseSy
       } catch (err) {
         if (isNetworkError(err)) {
           await queue.enqueue(fallbackMutation);
+          void diag.log('queue:enqueue', { kind: fallbackMutation.kind });
+          if (fallbackMutation.kind === 'startTimer') void diag.log('start:queued');
           setPending(await queue.size());
           await refreshRef.current();
         } else {
@@ -224,23 +237,27 @@ export function useExtensionSync({ session, wsUrl, companyId, onRefresh }: UseSy
   );
 
   const executeStart = useCallback(
-    (input: StartTimerInput): Promise<void> =>
-      executeOrEnqueue(
+    (input: StartTimerInput): Promise<void> => {
+      void diag.log('start:click');
+      return executeOrEnqueue(
         async () => {
           await startTimer(session!, companyId, input);
+          void diag.log('start:ok');
         },
         {
           kind: 'startTimer',
           payload: { ...input, companyId },
           clientId: crypto.randomUUID(),
         },
-      ),
+      );
+    },
     [session, companyId, executeOrEnqueue],
   );
 
   const executeStop = useCallback(
     async (entryId: string): Promise<void> => {
       if (!session) return;
+      void diag.log('stop:click', { entryId });
       let res: StopTimerResult;
       try {
         res = await stopTimer(session, entryId);
@@ -251,15 +268,21 @@ export function useExtensionSync({ session, wsUrl, companyId, onRefresh }: UseSy
             payload: { id: entryId },
             clientId: crypto.randomUUID(),
           });
+          void diag.log('stop:queued');
           setPending(await queue.size());
           await refreshRef.current();
           return;
         }
+        void diag.log('stop:error', {
+          entryId,
+          status: err instanceof ApiError ? err.status : null,
+        });
         throw err;
       }
       // Stop committed server-side. Success-side effects run OUTSIDE the
       // network try so a storage error here can never be misread as offline
       // and enqueue a duplicate stop.
+      void diag.log('stop:ok', { entryId, hadOverlap: Boolean(res.overlap) });
       nudgeServiceWorker();
       await refreshRef.current();
       if (res.overlap) {

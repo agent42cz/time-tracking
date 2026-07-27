@@ -8,6 +8,35 @@
 const POLL_ALARM = 'tt:poll';
 const POLL_PERIOD_MIN = 0.5; // 30s
 
+// Diagnostics (US-104): same ring-buffer shape as src/diag.ts, duplicated
+// here on purpose. This file is plain JS in public/ specifically so Vite
+// copies it verbatim instead of bundling it as a popup chunk (see header
+// above) — it cannot import a TypeScript module, so the ~15-line appender
+// is inlined rather than shared. Do not "fix" this by restructuring the
+// build; that was considered and rejected.
+const DIAG_KEY = 'tt:diag';
+const DIAG_CAP = 300;
+const SW_INSTANCE = crypto.randomUUID();
+
+async function diag(event, data) {
+  try {
+    const out = await chrome.storage.local.get(DIAG_KEY);
+    const rows = out[DIAG_KEY] ?? [];
+    rows.push({
+      ts: Date.now(),
+      surface: 'sw',
+      instance: SW_INSTANCE,
+      event,
+      ...(data ? { data } : {}),
+    });
+    await chrome.storage.local.set({
+      [DIAG_KEY]: rows.length > DIAG_CAP ? rows.slice(rows.length - DIAG_CAP) : rows,
+    });
+  } catch {
+    /* diagnostics are best-effort */
+  }
+}
+
 const ICON_PATHS = {
   idle: {
     16: 'icons/icon-16-idle.png',
@@ -48,6 +77,7 @@ async function poll() {
     });
     if (res.status === 401) {
       // Token rejected — clear it so the popup falls back to login.
+      void diag('poll:401');
       await chrome.storage.local.remove(['tt:session']);
       await setIconState('idle');
       await chrome.action.setBadgeText({ text: '' });
@@ -59,6 +89,7 @@ async function poll() {
     }
     const data = await res.json();
     const running = Array.isArray(data?.running) ? data.running.length : 0;
+    void diag('poll:result', { running });
     await setIconState(running > 0 ? 'active' : 'idle');
     await chrome.action.setBadgeText({
       text: running > 0 ? String(running) : '',
@@ -68,6 +99,7 @@ async function poll() {
     }
   } catch {
     // Network down — leave the icon as-is rather than flapping to idle.
+    void diag('poll:error');
   }
 }
 
@@ -94,6 +126,16 @@ chrome.alarms.onAlarm.addListener((alarm) => {
 // Refresh immediately when the popup writes session/timer state.
 chrome.storage.onChanged.addListener((changes, area) => {
   if (area !== 'local') return;
+  // Writing a diag record is itself a storage change — logging every change
+  // unconditionally would create an infinite feedback loop that fills the
+  // buffer with noise. Skip only when tt:diag is the SOLE changed key (our
+  // own append); if it changed alongside another key, that other key's
+  // change is real and still worth logging (US-104).
+  const changedKeys = Object.keys(changes);
+  const onlyDiagChanged = changedKeys.length === 1 && changedKeys[0] === DIAG_KEY;
+  if (!onlyDiagChanged) {
+    void diag('storage:changed', { keys: changedKeys });
+  }
   if (changes['tt:session'] || changes['tt:icon-hint']) {
     void poll();
   }
@@ -102,6 +144,7 @@ chrome.storage.onChanged.addListener((changes, area) => {
 // Allow the popup to nudge an immediate refresh after a mutation.
 chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
   if (msg?.type === 'tt:refresh') {
+    void diag('sw:nudge');
     poll().then(() => sendResponse({ ok: true }));
     return true; // async response
   }
