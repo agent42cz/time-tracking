@@ -35,6 +35,11 @@ export default defineConfig({
       AUTH_URL: BASE_URL,
       APP_URL: BASE_URL,
       NODE_ENV: 'test',
+      // Forwarded so specs can exercise live cross-tab sync (US-103). Left empty
+      // by default: `useTimerSync` no-ops on a null url and the page falls back to
+      // refetch-on-focus, which is what every other spec expects. Set it (and run
+      // `apps/ws`) to run multi-tab-timer.spec.ts.
+      WS_PUBLIC_URL: process.env.WS_PUBLIC_URL ?? '',
     },
   },
   projects: [

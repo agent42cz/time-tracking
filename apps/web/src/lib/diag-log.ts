@@ -8,6 +8,8 @@
  * Written with process.stdout.write rather than console, which is banned in
  * apps/** by local/no-console-in-src.
  */
+import { createHash } from 'node:crypto';
+
 export interface TimerDiagEntry {
   actorUserId: string;
   entryId: string | null;
@@ -24,11 +26,27 @@ export interface TimerDiagEntry {
   outcome: 'ok' | 'conflict' | 'error';
 }
 
+/**
+ * Correlation needs a *stable* actor key, not an identifying one — the timeline
+ * only has to group one user's events across surfaces. So the raw user id never
+ * reaches the log: a truncated SHA-256 is just as groupable and keeps user ids
+ * out of whatever aggregator retains container output.
+ */
+function actorKey(userId: string): string {
+  return createHash('sha256').update(userId, 'utf8').digest('hex').slice(0, 12);
+}
+
 export function logTimerDiag(entry: TimerDiagEntry): void {
   if (process.env.TT_DIAG !== '1') return;
   try {
+    const { actorUserId, ...rest } = entry;
     process.stdout.write(
-      `${JSON.stringify({ tag: 'tt:diag', ts: new Date().toISOString(), ...entry })}\n`,
+      `${JSON.stringify({
+        tag: 'tt:diag',
+        ts: new Date().toISOString(),
+        actor: actorKey(actorUserId),
+        ...rest,
+      })}\n`,
     );
   } catch {
     // Diagnostics must never break a request.

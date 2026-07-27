@@ -76,9 +76,11 @@ async function poll() {
       headers: { Authorization: `Bearer ${session.token}` },
     });
     if (res.status === 401) {
-      // Token rejected — clear it so the popup falls back to login.
+      // Token rejected — clear it so the popup falls back to login. The diag
+      // buffer goes with it: it holds entry ids from the session that just
+      // ended (mirrors setStoredSession in src/api.ts).
       void diag('poll:401');
-      await chrome.storage.local.remove(['tt:session']);
+      await chrome.storage.local.remove(['tt:session', DIAG_KEY]);
       await setIconState('idle');
       await chrome.action.setBadgeText({ text: '' });
       return;

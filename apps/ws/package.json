@@ -16,7 +16,7 @@
     "@tt/db": "workspace:*",
     "@tt/shared": "workspace:*",
     "ioredis": "^5.4.2",
-    "ws": "^8.18.0"
+    "ws": "^8.21.1"
   },
   "devDependencies": {
     "@testcontainers/postgresql": "^10.28.0",

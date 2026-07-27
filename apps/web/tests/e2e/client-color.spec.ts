@@ -39,7 +39,19 @@ test.describe('US-102: client colour', () => {
     await page.getByLabel('Klient').selectOption({ label: 'Agent 42' });
     await page.getByRole('button', { name: '▶ Spustit' }).click();
 
-    const name = page.getByText('Agent 42').first();
-    await expect(name).toHaveCSS('color', hexToRgb(expectedHex));
+    // Scope to the running-timers card. A bare `getByText('Agent 42')` matches the
+    // start form's own <option> first, which carries the page's default text colour
+    // and would assert nothing about the tint.
+    const runningCard = page.getByTestId('running-timers');
+    await expect(runningCard.getByText('Agent 42').first()).toHaveCSS(
+      'color',
+      hexToRgb(expectedHex),
+    );
+
+    // Stop the timer this test started. Leaving it running makes the very next
+    // spec's `getByRole('button', { name: '■ Stop' }).first()` hit this entry
+    // instead of its own, which cascaded into three unrelated failures.
+    await runningCard.getByRole('button', { name: '■ Stop' }).click();
+    await expect(runningCard).toBeHidden();
   });
 });

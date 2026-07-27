@@ -4,6 +4,7 @@
  * `apiBase` (default: `VITE_DEFAULT_API_BASE` at build time, else
  * localhost:3000 — overridable in popup settings).
  */
+import { DIAG_KEY } from './diag.js';
 import type { StorageAdapter } from './storage.js';
 
 export interface Membership {
@@ -153,8 +154,20 @@ export async function setStoredSession(
   storage: StorageAdapter,
   session: ApiSession | null,
 ): Promise<void> {
-  if (session) await storage.set(SESSION_KEY, session);
-  else await storage.remove(SESSION_KEY);
+  if (session) {
+    await storage.set(SESSION_KEY, session);
+    return;
+  }
+  await storage.remove(SESSION_KEY);
+  // Clearing the session also clears the diagnostic buffer (US-104): it holds
+  // entry ids from the session that just ended, and on a shared machine those
+  // should not outlive it. Best-effort — failing to clear diagnostics must not
+  // block the logout itself.
+  try {
+    await storage.remove(DIAG_KEY);
+  } catch {
+    /* non-fatal */
+  }
 }
 
 export async function getApiBase(storage: StorageAdapter): Promise<string> {
