@@ -50,7 +50,7 @@ describe('mcp tool: list_catalog', () => {
     });
   });
 
-  it('no longer advertises a "tags" kind (tags removed from the MCP surface)', async () => {
+  it('US-18: no longer advertises a "tags" kind (tags removed from the MCP surface)', async () => {
     await withTx(async (tx) => {
       const w = await setup(tx, 'notags');
       const m = await buildInProcessMcp({ db: tx, userId: w.userId, companyId: w.companyId });
