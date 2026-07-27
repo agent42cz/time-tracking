@@ -46,6 +46,7 @@ export default async function TimerPage(): Promise<ReactElement> {
           autoStackOverlaps={autoStackUser.autoStackOverlaps}
         />
         <TimerLists
+          wsUrl={process.env.WS_PUBLIC_URL ?? null}
           autoStackOverlaps={autoStackUser.autoStackOverlaps}
           initialNowMs={now.getTime()}
           initialRunning={running.map((r) => ({

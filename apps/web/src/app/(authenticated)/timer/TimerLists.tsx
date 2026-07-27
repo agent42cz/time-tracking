@@ -1,7 +1,7 @@
 'use client';
 
 import type { ReactElement } from 'react';
-import { useEffect, useState, useTransition } from 'react';
+import { useCallback, useEffect, useRef, useState, useTransition } from 'react';
 import { Alert, Button } from '@tt/ui';
 import { useTranslations } from 'next-intl';
 import { unstable_rethrow } from 'next/navigation';
@@ -12,6 +12,7 @@ import {
   type TimerEntry,
 } from '@/lib/timer-events';
 import { restoreEntryAction } from '@/lib/actions/time';
+import { useTimerSync } from '@/lib/useTimerSync';
 import { RunningTimers } from './RunningTimers';
 import { TimerHistory, type HistoryEntryView } from './TimerHistory';
 
@@ -52,11 +53,13 @@ function toHistory(e: TimerEntry): HistoryEntryView | null {
 }
 
 export function TimerLists({
+  wsUrl,
   initialRunning,
   initialHistory,
   initialNowMs,
   autoStackOverlaps = false,
 }: {
+  wsUrl: string | null;
   initialRunning: RunningEntry[];
   initialHistory: HistoryEntryView[];
   initialNowMs: number;
@@ -89,25 +92,31 @@ export function TimerLists({
     return () => clearTimeout(timer);
   }, [undoId]);
 
-  useEffect(() => {
-    let cancelled = false;
-    async function refetch(): Promise<void> {
-      try {
-        const res = await fetch('/api/v1/timer', { credentials: 'same-origin', cache: 'no-store' });
-        if (!res.ok) return;
-        const parsed = TimerStateResponseSchema.safeParse(await res.json());
-        if (!parsed.success || cancelled) return;
-        setRunning((parsed.data.running ?? []).map(toRunning));
-        setHistory(
-          (parsed.data.history ?? [])
-            .map(toHistory)
-            .filter((e): e is HistoryEntryView => e !== null),
-        );
-        setHistoryNowMs(Date.now());
-      } catch {
-        // ignore network/parse errors
-      }
+  // Guards against a stale in-flight fetch resolving after unmount and
+  // calling setState on a gone component. A ref (not a `useEffect`-local
+  // `let`) so `refetch` can be hoisted into a stable `useCallback` below and
+  // still be shared by the listener effect and `useTimerSync`.
+  const cancelledRef = useRef(false);
+
+  const refetch = useCallback(async (): Promise<void> => {
+    try {
+      const res = await fetch('/api/v1/timer', { credentials: 'same-origin', cache: 'no-store' });
+      if (!res.ok) return;
+      const parsed = TimerStateResponseSchema.safeParse(await res.json());
+      if (!parsed.success || cancelledRef.current) return;
+      setRunning((parsed.data.running ?? []).map(toRunning));
+      setHistory(
+        (parsed.data.history ?? []).map(toHistory).filter((e): e is HistoryEntryView => e !== null),
+      );
+      setHistoryNowMs(Date.now());
+    } catch {
+      // ignore network/parse errors
     }
+  }, []);
+
+  // Fallbacks for when the socket is down or `wsUrl` is unset: same-tab
+  // custom event, and refetch-on-focus for tabs that were merely hidden.
+  useEffect(() => {
     const onChange = (): void => void refetch();
     const onVisibility = (): void => {
       if (document.visibilityState === 'visible') void refetch();
@@ -115,11 +124,16 @@ export function TimerLists({
     window.addEventListener(TIMER_CHANGED_EVENT, onChange);
     document.addEventListener('visibilitychange', onVisibility);
     return () => {
-      cancelled = true;
+      cancelledRef.current = true;
       window.removeEventListener(TIMER_CHANGED_EVENT, onChange);
       document.removeEventListener('visibilitychange', onVisibility);
     };
-  }, []);
+  }, [refetch]);
+
+  // Live cross-tab sync (US-103): fires `refetch` on `timer.*`/`time_entry.*`
+  // WS events from other tabs, windows, profiles, or the extension. No-ops
+  // when `wsUrl` is null (WS_PUBLIC_URL unset).
+  useTimerSync(wsUrl, refetch);
 
   const handleStopped = (id: string): void => {
     setRunning((rs) => rs.filter((r) => r.id !== id));
