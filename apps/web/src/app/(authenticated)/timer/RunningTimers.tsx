@@ -10,11 +10,13 @@ import { EditEntryButton } from '@/components/time/EditEntryButton';
 import { checkOverlap } from '@/components/time/save-with-overlap-check';
 import { AutoStackPreviewDialog } from '@/components/time/AutoStackPreviewDialog';
 import type { AutoStackActionInput } from '@/lib/actions/auto-stack';
+import { ClientName } from '@/components/ClientName';
 
 interface Entry {
   id: string;
   description: string;
   clientName: string | null;
+  clientColor: string | null;
   projectName: string | null;
   startedAt: string;
 }
@@ -114,7 +116,9 @@ function RunningRow({
             )}
           </p>
           <div className="mt-0.5 flex flex-wrap items-center gap-1.5 text-xs text-zinc-500 dark:text-zinc-400">
-            {entry.clientName ? <span>{entry.clientName}</span> : null}
+            {entry.clientName ? (
+              <ClientName name={entry.clientName} color={entry.clientColor} />
+            ) : null}
             {entry.projectName ? <span>· {entry.projectName}</span> : null}
           </div>
         </div>

@@ -22,6 +22,7 @@ interface RunningEntry {
   id: string;
   description: string;
   clientName: string | null;
+  clientColor: string | null;
   projectName: string | null;
   startedAt: string;
 }
@@ -31,6 +32,7 @@ function toRunning(e: TimerEntry): RunningEntry {
     id: e.id,
     description: e.description,
     clientName: e.clientName,
+    clientColor: e.clientColor,
     projectName: e.projectName,
     startedAt: e.startedAt,
   };
@@ -42,6 +44,7 @@ function toHistory(e: TimerEntry): HistoryEntryView | null {
     id: e.id,
     description: e.description,
     clientName: e.clientName,
+    clientColor: e.clientColor,
     projectName: e.projectName,
     startedAt: e.startedAt,
     endedAt: e.endedAt,

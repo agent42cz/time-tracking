@@ -2,6 +2,12 @@ import { defineConfig } from 'vitest/config';
 import path from 'node:path';
 
 export default defineConfig({
+  // Matches Next.js' own compilation of these files (automatic JSX runtime,
+  // React 17+): component tests (*.test.tsx) render real components without
+  // requiring an explicit `import React from 'react'` in every file.
+  esbuild: {
+    jsx: 'automatic',
+  },
   resolve: {
     // Stub out Next.js' server-only guard — it throws if imported outside a
     // Server Component, but our service/server modules are plain Node code and

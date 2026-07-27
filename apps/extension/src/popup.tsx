@@ -37,6 +37,7 @@ import { EntrySheet, type EntrySheetInitial } from './EntrySheet.js';
 import { AutoStackSheet } from './AutoStackSheet.js';
 import { NewProjectSheet } from './NewProjectSheet.js';
 import { groupRecentByDay, type RecentEntryInput } from './recent.js';
+import { clientTint } from './client-tint.js';
 import {
   applyThemeClass,
   readShowStats,
@@ -521,7 +522,9 @@ function AppShell({
             fund.clients.map((c) => (
               <div key={c.clientId} className="mb-1.5 last:mb-0">
                 <div className="mb-0.5 truncate text-[10px] text-zinc-500 dark:text-zinc-400">
-                  {c.clientName}
+                  <span className="client-tint" style={clientTint(c.clientColor)}>
+                    {c.clientName}
+                  </span>
                 </div>
                 {c.days.length > 0 ? (
                   <div className="flex gap-0.5">
@@ -1120,6 +1123,33 @@ function StartRow({
   );
 }
 
+/**
+ * "Client · Project" line shared by RunningList and HistoryList. The client
+ * half is tinted via `clientTint` (US-102); the project half never is.
+ */
+function ClientProjectLine({
+  clientName,
+  clientColor,
+  projectName,
+}: {
+  clientName: string | null;
+  clientColor: string | null;
+  projectName: string | null;
+}): ReactElement {
+  if (!clientName && !projectName) return <>—</>;
+  return (
+    <>
+      {clientName ? (
+        <span className="client-tint" style={clientTint(clientColor)}>
+          {clientName}
+        </span>
+      ) : null}
+      {clientName && projectName ? ' · ' : null}
+      {projectName}
+    </>
+  );
+}
+
 function RunningList({
   entries,
   now,
@@ -1131,6 +1161,7 @@ function RunningList({
     description: string;
     startedAt: string;
     clientName: string | null;
+    clientColor: string | null;
     projectName: string | null;
   }[];
   now: number;
@@ -1176,7 +1207,11 @@ function RunningList({
               )}
             </div>
             <div className="truncate text-[10px] text-zinc-500 dark:text-zinc-400">
-              {[e.clientName, e.projectName].filter(Boolean).join(' · ') || '—'}
+              <ClientProjectLine
+                clientName={e.clientName}
+                clientColor={e.clientColor}
+                projectName={e.projectName}
+              />
             </div>
           </button>
           <div className="flex items-center gap-2">
@@ -1282,7 +1317,11 @@ function HistoryList({
                             )}
                           </div>
                           <div className="truncate text-[10px] text-zinc-500 dark:text-zinc-400">
-                            {[e.clientName, e.projectName].filter(Boolean).join(' · ') || '—'}
+                            <ClientProjectLine
+                              clientName={e.clientName}
+                              clientColor={e.clientColor}
+                              projectName={e.projectName}
+                            />
                           </div>
                         </button>
                         <div className="flex items-center gap-1.5">

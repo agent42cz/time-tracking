@@ -17,6 +17,7 @@ import {
 import type { GroupedReport } from '@/lib/services/reports';
 import { fmtDur, fmtTime, formatDayKey, ymd } from '@/lib/time-format';
 import { ReportsRowActions } from './ReportsRowActions';
+import { ClientName } from '@/components/ClientName';
 
 interface Props {
   report: GroupedReport;
@@ -70,7 +71,7 @@ export function ReportGrouped({ report, autoStackOverlaps, labels }: Props): Rea
                         {showUser ? <Td>{r.userName}</Td> : null}
                         {showClientProject ? (
                           <Td className="text-zinc-700 dark:text-zinc-300">
-                            {r.clientName ?? '—'}
+                            <ClientName name={r.clientName} color={r.clientColor} />
                           </Td>
                         ) : null}
                         {showClientProject ? (
@@ -106,7 +107,9 @@ export function ReportGrouped({ report, autoStackOverlaps, labels }: Props): Rea
                       </DataCardRow>
                       {showUser ? <DataCardRow label="Uživatel">{r.userName}</DataCardRow> : null}
                       {showClientProject ? (
-                        <DataCardRow label="Klient">{r.clientName ?? '—'}</DataCardRow>
+                        <DataCardRow label="Klient">
+                          <ClientName name={r.clientName} color={r.clientColor} />
+                        </DataCardRow>
                       ) : null}
                       {showClientProject ? (
                         <DataCardRow label="Projekt">{r.projectName ?? '—'}</DataCardRow>

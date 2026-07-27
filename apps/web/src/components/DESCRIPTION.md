@@ -8,14 +8,15 @@ Components that are specific to the Next.js web app — they consume web concept
 
 ## Public surface
 
-| Component             | Purpose                                                                                                                                          |
-| --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `CompanySwitcher.tsx` | Dropdown for switching the active company; posts to a server action that updates the session cookie. Used in the authenticated layout's sidebar. |
-| `FaviconSwitcher.tsx` | Swaps `<link rel="icon">` based on whether any timer is running. Pulls running-timer state from the server.                                      |
-| `LogoutButton.tsx`    | Button posting to the logout server action; invalidates the session server-side.                                                                 |
-| `MultiSelect.tsx`     | Multi-select input with Czech labels. Used by the reports filter matrix.                                                                         |
-| `PageHeader.tsx`      | Standard page heading + subtitle wrapper. Keeps spacing consistent across `/timer`, `/dashboard`, `/reports`, etc.                               |
-| `ThemeToggle.tsx`     | Light/dark theme toggle persisted via cookie. Consumed by the sidebar header (compact variant) and (future) settings page.                       |
+| Component             | Purpose                                                                                                                                                                                                                                                                                         |
+| --------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `ClientName.tsx`      | Renders a client's name tinted with its colour (US-102). Sets `--tint-light`/`--tint-dark` custom properties (never an inline `color`) that `.client-tint`/`.dark .client-tint` in `globals.css` resolve — used at every read site that shows a client name (timer, reports, dashboard, trash). |
+| `CompanySwitcher.tsx` | Dropdown for switching the active company; posts to a server action that updates the session cookie. Used in the authenticated layout's sidebar.                                                                                                                                                |
+| `FaviconSwitcher.tsx` | Swaps `<link rel="icon">` based on whether any timer is running. Pulls running-timer state from the server.                                                                                                                                                                                     |
+| `LogoutButton.tsx`    | Button posting to the logout server action; invalidates the session server-side.                                                                                                                                                                                                                |
+| `MultiSelect.tsx`     | Multi-select input with Czech labels. Used by the reports filter matrix.                                                                                                                                                                                                                        |
+| `PageHeader.tsx`      | Standard page heading + subtitle wrapper. Keeps spacing consistent across `/timer`, `/dashboard`, `/reports`, etc.                                                                                                                                                                              |
+| `ThemeToggle.tsx`     | Light/dark theme toggle persisted via cookie. Consumed by the sidebar header (compact variant) and (future) settings page.                                                                                                                                                                      |
 
 ## Dependencies
 

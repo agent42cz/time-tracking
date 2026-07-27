@@ -52,6 +52,7 @@ export default async function TimerPage(): Promise<ReactElement> {
             id: r.id,
             description: r.description,
             clientName: r.client?.name ?? null,
+            clientColor: r.client?.color ?? null,
             projectName: r.project?.name ?? null,
             startedAt: r.startedAt.toISOString(),
           }))}
@@ -59,6 +60,7 @@ export default async function TimerPage(): Promise<ReactElement> {
             id: e.id,
             description: e.description,
             clientName: e.clientName,
+            clientColor: e.clientColor,
             projectName: e.projectName,
             startedAt: e.startedAt.toISOString(),
             endedAt: e.endedAt!.toISOString(),

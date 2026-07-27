@@ -121,3 +121,53 @@ stays open for ten seconds — a realistic window for that to happen. First we h
 no `unstable_rethrow`; then we had one inside a discarded promise, which was
 inert. `TrashList.tsx`'s `useTransition()`-provided `startTransition(async () => …)`
 was the correct shape all along.
+
+### 2026-07-27 — First React component test: no jsdom, no JSX, no colour resolves
+
+**Symptom.** Writing `apps/web/src/components/ClientName.test.tsx` (the first
+`*.test.tsx` in the whole repo — every prior web test is `*.test.ts` against
+services/actions) failed three different ways in sequence: (1) `@testing-library/react`
+module not found; (2) `ReferenceError: React is not defined` once rendering
+actually started; (3) `toHaveStyle({ color: '#b91c1c' })` reported
+`color: canvastext` instead of the hex.
+
+**Cause.** Three independent gaps, none related to the component under test:
+
+1. `@testing-library/react`, `@testing-library/jest-dom`, and `jsdom` were never
+   installed — `apps/web/vitest.config.ts` runs `environment: 'node'` because
+   every existing test is server-side.
+2. `apps/web/tsconfig.json` has `"jsx": "preserve"` (Next/SWC does the real
+   transform at build time), but Vite/esbuild — which is what actually
+   transforms `.tsx` for Vitest — falls back to the **classic** JSX runtime
+   when it can't use `preserve`, which emits `React.createElement(...)` calls
+   without importing `React`.
+3. `toHaveStyle` reads `getComputedStyle`, not the inline `style` attribute.
+   `ClientName` deliberately never sets an inline `color` (see US-102's
+   two-tone palette design in `packages/shared/src/colors.ts`) — it only sets
+   `--tint-light`/`--tint-dark` custom properties, and the `.client-tint` /
+   `.dark .client-tint` rule that resolves them into `color` lives in
+   `globals.css`, which a component unit test never loads. jsdom has no
+   stylesheet to apply, so the browser's UA default (`canvastext`) wins.
+
+**Fix.**
+
+1. Added `@testing-library/react`, `@testing-library/jest-dom`, `jsdom` as
+   devDependencies of `apps/web` (React-19-compatible versions).
+2. Added `esbuild: { jsx: 'automatic' }` to `apps/web/vitest.config.ts` —
+   matches how Next actually compiles these files, so no file needs an
+   `import React from 'react'`.
+3. Scoped the DOM environment to just this file via a `// @vitest-environment
+jsdom` docblock (not a global `environment: 'jsdom'` — most tests here are
+   service/integration tests against a real Postgres and don't want jsdom's
+   overhead or globals) and used `afterEach(cleanup)` explicitly (this repo's
+   `vitest.config.ts` doesn't set `test.globals: true`, so testing-library's
+   auto-cleanup — which looks for a global `afterEach` — never registers,
+   and a render from one `it` block leaks into the next).
+4. Rewrote the "is it tinted" assertions to check what the component actually
+   sets — `el.style.getPropertyValue('--tint-light'/'--tint-dark')` and the
+   `client-tint` class — instead of the resolved `color`, which only a real
+   browser (see `apps/web/tests/e2e/client-color.spec.ts`, `toHaveCSS`) can
+   verify end-to-end.
+
+**See also.** Task 10 / AIAGE-57 (US-102), `apps/web/src/components/ClientName.tsx`,
+`apps/web/src/app/globals.css`.

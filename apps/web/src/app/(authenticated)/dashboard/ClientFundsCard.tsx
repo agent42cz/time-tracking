@@ -2,6 +2,7 @@
 import { useEffect, useState } from 'react';
 import { Card, CardBody, CardHeader, CardTitle } from '@tt/ui';
 import type { FundProgress, ClientFund, FundBar } from '@/lib/services/dashboard';
+import { ClientName } from '@/components/ClientName';
 
 const fmtH = (min: number) => `${(min / 60).toFixed(1)} h`;
 const pct = (part: number, whole: number) => (whole > 0 ? Math.min(100, (part / whole) * 100) : 0);
@@ -92,7 +93,9 @@ export function ClientFundsCard({
       <CardBody className="space-y-4">
         {data.clients.map((c) => (
           <div key={c.clientId} className="space-y-1">
-            <div className="text-sm font-medium">{c.clientName}</div>
+            <div className="text-sm font-medium">
+              <ClientName name={c.clientName} color={c.clientColor} />
+            </div>
             {c.days.length > 0 ? (
               <>
                 <div className="text-[10px] uppercase text-zinc-400">Dny</div>

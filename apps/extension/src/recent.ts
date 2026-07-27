@@ -9,6 +9,7 @@ export interface RecentEntryInput {
   startedAt: string;
   endedAt: string | null;
   clientName: string | null;
+  clientColor: string | null;
   projectName: string | null;
 }
 

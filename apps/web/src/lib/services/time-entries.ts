@@ -524,6 +524,7 @@ export interface TrashEntryView {
   userName: string;
   description: string;
   clientName: string | null;
+  clientColor: string | null;
   projectName: string | null;
   startedAt: Date;
   /** null when a *running* entry was soft-deleted. */
@@ -559,6 +560,7 @@ export async function listTrash(
       userName: r.user.fullName,
       description: r.description,
       clientName: r.client?.name ?? null,
+      clientColor: r.client?.color ?? null,
       projectName: r.project?.name ?? null,
       startedAt: r.startedAt,
       endedAt: r.endedAt,

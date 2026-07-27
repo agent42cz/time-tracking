@@ -274,6 +274,7 @@ export interface ExtFundDay {
 export interface ExtClientFund {
   clientId: string;
   clientName: string;
+  clientColor: string;
   weekly: ExtFundBar;
   monthly: ExtFundBar;
   days: ExtFundDay[];

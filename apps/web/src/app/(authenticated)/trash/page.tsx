@@ -43,6 +43,7 @@ export default async function TrashPage(): Promise<ReactElement> {
                 description: e.description,
                 userName: e.userName,
                 clientName: e.clientName,
+                clientColor: e.clientColor,
                 projectName: e.projectName,
                 startedAt: e.startedAt.toISOString(),
                 endedAt: e.endedAt?.toISOString() ?? null,

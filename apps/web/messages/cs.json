@@ -221,6 +221,8 @@
   },
   "clients": {
     "title": "Seznam",
+    "colorLabel": "Barva klienta",
+    "colorError": "Barvu se nepodařilo uložit.",
     "search": {
       "placeholder": "Hledat klienta nebo projekt",
       "ariaLabel": "Hledat klienta nebo projekt",
