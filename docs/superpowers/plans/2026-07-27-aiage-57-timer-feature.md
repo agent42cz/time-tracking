@@ -549,33 +549,85 @@ Create `packages/shared/src/colors.test.ts`:
 
 ```ts
 import { describe, expect, it } from 'vitest';
-import { CLIENT_COLORS, DEFAULT_CLIENT_COLOR, isClientColor } from './colors.js';
+import {
+  CLIENT_COLORS,
+  CLIENT_COLOR_VALUES,
+  DEFAULT_CLIENT_COLOR,
+  darkVariantOf,
+  isClientColor,
+} from './colors.js';
 import { ClientColorSchema } from './validators/index.js';
 
+/** WCAG 2.1 relative luminance / contrast ratio. */
+function contrast(a: string, b: string): number {
+  const lin = (c: number): number => {
+    const v = c / 255;
+    return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4);
+  };
+  const lum = (h: string): number =>
+    0.2126 * lin(parseInt(h.slice(1, 3), 16)) +
+    0.7152 * lin(parseInt(h.slice(3, 5), 16)) +
+    0.0722 * lin(parseInt(h.slice(5, 7), 16));
+  const [l1, l2] = [lum(a), lum(b)];
+  return (Math.max(l1, l2) + 0.05) / (Math.min(l1, l2) + 0.05);
+}
+
+// The app's actual surfaces: body and card, per theme (apps/web/src/app/layout.tsx:48
+// and the globals.css pairing table).
+const LIGHT_BACKGROUNDS = ['#fafafa', '#ffffff'];
+const DARK_BACKGROUNDS = ['#18181b', '#27272a'];
+
 describe('client colours', () => {
-  it('US-102: the palette holds 10 distinct lowercase hex colours', () => {
+  it('US-102: the palette holds 10 distinct light/dark pairs in lowercase hex', () => {
     expect(CLIENT_COLORS).toHaveLength(10);
-    expect(new Set(CLIENT_COLORS).size).toBe(10);
-    for (const c of CLIENT_COLORS) expect(c).toMatch(/^#[0-9a-f]{6}$/);
+    expect(new Set(CLIENT_COLOR_VALUES).size).toBe(10);
+    expect(new Set(CLIENT_COLORS.map((c) => c.dark)).size).toBe(10);
+    for (const c of CLIENT_COLORS) {
+      expect(c.light).toMatch(/^#[0-9a-f]{6}$/);
+      expect(c.dark).toMatch(/^#[0-9a-f]{6}$/);
+    }
+  });
+
+  it('US-102: every palette colour is legible as text on its own theme backgrounds', () => {
+    for (const c of CLIENT_COLORS) {
+      for (const bg of LIGHT_BACKGROUNDS) {
+        expect(contrast(c.light, bg), `${c.light} on ${bg}`).toBeGreaterThanOrEqual(4.5);
+      }
+      for (const bg of DARK_BACKGROUNDS) {
+        expect(contrast(c.dark, bg), `${c.dark} on ${bg}`).toBeGreaterThanOrEqual(4.5);
+      }
+    }
   });
 
   it('US-102: the default grey is not a palette entry', () => {
-    expect(CLIENT_COLORS).not.toContain(DEFAULT_CLIENT_COLOR);
+    expect(CLIENT_COLOR_VALUES).not.toContain(DEFAULT_CLIENT_COLOR);
     expect(DEFAULT_CLIENT_COLOR).toBe('#6b7280');
   });
 
-  it('US-102: isClientColor accepts palette entries and the default, rejects anything else', () => {
-    expect(isClientColor(CLIENT_COLORS[0]!)).toBe(true);
+  it('US-102: isClientColor accepts stored palette values and the default, rejects anything else', () => {
+    expect(isClientColor(CLIENT_COLOR_VALUES[0]!)).toBe(true);
     expect(isClientColor(DEFAULT_CLIENT_COLOR)).toBe(true);
     expect(isClientColor('#123456')).toBe(false);
     expect(isClientColor('red')).toBe(false);
+    // A dark-variant hex is NOT a storable value — only light hexes are canonical.
+    expect(isClientColor(CLIENT_COLORS[0]!.dark)).toBe(false);
   });
 
-  it('US-102: every palette entry satisfies ClientColorSchema', () => {
-    for (const c of CLIENT_COLORS) expect(ClientColorSchema.safeParse(c).success).toBe(true);
+  it('US-102: darkVariantOf maps a stored colour to its counterpart, and the default to null', () => {
+    expect(darkVariantOf(CLIENT_COLORS[3]!.light)).toBe(CLIENT_COLORS[3]!.dark);
+    expect(darkVariantOf(DEFAULT_CLIENT_COLOR)).toBeNull();
+    expect(darkVariantOf('#123456')).toBeNull();
+  });
+
+  it('US-102: every stored palette value satisfies ClientColorSchema', () => {
+    for (const v of CLIENT_COLOR_VALUES) expect(ClientColorSchema.safeParse(v).success).toBe(true);
   });
 });
 ```
+
+The contrast test is the point of this file: it is what stops a future palette edit from
+silently shipping an illegible colour. Do not weaken it to a smaller ratio to make a
+preferred hue fit — change the hue.
 
 - [ ] **Step 2: Run it to verify it fails**
 
@@ -586,32 +638,83 @@ Expected: FAIL — `Cannot find module './colors.js'`
 
 Create `packages/shared/src/colors.ts`:
 
+**One hex cannot serve both themes.** The app renders on `zinc-50`/`white` in light mode and
+`zinc-900`/`zinc-800` in dark. A hue dark enough to clear 4.5:1 on white is far too dark on
+near-black, and vice versa — measured, _every_ single-hex candidate fails one side. Since the
+colour tints **text** (the client name), 4.5:1 is the bar that applies.
+
+So each palette entry is a **pair**: the `light` hex is what the database stores (it is the
+canonical value, and what `isClientColor` validates), and `dark` is its render-time counterpart.
+Both sides of every pair clear 4.5:1 against both backgrounds of their theme; the worst case in
+the table below is 4.72.
+
 ```ts
 /**
- * Client colours (US-102). Ten fixed hues, each picked to stay legible as
- * *text* on both the light and the dark app background — the client name is
- * tinted, not just a swatch. DEFAULT_CLIENT_COLOR is deliberately outside the
- * palette: it is the "no colour chosen" state and renders as ordinary grey.
+ * Client colours (US-102).
+ *
+ * Ten hues, each as a light/dark PAIR. The client name is tinted as text, so
+ * 4.5:1 applies — and no single hex clears that on both a near-white and a
+ * near-black background. The `light` value is canonical: it is what the DB
+ * stores and what `isClientColor` validates. `dark` is looked up at render
+ * time via `darkVariantOf`.
+ *
+ * DEFAULT_CLIENT_COLOR is deliberately outside the palette: it is the
+ * "no colour chosen" state and inherits the surrounding theme colour.
  */
 export const DEFAULT_CLIENT_COLOR = '#6b7280';
 
-export const CLIENT_COLORS = [
-  '#dc2626', // red
-  '#ea580c', // orange
-  '#ca8a04', // amber
-  '#16a34a', // green
-  '#0d9488', // teal
-  '#0284c7', // sky
-  '#2563eb', // blue
-  '#7c3aed', // violet
-  '#c026d3', // fuchsia
-  '#db2777', // pink
+export interface ClientColor {
+  /** Canonical, stored in Client.color. Legible on zinc-50 / white. */
+  light: string;
+  /** Render-time counterpart. Legible on zinc-900 / zinc-800. */
+  dark: string;
+}
+
+export const CLIENT_COLORS: readonly ClientColor[] = [
+  { light: '#b91c1c', dark: '#f87171' }, // red
+  { light: '#c2410c', dark: '#fb923c' }, // orange
+  { light: '#a16207', dark: '#fbbf24' }, // amber
+  { light: '#15803d', dark: '#4ade80' }, // green
+  { light: '#0f766e', dark: '#2dd4bf' }, // teal
+  { light: '#0369a1', dark: '#38bdf8' }, // sky
+  { light: '#1d4ed8', dark: '#60a5fa' }, // blue
+  { light: '#6d28d9', dark: '#a78bfa' }, // violet
+  { light: '#a21caf', dark: '#e879f9' }, // fuchsia
+  { light: '#be185d', dark: '#f472b6' }, // pink
 ] as const;
 
+/** The stored (light) hexes — the values that may appear in Client.color. */
+export const CLIENT_COLOR_VALUES: readonly string[] = CLIENT_COLORS.map((c) => c.light);
+
 export function isClientColor(value: string): boolean {
-  return value === DEFAULT_CLIENT_COLOR || (CLIENT_COLORS as readonly string[]).includes(value);
+  return value === DEFAULT_CLIENT_COLOR || CLIENT_COLOR_VALUES.includes(value);
+}
+
+/** Dark-theme counterpart of a stored colour, or null if it has none (the default grey). */
+export function darkVariantOf(light: string): string | null {
+  return CLIENT_COLORS.find((c) => c.light === light)?.dark ?? null;
 }
 ```
+
+Measured contrast (worst case across both backgrounds of each theme):
+
+| hue     | light hex | ratio | dark hex  | ratio |
+| ------- | --------- | ----- | --------- | ----- |
+| red     | `#b91c1c` | 6.20  | `#f87171` | 5.38  |
+| orange  | `#c2410c` | 4.96  | `#fb923c` | 6.58  |
+| amber   | `#a16207` | 4.72  | `#fbbf24` | 8.92  |
+| green   | `#15803d` | 4.81  | `#4ade80` | 8.55  |
+| teal    | `#0f766e` | 5.24  | `#2dd4bf` | 8.00  |
+| sky     | `#0369a1` | 5.68  | `#38bdf8` | 6.95  |
+| blue    | `#1d4ed8` | 6.42  | `#60a5fa` | 5.86  |
+| violet  | `#6d28d9` | 6.81  | `#a78bfa` | 5.47  |
+| fuchsia | `#a21caf` | 6.06  | `#e879f9` | 6.05  |
+| pink    | `#be185d` | 5.78  | `#f472b6` | 5.62  |
+
+Tradeoff accepted: storing the light hex rather than a palette id means retuning a hue later
+needs a data migration. A stored id would avoid that, but would also invalidate
+`ClientColorSchema` (a hex regex, inherited from the deleted tag feature) and add churn across
+Tasks 8-10 for a palette we do not expect to retune.
 
 Re-export from `packages/shared/src/index.ts`:
 
@@ -676,7 +779,10 @@ export function ColorSwatchPicker({
   disabled = false,
   label,
 }: ColorSwatchPickerProps): ReactElement {
-  const options = [DEFAULT_CLIENT_COLOR, ...CLIENT_COLORS];
+  // Swatches show the light hex — the stored, canonical value. In dark mode the
+  // rendered client name uses its `dark` counterpart, but the picker stays a
+  // stable identity for the colour rather than shifting under the theme.
+  const options = [DEFAULT_CLIENT_COLOR, ...CLIENT_COLORS.map((c) => c.light)];
   return (
     <div role="radiogroup" aria-label={label} className="flex flex-wrap gap-2">
       {options.map((c) => (
@@ -1043,8 +1149,8 @@ Expected: FAIL — module not found.
 Create `apps/web/src/components/ClientName.tsx`:
 
 ```tsx
-import type { ReactElement } from 'react';
-import { DEFAULT_CLIENT_COLOR } from '@tt/shared';
+import type { CSSProperties, ReactElement } from 'react';
+import { darkVariantOf } from '@tt/shared';
 
 export interface ClientNameProps {
   name: string | null;
@@ -1054,15 +1160,41 @@ export interface ClientNameProps {
 }
 
 /**
- * A client's name, tinted with its colour (US-102). The neutral default means
- * "no colour chosen", so it deliberately sets no inline colour and inherits
- * the surrounding theme — that keeps every pre-AIAGE-57 client looking exactly
- * as it did.
+ * A client's name, tinted with its colour (US-102).
+ *
+ * The stored colour is the light-theme hex; its dark counterpart comes from
+ * `darkVariantOf`. Both are handed to CSS as custom properties and the
+ * `.client-tint` rule picks one, because Tailwind's `dark:` variant cannot
+ * reach an inline style and the hue is per-row dynamic.
+ *
+ * The neutral default has no dark counterpart, so `darkVariantOf` returns null
+ * and the name renders untinted, inheriting the theme — which keeps every
+ * client that predates this feature looking exactly as it did.
  */
 export function ClientName({ name, color, fallback = '—' }: ClientNameProps): ReactElement {
   if (!name) return <span>{fallback}</span>;
-  const tinted = color && color !== DEFAULT_CLIENT_COLOR;
-  return <span style={tinted ? { color } : undefined}>{name}</span>;
+  const dark = color ? darkVariantOf(color) : null;
+  if (!color || !dark) return <span>{name}</span>;
+  return (
+    <span
+      className="client-tint"
+      style={{ '--tint-light': color, '--tint-dark': dark } as CSSProperties}
+    >
+      {name}
+    </span>
+  );
+}
+```
+
+Add the rule to `apps/web/src/app/globals.css` (both apps use `darkMode: 'class'`, so a
+`.dark` ancestor is what switches themes):
+
+```css
+.client-tint {
+  color: var(--tint-light);
+}
+.dark .client-tint {
+  color: var(--tint-dark);
 }
 ```
 
@@ -1106,20 +1238,31 @@ Add `clients.colorLabel` (`"Barva klienta"`) and `clients.colorError` (`"Barvu s
 The extension does not use `next-intl` and does not import `@tt/ui` components, so `ClientName` is not reusable here — but the _rule_ must not be duplicated as a magic hex. Import the constant via the leaf path added in Task 7:
 
 ```tsx
-import { DEFAULT_CLIENT_COLOR } from '@tt/shared/colors';
+import type { CSSProperties } from 'react';
+import { darkVariantOf } from '@tt/shared/colors';
 
-function clientTint(color: string | null): { color: string } | undefined {
-  return color && color !== DEFAULT_CLIENT_COLOR ? { color } : undefined;
+/** Same two-variable trick as the web app's ClientName — see globals.css. */
+export function clientTint(color: string | null): CSSProperties | undefined {
+  const dark = color ? darkVariantOf(color) : null;
+  if (!color || !dark) return undefined;
+  return { '--tint-light': color, '--tint-dark': dark } as CSSProperties;
 }
 ```
 
 Then in each entry row of `apps/extension/src/popup.tsx`:
 
 ```tsx
-<span style={clientTint(e.clientColor)}>{e.clientName}</span>
+<span className="client-tint" style={clientTint(e.clientColor)}>
+  {e.clientName}
+</span>
 ```
 
-Use the same `clientTint` helper in `EntrySheet.tsx` wherever the selected client is displayed — export it from `popup.tsx` or a small shared module rather than writing the comparison twice.
+`.client-tint` with no custom properties set inherits the theme colour, so an untinted client
+needs no conditional className. Add the same rule to `apps/extension/src/index.css` that the web
+app gets in `globals.css` — the extension is also `darkMode: 'class'`.
+
+Put `clientTint` in its own small module (e.g. `apps/extension/src/client-tint.ts`) and import it
+from both `popup.tsx` and `EntrySheet.tsx` rather than writing the comparison twice.
 
 - [ ] **Step 8: Add the Playwright coverage**
 
