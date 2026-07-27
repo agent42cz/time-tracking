@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createWsClient } from './client.js';
 
 class FakeSocket {
@@ -32,6 +32,17 @@ function makeClient(opts: { token?: string } = {}) {
 }
 
 describe('createWsClient', () => {
+  // Module-level (not inline per-test) so an assertion failure mid-test can't
+  // skip the `vi.useRealTimers()` restore and leak the fake clock into later
+  // tests (Minor 5).
+  beforeEach(() => {
+    vi.useFakeTimers();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   it('US-103: appends the token when one is supplied', () => {
     const { sockets } = makeClient({ token: 'abc def' });
     expect(sockets[0]!.url).toBe('wss://example.test/ws?token=abc%20def');
@@ -60,7 +71,6 @@ describe('createWsClient', () => {
   });
 
   it('US-103: reconnects with exponential backoff after a close', () => {
-    vi.useFakeTimers();
     const { sockets } = makeClient();
     sockets[0]!.emit('close');
     vi.advanceTimersByTime(500);
@@ -71,11 +81,9 @@ describe('createWsClient', () => {
     expect(sockets).toHaveLength(2); // 1000ms not yet elapsed
     vi.advanceTimersByTime(1);
     expect(sockets).toHaveLength(3);
-    vi.useRealTimers();
   });
 
   it('US-103: an open resets the backoff to its floor', () => {
-    vi.useFakeTimers();
     const { sockets } = makeClient();
     sockets[0]!.emit('close');
     vi.advanceTimersByTime(500);
@@ -83,17 +91,14 @@ describe('createWsClient', () => {
     sockets[1]!.emit('close');
     vi.advanceTimersByTime(500);
     expect(sockets).toHaveLength(3);
-    vi.useRealTimers();
   });
 
   it('US-103: close() stops reconnecting', () => {
-    vi.useFakeTimers();
     const { client, sockets } = makeClient();
     client.close();
     sockets[0]!.emit('close');
     vi.advanceTimersByTime(60_000);
     expect(sockets).toHaveLength(1);
-    vi.useRealTimers();
   });
 
   it('US-103: a malformed frame is reported and does not kill the socket', () => {

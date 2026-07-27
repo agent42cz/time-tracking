@@ -27,10 +27,7 @@ export function useTimerSync(wsUrl: string | null, onChange: () => void): void {
       }
     });
     return () => {
-      // Optional chaining: the real `WsClient.subscribe` always returns an
-      // unsubscribe function, but test doubles don't always bother — and a
-      // cleanup that throws would leak the socket instead of closing it.
-      unsubscribe?.();
+      unsubscribe();
       client.close();
     };
   }, [wsUrl]);

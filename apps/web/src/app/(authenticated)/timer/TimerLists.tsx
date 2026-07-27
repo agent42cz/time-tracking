@@ -143,6 +143,13 @@ export function TimerLists({
   // Fallbacks for when the socket is down or `wsUrl` is unset: same-tab
   // custom event, and refetch-on-focus for tabs that were merely hidden.
   useEffect(() => {
+    // Reset per effect run (not just declared once at module/hook scope):
+    // StrictMode mounts this effect, runs its cleanup (which sets the ref to
+    // `true`), then re-mounts on the same fiber. A ref survives that unlike
+    // the old effect-local `let cancelled = false`, so without this line the
+    // ref would still read `true` on remount and every future `refetch()`
+    // would fetch, parse, and silently bail forever — see docs/gotchas.md.
+    cancelledRef.current = false;
     const onChange = (): void => void refetch();
     const onVisibility = (): void => {
       if (document.visibilityState === 'visible') void refetch();
