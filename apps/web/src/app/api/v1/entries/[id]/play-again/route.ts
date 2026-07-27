@@ -19,7 +19,6 @@ export async function POST(
   const { id } = await params;
   const original = await prisma().timeEntry.findUnique({
     where: { id },
-    include: { tags: true },
   });
   if (!original) return errorCors(req, 404, 'not_found');
   // Only the owner can replay; cross-company is implicitly blocked because
@@ -32,7 +31,6 @@ export async function POST(
     description: original.description,
     clientId: original.clientId,
     projectId: original.projectId,
-    tagIds: original.tags.map((t) => t.tagId),
   });
   if (!result.ok) return errorCors(req, 400, 'cannot_start');
   return jsonCors(req, { id: result.value.id });

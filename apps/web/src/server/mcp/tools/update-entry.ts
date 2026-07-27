@@ -10,7 +10,6 @@ const InputSchema = z
     description: z.string().max(5000).optional(),
     clientId: z.string().nullable().optional(),
     projectId: z.string().nullable().optional(),
-    tagIds: z.array(z.string()).max(20).optional(),
   })
   .strict();
 
@@ -22,7 +21,7 @@ toolRegistrars.push((server, ctx: ToolContext) => {
     {
       title: 'Update a time entry',
       description:
-        'Updates fields on a specific time entry identified by `entryId`. `title` is the entry name; `description` is the longer free-text detail. Pass `null` for `clientId`/`projectId` to clear the link. `tagIds` replaces the full tag set.',
+        'Updates fields on a specific time entry identified by `entryId`. `title` is the entry name; `description` is the longer free-text detail. Pass `null` for `clientId`/`projectId` to clear the link.',
       inputSchema: InputSchema.shape,
       outputSchema: OutputSchema.shape,
     },
@@ -36,7 +35,6 @@ toolRegistrars.push((server, ctx: ToolContext) => {
           note: args.description,
           clientId: args.clientId,
           projectId: args.projectId,
-          tagIds: args.tagIds,
         },
         undefined,
         { source: 'mcp' },

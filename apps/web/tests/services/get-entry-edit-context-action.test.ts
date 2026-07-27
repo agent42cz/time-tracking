@@ -86,7 +86,6 @@ describe('getEntryEditContextAction', () => {
       expect(res.data.entry.note).toBe('extra detail');
       expect(res.data.entry.clientId).toBe(clientResult.value.id);
       expect(res.data.entry.projectId).toBe(projectResult.value.id);
-      expect(Array.isArray(res.data.entry.tagIds)).toBe(true);
       expect(res.data.entry.startedAt).toMatch(/^\d{4}-\d{2}-\d{2}T/);
       expect(res.data.entry.endedAt).toBeNull();
 
@@ -94,8 +93,6 @@ describe('getEntryEditContextAction', () => {
       expect(returnedClient).toBeDefined();
       expect(returnedClient?.name).toBe('Acme');
       expect(returnedClient?.projects.some((p) => p.id === projectResult.value.id)).toBe(true);
-
-      expect(Array.isArray(res.data.tags)).toBe(true);
     });
   });
 

@@ -54,7 +54,7 @@ export async function GET(req: NextRequest): Promise<Response> {
         endedAt: null,
         deletedAt: null,
       },
-      include: { client: true, project: true, tags: { include: { tag: true } } },
+      include: { client: true, project: true },
       orderBy: { startedAt: 'desc' },
     }),
     listRecentHistory(prisma(), session.userId, active.companyId, now),
@@ -88,7 +88,6 @@ export async function GET(req: NextRequest): Promise<Response> {
       projectName: e.project?.name ?? null,
       startedAt: e.startedAt.toISOString(),
       endedAt: e.endedAt?.toISOString() ?? null,
-      tags: e.tags.map((tt) => ({ id: tt.tag.id, name: tt.tag.name, color: tt.tag.color })),
     };
   }
   function historyDto(e: (typeof history)[number]): unknown {
@@ -102,7 +101,6 @@ export async function GET(req: NextRequest): Promise<Response> {
       projectName: e.projectName,
       startedAt: e.startedAt.toISOString(),
       endedAt: e.endedAt ? e.endedAt.toISOString() : null,
-      tags: e.tags.map((tt) => ({ id: tt.id, name: tt.name, color: tt.color })),
     };
   }
   return jsonCors(req, {
@@ -123,7 +121,6 @@ export async function POST(req: NextRequest): Promise<Response> {
     description?: string;
     clientId?: string | null;
     projectId?: string | null;
-    tagIds?: string[];
   };
   try {
     body = await req.json();
@@ -135,7 +132,6 @@ export async function POST(req: NextRequest): Promise<Response> {
     description: body.description ?? '',
     clientId: body.clientId ?? null,
     projectId: body.projectId ?? null,
-    tagIds: body.tagIds ?? [],
   });
   if (!result.ok) return errorCors(req, 400, 'cannot_start');
   return jsonCors(req, { id: result.value.id });

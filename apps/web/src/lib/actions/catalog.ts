@@ -1,22 +1,19 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
-import { prisma, requireActiveCompany, requireAdmin } from '../session.js';
+import { prisma, requireAdmin } from '../session.js';
 import {
   archiveClient,
   archiveProject,
   createClient,
   createProject,
-  createTag,
   deleteClient,
   deleteProject,
-  deleteTag,
   renameClient,
   renameProject,
   reorderClients,
   reorderProjects,
   updateClientFund,
-  updateTag,
 } from '../services/catalog.js';
 import type { ClientFundPatch } from '../services/catalog.js';
 
@@ -123,36 +120,6 @@ export async function deleteProjectAction(
   const r = await deleteProject(prisma(), s.userId, projectId, { cascade });
   if (!r.ok) return { ok: false, error: 'Nelze smazat' };
   revalidatePath('/clients');
-  return { ok: true };
-}
-
-export async function createTagAction(formData: FormData): Promise<ActionResult> {
-  const s = await requireActiveCompany();
-  const name = String(formData.get('name') ?? '').trim();
-  const color = String(formData.get('color') ?? '#6b7280');
-  if (!name) return { ok: false, error: 'Vyplňte název' };
-  const r = await createTag(prisma(), s.userId, { companyId: s.activeCompanyId, name, color });
-  if (!r.ok) return { ok: false, error: 'Nepodařilo se vytvořit' };
-  revalidatePath('/tags');
-  return { ok: true };
-}
-
-export async function updateTagAction(
-  tagId: string,
-  patch: { name?: string; color?: string },
-): Promise<ActionResult> {
-  const s = await requireAdmin();
-  const r = await updateTag(prisma(), s.userId, tagId, patch);
-  if (!r.ok) return { ok: false, error: 'Nelze' };
-  revalidatePath('/tags');
-  return { ok: true };
-}
-
-export async function deleteTagAction(tagId: string): Promise<ActionResult> {
-  const s = await requireAdmin();
-  const r = await deleteTag(prisma(), s.userId, tagId);
-  if (!r.ok) return { ok: false, error: 'Nelze smazat' };
-  revalidatePath('/tags');
   return { ok: true };
 }
 

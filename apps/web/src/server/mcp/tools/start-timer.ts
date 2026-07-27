@@ -8,7 +8,6 @@ const InputSchema = z
     title: z.string().max(2000).optional(),
     clientId: z.string().optional(),
     projectId: z.string().optional(),
-    tagIds: z.array(z.string()).max(20).optional(),
   })
   .strict();
 
@@ -20,7 +19,7 @@ toolRegistrars.push((server, ctx: ToolContext) => {
     {
       title: 'Start a timer',
       description:
-        'Starts a new running time entry. Other already-running timers (US-21) are left alone. Optional `title` (the entry name), `clientId`, `projectId`, `tagIds`. Use `update_entry` afterwards to set the longer `description`.',
+        'Starts a new running time entry. Other already-running timers (US-21) are left alone. Optional `title` (the entry name), `clientId`, `projectId`. Use `update_entry` afterwards to set the longer `description`.',
       inputSchema: InputSchema.shape,
       outputSchema: OutputSchema.shape,
     },
@@ -33,7 +32,6 @@ toolRegistrars.push((server, ctx: ToolContext) => {
           description: args.title,
           clientId: args.clientId,
           projectId: args.projectId,
-          tagIds: args.tagIds,
         },
         undefined,
         { source: 'mcp' },

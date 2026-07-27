@@ -62,8 +62,6 @@ export async function GET(req: NextRequest): Promise<Response> {
     clientIds: sp.getAll('client'),
     projectIds: sp.getAll('project'),
     memberIds: sp.getAll('member'),
-    tagIds: sp.getAll('tag'),
-    tagsMode: sp.get('tagsMode') === 'and' ? 'and' : 'or',
     search: sp.get('search') ?? undefined,
   });
   if (!result.ok) return new Response('not found', { status: 404 });

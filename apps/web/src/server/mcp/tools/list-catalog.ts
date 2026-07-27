@@ -1,9 +1,9 @@
 import { z } from 'zod';
-import { listClients, listProjects, listTags } from '../../../lib/services/catalog.js';
+import { listClients, listProjects } from '../../../lib/services/catalog.js';
 import { mapServiceReason, toolError } from '../errors.js';
 import { toolRegistrars, type ToolContext } from './registry.js';
 
-const KindSchema = z.enum(['clients', 'projects', 'tags']);
+const KindSchema = z.enum(['clients', 'projects']);
 const InputSchema = z
   .object({
     kind: KindSchema,
@@ -16,7 +16,6 @@ const ItemSchema = z.object({
   name: z.string(),
   archived: z.boolean().optional(),
   clientId: z.string().optional(),
-  color: z.string().optional(),
 });
 
 const OutputSchema = z.object({ items: z.array(ItemSchema) });
@@ -31,9 +30,9 @@ toolRegistrars.push((server, ctx: ToolContext) => {
   server.registerTool(
     'list_catalog',
     {
-      title: 'List catalog (clients / projects / tags)',
+      title: 'List catalog (clients / projects)',
       description:
-        'Lists company-level catalog entities the user can pick from. `kind` is one of `clients`, `projects`, `tags`. Optional `query` filters by substring (Czech locale).',
+        'Lists company-level catalog entities the user can pick from. `kind` is one of `clients`, `projects`. Optional `query` filters by substring (Czech locale).',
       inputSchema: InputSchema.shape,
       outputSchema: OutputSchema.shape,
     },
@@ -52,28 +51,14 @@ toolRegistrars.push((server, ctx: ToolContext) => {
           structuredContent: { items },
         };
       }
-      if (args.kind === 'projects') {
-        const res = await listProjects(ctx.db, ctx.auth.userId, ctx.auth.companyId, {});
-        if (!res.ok) {
-          const { code, message } = mapServiceReason(res.reason);
-          return toolError(code, message);
-        }
-        const items = res.value
-          .filter((p) => matchesQuery(p.name, args.query))
-          .map((p) => ({ id: p.id, name: p.name, clientId: p.clientId, archived: p.archived }));
-        return {
-          content: [{ type: 'text' as const, text: JSON.stringify({ items }) }],
-          structuredContent: { items },
-        };
-      }
-      const res = await listTags(ctx.db, ctx.auth.userId, ctx.auth.companyId);
+      const res = await listProjects(ctx.db, ctx.auth.userId, ctx.auth.companyId, {});
       if (!res.ok) {
         const { code, message } = mapServiceReason(res.reason);
         return toolError(code, message);
       }
       const items = res.value
-        .filter((t) => matchesQuery(t.name, args.query))
-        .map((t) => ({ id: t.id, name: t.name, color: t.color }));
+        .filter((p) => matchesQuery(p.name, args.query))
+        .map((p) => ({ id: p.id, name: p.name, clientId: p.clientId, archived: p.archived }));
       return {
         content: [{ type: 'text' as const, text: JSON.stringify({ items }) }],
         structuredContent: { items },

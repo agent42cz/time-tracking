@@ -17,7 +17,6 @@ const OutputSchema = z.object({
       endedAt: z.string().nullable(),
       clientId: z.string().nullable(),
       projectId: z.string().nullable(),
-      tagIds: z.array(z.string()),
     }),
   ),
 });
@@ -48,7 +47,6 @@ toolRegistrars.push((server, ctx: ToolContext) => {
           endedAt: e.endedAt?.toISOString() ?? null,
           clientId: e.clientId,
           projectId: e.projectId,
-          tagIds: e.tagIds,
         })),
       };
       return {
