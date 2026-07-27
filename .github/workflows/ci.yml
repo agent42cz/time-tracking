@@ -101,10 +101,28 @@ jobs:
         env:
           DATABASE_URL: ${{ env.DATABASE_URL }}
 
+      # multi-tab-timer.spec.ts (US-103) proves a stop in one tab reaches another
+      # over the socket. Without a live ws service `useTimerSync` no-ops and the
+      # page falls back to refetch-on-focus, so that spec would fail. `pnpm build`
+      # above already produced apps/ws/dist.
+      - name: Start the WS service for cross-tab e2e
+        run: |
+          pnpm --filter @tt/ws start &
+          for _ in $(seq 1 30); do
+            if curl --silent --fail --max-time 2 "http://localhost:${WS_PORT}/" >/dev/null; then
+              echo "ws up on :${WS_PORT}"
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "::error::ws service did not become ready on :${WS_PORT}"
+          exit 1
+
       - run: pnpm test:e2e
         env:
           DATABASE_URL: ${{ env.DATABASE_URL }}
           REDIS_URL: ${{ env.REDIS_URL }}
+          WS_PUBLIC_URL: ws://localhost:${{ env.WS_PORT }}
           # The app runs in Europe/Prague. Pin the e2e runner + dev server to the
           # same zone so timezone-sensitive seed data (e.g. auto-stack overlap
           # windows seeded via new Date().setHours()) lands in the same hours the
