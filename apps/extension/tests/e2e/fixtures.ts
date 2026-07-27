@@ -83,7 +83,6 @@ export function buildApiFixture(
       projectName: null,
       startedAt: startedAt.toISOString(),
       endedAt: endedAt.toISOString(),
-      tags: [],
     };
   });
 
@@ -104,7 +103,6 @@ export function buildApiFixture(
     catalog: {
       companyId: COMPANY_ID,
       clients: [{ id: 'cli-1', name: 'Klient A', projects: [{ id: 'prj-1', name: 'Projekt A' }] }],
-      tags: [],
     },
     timer: {
       companyId: COMPANY_ID,
@@ -120,7 +118,6 @@ export function buildApiFixture(
               projectName: null,
               startedAt: runningStartedAt,
               endedAt: null,
-              tags: [],
             },
           ]
         : [],

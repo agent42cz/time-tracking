@@ -28,12 +28,6 @@ export interface MeResponse {
   autoStackOverlaps?: boolean;
 }
 
-export interface TagDto {
-  id: string;
-  name: string;
-  color: string;
-}
-
 export interface ClientDto {
   id: string;
   name: string;
@@ -43,7 +37,6 @@ export interface ClientDto {
 export interface CatalogResponse {
   companyId: string | null;
   clients: ClientDto[];
-  tags: TagDto[];
 }
 
 export interface EntryDto {
@@ -56,7 +49,6 @@ export interface EntryDto {
   projectName: string | null;
   startedAt: string;
   endedAt: string | null;
-  tags: TagDto[];
 }
 
 export interface OverlapInfo {
@@ -332,7 +324,6 @@ export interface StartTimerInput {
   description?: string;
   clientId?: string | null;
   projectId?: string | null;
-  tagIds?: string[];
 }
 
 export async function startTimer(
@@ -388,7 +379,6 @@ export interface UpdateEntryPatch {
   projectId?: string | null;
   startedAt?: string; // ISO
   endedAt?: string | null; // ISO, or null to clear (re-open a running timer)
-  tagIds?: string[];
 }
 
 export async function updateEntry(
@@ -411,7 +401,6 @@ export interface ManualEntryApiInput {
   projectId?: string | null;
   startedAt: string; // ISO
   endedAt: string; // ISO
-  tagIds?: string[];
 }
 
 export async function createManualEntry(

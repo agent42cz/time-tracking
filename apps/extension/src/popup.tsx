@@ -485,7 +485,6 @@ function AppShell({
         projectId: e.projectId,
         startedAt: e.startedAt,
         endedAt: e.endedAt,
-        tagIds: e.tags.map((t) => t.id),
       },
     });
   }
@@ -1040,17 +1039,12 @@ function StartRow({
   const [description, setDescription] = useState('');
   const [clientId, setClientId] = useState('');
   const [projectId, setProjectId] = useState('');
-  const [tagIds, setTagIds] = useState<string[]>([]);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const projects = useMemo(
     () => catalog.clients.find((c) => c.id === clientId)?.projects ?? [],
     [catalog.clients, clientId],
   );
-
-  function toggleTag(id: string): void {
-    setTagIds((prev) => (prev.includes(id) ? prev.filter((t) => t !== id) : [...prev, id]));
-  }
 
   async function start(): Promise<void> {
     setPending(true);
@@ -1060,12 +1054,10 @@ function StartRow({
         description,
         clientId: clientId || null,
         projectId: projectId || null,
-        tagIds,
       });
       setDescription('');
       setClientId('');
       setProjectId('');
-      setTagIds([]);
     } catch {
       setError('Nepodařilo se spustit');
     } finally {
@@ -1116,28 +1108,6 @@ function StartRow({
           ))}
         </select>
       </div>
-      {catalog.tags.length > 0 ? (
-        <div className="flex flex-wrap gap-1">
-          {catalog.tags.map((t) => {
-            const active = tagIds.includes(t.id);
-            return (
-              <button
-                key={t.id}
-                type="button"
-                onClick={() => toggleTag(t.id)}
-                className="rounded-full border px-2 py-0.5 text-[10px] font-medium"
-                style={
-                  active
-                    ? { backgroundColor: t.color, borderColor: t.color, color: '#fff' }
-                    : { borderColor: '#52525b', color: '#a1a1aa' }
-                }
-              >
-                {t.name}
-              </button>
-            );
-          })}
-        </div>
-      ) : null}
       <button
         type="button"
         onClick={start}
