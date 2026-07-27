@@ -619,6 +619,17 @@ Re-export from `packages/shared/src/index.ts`:
 export { CLIENT_COLORS, DEFAULT_CLIENT_COLOR, isClientColor } from './colors.js';
 ```
 
+Add a leaf export to `packages/shared/package.json` so the extension popup can import the
+palette **without** dragging `zod` and `date-fns-tz` into its bundle — the popup already
+does exactly this for `@tt/shared/time/duration`, and `apps/extension/src/DESCRIPTION.md`
+documents that as a deliberate rule:
+
+```json
+    "./colors": "./src/colors.ts",
+```
+
+Keep the map alphabetical: it goes between `"."` and `"./time"`.
+
 - [ ] **Step 4: Run it to verify it passes**
 
 Run: `pnpm vitest run packages/shared/src/colors.test.ts`
@@ -1092,15 +1103,23 @@ Add `clients.colorLabel` (`"Barva klienta"`) and `clients.colorError` (`"Barvu s
 
 - [ ] **Step 7: Colour the extension**
 
-In `apps/extension/src/popup.tsx`, find where each entry row renders its client name and apply the same rule inline (the extension has no `next-intl` and no `@tt/ui` import path for this component — keep it local):
+The extension does not use `next-intl` and does not import `@tt/ui` components, so `ClientName` is not reusable here — but the _rule_ must not be duplicated as a magic hex. Import the constant via the leaf path added in Task 7:
 
 ```tsx
-<span style={e.clientColor && e.clientColor !== '#6b7280' ? { color: e.clientColor } : undefined}>
-  {e.clientName}
-</span>
+import { DEFAULT_CLIENT_COLOR } from '@tt/shared/colors';
+
+function clientTint(color: string | null): { color: string } | undefined {
+  return color && color !== DEFAULT_CLIENT_COLOR ? { color } : undefined;
+}
 ```
 
-Do the same in `EntrySheet.tsx` wherever the selected client is displayed.
+Then in each entry row of `apps/extension/src/popup.tsx`:
+
+```tsx
+<span style={clientTint(e.clientColor)}>{e.clientName}</span>
+```
+
+Use the same `clientTint` helper in `EntrySheet.tsx` wherever the selected client is displayed — export it from `popup.tsx` or a small shared module rather than writing the comparison twice.
 
 - [ ] **Step 8: Add the Playwright coverage**
 
