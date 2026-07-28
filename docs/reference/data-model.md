@@ -51,9 +51,9 @@ AuditLog
 └── created_at — immutable; no service may update or delete rows
 ```
 
-## Auth helpers (Auth.js v5 + custom)
+## Auth helpers
 
-In addition to Auth.js's standard tables (`User`, `Account`, `Session`, `VerificationToken`), four app-specific tables back custom flows:
+The `User`, `Account`, `Session` and `VerificationToken` tables keep their Auth.js-shaped columns for historical reasons (ADR-0014) but are driven entirely by the app's own code. Four further tables back custom flows:
 
 - **`MagicLink`** — single-use email login tokens (15-min expiry, SHA-256 hash on the token).
 - **`PasswordLoginAttempt`** — sliding-window counter for password rate-limit / lockout.

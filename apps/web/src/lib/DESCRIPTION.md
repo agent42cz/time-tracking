@@ -8,12 +8,12 @@ This folder is where the business logic of the web app lives — everything that
 
 ## Layout
 
-| Folder      | Purpose                                                                                                                                                                    |
-| ----------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `services/` | Pure-ish service functions: domain logic, Prisma calls, audit writes, WS publishes. Tested by `apps/web/tests/services/*.test.ts` against testcontainers Postgres + Redis. |
-| `actions/`  | Next.js Server Actions called from forms (auth, catalog, companies, time). Thin wrappers over `services/` with redirect/revalidation glue.                                 |
-| `auth/`     | Auth.js v5 setup + custom flows (signup, password login + lockout, magic link, password reset, TOTP enrollment + verification, recovery codes, sessions).                  |
-| `api/`      | Route-handler helpers: API auth (Bearer token verification for the extension), CORS for cross-origin requests from the extension, IP-level rate limiting.                  |
+| Folder      | Purpose                                                                                                                                                                       |
+| ----------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `services/` | Pure-ish service functions: domain logic, Prisma calls, audit writes, WS publishes. Tested by `apps/web/tests/services/*.test.ts` against testcontainers Postgres + Redis.    |
+| `actions/`  | Next.js Server Actions called from forms (auth, catalog, companies, time). Thin wrappers over `services/` with redirect/revalidation glue.                                    |
+| `auth/`     | Custom auth flows end to end (signup, password login + lockout, magic link, password reset, TOTP enrollment + verification, recovery codes, sessions). No Auth.js — ADR-0014. |
+| `api/`      | Route-handler helpers: API auth (Bearer token verification for the extension), CORS for cross-origin requests from the extension, IP-level rate limiting.                     |
 
 `session.ts`, `realtime.ts`, and other top-level files in `lib/` are loaded by both pages and route handlers — `session.requireUser()` is the page-level auth gate; `realtime.publishTimeEntry()` etc. are called by services after every mutation.
 
@@ -32,7 +32,7 @@ The most-touched exports:
 ## Dependencies
 
 - **Internal:** `@tt/db` (Prisma client + types), `@tt/shared` (Zod validators, time helpers, WS wire types).
-- **External:** `@prisma/client`, `next-auth@beta`, `@auth/prisma-adapter`, `argon2`, `otplib`, `nodemailer`, `ioredis` (for WS publish via Redis), `next-intl` (server-side translations).
+- **External:** `@prisma/client`, `argon2`, `otplib`, `nodemailer`, `ioredis` (for WS publish via Redis), `next-intl` (server-side translations).
 
 ## Used by
 

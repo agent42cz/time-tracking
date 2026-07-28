@@ -9,7 +9,7 @@ The stack defined in [`architecture/README.md`](architecture/README.md) is fixed
 - pnpm 11 (pinned), workspaces only — no Yarn, npm, or Bun.
 - Next.js 15 App Router + React 19 + TypeScript strict — no Pages Router.
 - Prisma 6 against Postgres 16 — no Drizzle, Kysely, raw SQL services, or Postgres swap.
-- Auth.js v5 with credentials + magic link providers + custom TOTP layer — no Clerk/WorkOS/Supabase Auth.
+- Custom server-side sessions with credentials + magic link + a custom TOTP layer (ADR-0014) — no Clerk/WorkOS/Supabase Auth, and no Auth.js.
 - argon2id for password hashing (default cost params) — no bcrypt or scrypt.
 - WebSockets via `ws` in `apps/ws` with Redis pub/sub — no Pusher, Ably, Soketi, SSE.
 - `next-intl` with a single `cs.json` locale file — no other i18n library, no English strings in the rendered tree.
