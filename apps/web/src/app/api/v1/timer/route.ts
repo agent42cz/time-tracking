@@ -78,6 +78,11 @@ export async function GET(req: NextRequest): Promise<Response> {
     lastMonthMs: sumIn(lastMonthRange.start, lastMonthRange.end),
   };
 
+  // `tags: []` is a compatibility shim, not a feature. AIAGE-57 removed tags, but the
+  // extension ships through the Chrome Web Store, so installed copies (<=1.6.1) still
+  // do `e.tags.map(...)` and crash on an absent key. Serving an empty array keeps them
+  // working until enough users have updated. Remove once 1.6.2+ adoption is high
+  // enough. See ADR-0015.
   function dto(e: (typeof running)[number]): unknown {
     return {
       id: e.id,
@@ -90,6 +95,7 @@ export async function GET(req: NextRequest): Promise<Response> {
       projectName: e.project?.name ?? null,
       startedAt: e.startedAt.toISOString(),
       endedAt: e.endedAt?.toISOString() ?? null,
+      tags: [], // compatibility shim — see above
     };
   }
   function historyDto(e: (typeof history)[number]): unknown {
@@ -104,6 +110,7 @@ export async function GET(req: NextRequest): Promise<Response> {
       projectName: e.projectName,
       startedAt: e.startedAt.toISOString(),
       endedAt: e.endedAt ? e.endedAt.toISOString() : null,
+      tags: [], // compatibility shim — see above
     };
   }
   return jsonCors(req, {
