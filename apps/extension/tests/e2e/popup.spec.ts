@@ -93,8 +93,21 @@ test.describe('extension popup', () => {
     // Scroll to the bottom of the popup document. We only need to be scrolled
     // (scrollY > 0) — under the old `absolute` bug the header's viewport y would
     // then be negative; the real assertion below is box.y >= 0.
-    await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
-    await expect.poll(async () => page.evaluate(() => window.scrollY)).toBeGreaterThan(0);
+    //
+    // The scroll is re-issued on every poll iteration, deliberately. Scrolling
+    // once before the rows render is a no-op on a viewport-tall document, and a
+    // poll that only re-reads scrollY can never recover from that — it re-reads 0
+    // forever while the content arrives underneath it. That race is what made this
+    // test pass locally and fail in CI on identical code.
+    await expect(page.getByText('Historický záznam 59')).toBeAttached();
+    await expect
+      .poll(async () =>
+        page.evaluate(() => {
+          window.scrollTo(0, document.documentElement.scrollHeight);
+          return window.scrollY;
+        }),
+      )
+      .toBeGreaterThan(0);
 
     // Open the last history row's edit sheet.
     await page.getByText('Historický záznam 59').click();
