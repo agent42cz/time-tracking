@@ -190,3 +190,30 @@ code. Grep for consumers before assuming a capability is wired up.
 
 **See also.** Task 11-13 / AIAGE-57 (US-103), `apps/web/src/lib/useTimerSync.ts`,
 `apps/web/tests/e2e/multi-tab-timer.spec.ts`.
+
+### 2026-08-13 — `pnpm test` dies at "Failed to connect to Reaper" in a sibling-container sandbox
+
+Every integration test aborted before a single assertion ran:
+
+```
+Error: Failed to connect to Reaper
+  at testcontainers/src/reaper/reaper.ts:133
+```
+
+Cause: testcontainers starts a Ryuk ("reaper") sidecar for cleanup and connects to it on a
+_published host port_. When the test runner is itself a container talking to a shared Docker
+socket, published ports are not routable from the runner — the same limitation
+`packages/db/src/test/index.ts` already works around for Postgres with its bridge-IP
+fallback (`reachableConnectionUri`). Ryuk has no such fallback, so it hangs and then fails.
+
+Fix: run with `TESTCONTAINERS_RYUK_DISABLED=true`. Containers are then cleaned up by the
+harness's own `stopTestPrisma()` instead of by Ryuk. CI (runner and daemon on one host) is
+unaffected and should keep Ryuk enabled.
+
+`apps/ws/src/server.test.ts` still fails in that environment for the _related_ reason —
+it starts a raw `GenericContainer('redis:7-alpine')` with the default host-port wait
+strategy ("Port NNNNN not bound after 60000ms"). It needs the same bridge-IP treatment as
+`@tt/db`'s harness before it can run outside CI.
+
+Lesson: the sandbox workaround in `@tt/db` covers the database only. Any test that boots
+its own container has to repeat it.
