@@ -8,13 +8,20 @@ export type NavIcon =
   | 'companies'
   | 'audit'
   | 'trash'
-  | 'extension';
+  | 'extension'
+  | 'absence';
 
 export type NavItem = { href: string; label: string; admin?: boolean; icon: NavIcon };
 export type NavGroup = { label: string; items: NavItem[] };
 
 export const navGroups: NavGroup[] = [
-  { label: 'Sledování', items: [{ href: '/timer', label: 'Stopky', icon: 'timer' }] },
+  {
+    label: 'Sledování',
+    items: [
+      { href: '/timer', label: 'Stopky', icon: 'timer' },
+      { href: '/absence', label: 'Nepřítomnost', icon: 'absence' },
+    ],
+  },
   {
     label: 'Přehledy',
     items: [
@@ -61,6 +68,7 @@ export function filterVisibleGroups(groups: NavGroup[], isAdmin: boolean): NavGr
  */
 export const BOTTOM_BAR_ORDER: string[] = [
   '/timer',
+  '/absence',
   '/reports',
   '/clients',
   '/members',

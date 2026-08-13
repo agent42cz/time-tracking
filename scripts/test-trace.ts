@@ -1,18 +1,22 @@
 /**
  * test-trace: scans test files for US-N references and reports any user
  * stories from PRD §13 that have zero matching tests. Exits non-zero if
- * coverage is below 100% of US-1..US-104 (excluding the `RETIRED` set below).
+ * coverage is below 100% of US-1..US-112 (excluding the `RETIRED` set below).
  */
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 
 const ROOT = process.cwd();
-const TOTAL_US = 104;
+const TOTAL_US = 112;
 
 const USIDS = Array.from({ length: TOTAL_US }, (_, i) => `US-${i + 1}`);
 
 /** Retired user stories — the feature they described was removed. */
-const RETIRED = new Set(['US-16', 'US-17']); // tags, removed in AIAGE-57
+const RETIRED = new Set([
+  'US-16',
+  'US-17', // tags, removed in AIAGE-57
+  'US-107', // absence "short notice" flag, dropped by the requester in ABSENCE-01
+]);
 
 const skipDirs = new Set([
   'node_modules',

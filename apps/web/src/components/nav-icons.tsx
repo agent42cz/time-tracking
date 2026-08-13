@@ -50,6 +50,12 @@ const PATHS: Record<GlyphName, ReactElement> = {
     </>
   ),
   trash: <path d="M4 7h16M10 4h4M6 7l1 13h10l1-13M10 11v6M14 11v6" />,
+  absence: (
+    <>
+      <rect x="3" y="5" width="18" height="16" rx="2" />
+      <path d="M8 3v4M16 3v4M3 10h18M9.5 14.5l5 4M14.5 14.5l-5 4" />
+    </>
+  ),
   extension: (
     <path d="M9 3a2 2 0 0 1 4 0v2h4v4h2a2 2 0 0 1 0 4h-2v4H9v-2a2 2 0 0 0-4 0v2H3v-6h2a2 2 0 0 0 0-4H3V5h6V3z" />
   ),

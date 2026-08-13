@@ -2,7 +2,7 @@
  * Shared time helpers. All app code uses these instead of `Date.now()`
  * directly so tests can override the clock through `setNowProvider`.
  */
-import { fromZonedTime, toZonedTime } from 'date-fns-tz';
+import { formatInTimeZone, fromZonedTime, toZonedTime } from 'date-fns-tz';
 import {
   startOfDay,
   endOfDay,
@@ -46,6 +46,23 @@ export function fromAppZone(d: Date): Date {
 // independent of the server's local TZ (Coolify containers run as UTC).
 export function parseAppZoneInput(date: string, time: string): Date {
   return fromZonedTime(`${date}T${time}:00`, APP_TIMEZONE);
+}
+
+/** The current Europe/Prague calendar day as `yyyy-MM-dd`. */
+export function appZoneDay(reference: Date = now()): string {
+  return formatInTimeZone(reference, APP_TIMEZONE, 'yyyy-MM-dd');
+}
+
+/**
+ * The Monday of `reference`'s Prague week as `yyyy-MM-dd`. The absence week
+ * view is what the boss opens on Monday morning, so the week starts there.
+ */
+export function appZoneWeekStartDay(reference: Date = now()): string {
+  return formatInTimeZone(
+    fromAppZone(startOfWeek(toAppZone(reference), { weekStartsOn: 1 })),
+    APP_TIMEZONE,
+    'yyyy-MM-dd',
+  );
 }
 
 export type Period = 'today' | 'week' | 'month' | 'custom';

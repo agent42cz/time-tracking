@@ -11,6 +11,8 @@ import { NavGlyph } from '@/components/nav-icons';
 import { getMoreGroups } from './nav';
 
 export interface MobileNavProps {
+  /** Unread counters keyed by nav href, e.g. `{ '/absence': 2 }`. */
+  badges?: Record<string, number>;
   isAdmin: boolean;
   fullName: string;
   email: string;
@@ -22,6 +24,7 @@ export interface MobileNavProps {
 export function MoreSheet({
   open,
   onClose,
+  badges,
   isAdmin,
   fullName,
   email,
@@ -111,7 +114,15 @@ export function MoreSheet({
                       icon={item.icon}
                       className="h-5 w-5 text-zinc-400 dark:text-zinc-500"
                     />
-                    {item.label}
+                    <span className="flex-1">{item.label}</span>
+                    {(badges?.[item.href] ?? 0) > 0 && (
+                      <span
+                        aria-label={`${badges?.[item.href]} nových záznamů`}
+                        className="inline-flex min-w-5 items-center justify-center rounded-full bg-indigo-600 px-1.5 text-[11px] font-semibold leading-5 text-white"
+                      >
+                        {badges?.[item.href]}
+                      </span>
+                    )}
                   </Link>
                 ))}
               </div>

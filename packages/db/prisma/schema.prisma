@@ -42,6 +42,17 @@ enum AuditAction {
   totp_disable
 }
 
+/// Why someone is away. Drives the label + colour of the absence chip.
+enum AbsenceKind {
+  vacation
+  sick
+  doctor
+  personal
+  other
+
+  @@map("absence_kind")
+}
+
 enum AuditSource {
   web
   extension
@@ -69,6 +80,8 @@ model User {
   auditEvents    AuditLog[]             @relation("AuditActor")
   sessions       Session[]
   accounts       Account[]
+  absences       Absence[]
+  absenceReads   AbsenceRead[]
   recoveryCodes  TotpRecoveryCode[]
   loginAttempts  PasswordLoginAttempt[]
   magicLinks     MagicLink[]
@@ -92,6 +105,7 @@ model Company {
   timeEntries TimeEntry[]
   auditLogs   AuditLog[]
   apiTokens   ApiToken[]
+  absences    Absence[]
 
   @@map("companies")
 }
@@ -196,6 +210,46 @@ model TimeEntry {
   @@index([userId, deletedAt, startedAt])
   @@index([userId, endedAt]) // running timers (endedAt IS NULL)
   @@map("time_entries")
+}
+
+/// A day (or a range of days) a member won't be available. Dates are stored as
+/// bare `@db.Date` — an absence is a calendar-day fact, not an instant, so it
+/// must not shift when the server's timezone differs from Europe/Prague.
+model Absence {
+  id        String      @id @default(cuid())
+  companyId String      @map("company_id")
+  userId    String      @map("user_id")
+  kind      AbsenceKind
+  startDate DateTime    @map("start_date") @db.Date
+  endDate   DateTime    @map("end_date") @db.Date
+  note      String      @default("")
+  createdAt DateTime    @default(now()) @map("created_at")
+  updatedAt DateTime    @updatedAt @map("updated_at")
+
+  company Company       @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  user    User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  reads   AbsenceRead[]
+
+  @@index([companyId, startDate])
+  @@index([companyId, endDate])
+  @@index([userId, startDate])
+  @@map("absences")
+}
+
+/// "I've seen this one." One row per (absence, viewer). Absence of a row is
+/// what makes the nav badge light up, so an edit deletes the rows to re-notify.
+model AbsenceRead {
+  id        String   @id @default(cuid())
+  absenceId String   @map("absence_id")
+  userId    String   @map("user_id")
+  seenAt    DateTime @default(now()) @map("seen_at")
+
+  absence Absence @relation(fields: [absenceId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([absenceId, userId])
+  @@index([userId])
+  @@map("absence_reads")
 }
 
 model AuditLog {

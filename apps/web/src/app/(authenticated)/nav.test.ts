@@ -8,7 +8,7 @@ import {
 } from './nav.js';
 
 describe('navGroups', () => {
-  it('contains all 10 nav items across 5 groups in expected order', () => {
+  it('contains all 11 nav items across 5 groups in expected order', () => {
     expect(navGroups.map((g) => g.label)).toEqual([
       'Sledování',
       'Přehledy',
@@ -17,12 +17,12 @@ describe('navGroups', () => {
       'Účet',
     ]);
     const total = navGroups.reduce((sum, g) => sum + g.items.length, 0);
-    expect(total).toBe(10);
+    expect(total).toBe(11);
   });
 
   it('lists items in the spec-defined order within each group', () => {
     const byLabel = Object.fromEntries(navGroups.map((g) => [g.label, g.items.map((i) => i.href)]));
-    expect(byLabel['Sledování']).toEqual(['/timer']);
+    expect(byLabel['Sledování']).toEqual(['/timer', '/absence']);
     expect(byLabel['Přehledy']).toEqual(['/dashboard', '/reports']);
     expect(byLabel['Správa dat']).toEqual(['/clients', '/members']);
     expect(byLabel['Systém']).toEqual(['/audit', '/trash']);
@@ -41,7 +41,7 @@ describe('filterVisibleGroups', () => {
       'Účet',
     ]);
     const total = result.reduce((sum, g) => sum + g.items.length, 0);
-    expect(total).toBe(10);
+    expect(total).toBe(11);
   });
 
   it('drops Přehledy and Správa dat for non-admin but keeps Systém for the un-gated Koš', () => {
@@ -60,6 +60,7 @@ describe('filterVisibleGroups', () => {
     const result = filterVisibleGroups(navGroups, false);
     expect(result.find((g) => g.label === 'Sledování')?.items.map((i) => i.href)).toEqual([
       '/timer',
+      '/absence',
     ]);
     expect(result.find((g) => g.label === 'Účet')?.items.map((i) => i.href)).toEqual([
       '/extension',
@@ -87,18 +88,18 @@ describe('getBottomTabs', () => {
   it('returns the first 4 visible items in BOTTOM_BAR_ORDER for admin', () => {
     expect(getBottomTabs(true).map((i) => i.href)).toEqual([
       '/timer',
+      '/absence',
       '/reports',
       '/clients',
-      '/members',
     ]);
   });
 
   it('returns the first 4 visible items for non-admin (admin items filtered out)', () => {
     expect(getBottomTabs(false).map((i) => i.href)).toEqual([
       '/timer',
+      '/absence',
       '/settings',
       '/companies',
-      '/trash',
     ]);
   });
 
@@ -113,14 +114,18 @@ describe('getMoreGroups', () => {
   it('excludes the 4 primary tabs for admin and keeps the rest', () => {
     const hrefs = getMoreGroups(true).flatMap((g) => g.items.map((i) => i.href));
     expect(hrefs).not.toContain('/timer');
+    expect(hrefs).not.toContain('/absence');
     expect(hrefs).not.toContain('/reports');
     expect(hrefs).toContain('/dashboard');
     expect(hrefs).toContain('/audit');
     expect(hrefs).toContain('/settings');
   });
 
-  it('for non-admin leaves just the Účet→Rozšíření overflow (Koš now fits in the primary 4)', () => {
-    expect(getMoreGroups(false).flatMap((g) => g.items.map((i) => i.href))).toEqual(['/extension']);
+  it('for non-admin overflows Koš and Rozšíření (US-108: Nepřítomnost took a primary slot)', () => {
+    expect(getMoreGroups(false).flatMap((g) => g.items.map((i) => i.href))).toEqual([
+      '/trash',
+      '/extension',
+    ]);
   });
 
   it('drops groups left empty after removing primary items', () => {

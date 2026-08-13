@@ -154,10 +154,26 @@ Feature catalogue keyed by user-story IDs from PRD §13. Test names embed the US
 - **US-103** — `/timer` reflects a start or stop performed elsewhere (another tab, another window, another Chrome profile, the extension) without a focus change, over the WebSocket. Stopping an entry another surface already stopped refreshes the list and reports it neutrally instead of erroring.
 - **US-104** — The extension popup and service worker append diagnostic records to a capped `chrome.storage.local` ring buffer tagged with a per-instance id, and the popup exports them as JSON. With `TT_DIAG=1` the server emits one JSON line per timer start/stop, giving one ordered timeline across every surface.
 
+## Nepřítomnost — absence notices (AIAGE-60)
+
+Web-only (deliberately not in the extension). A member reports the days they
+won't be available; admins get a Monday-morning week view plus a badge for
+notices they haven't looked at yet.
+
+- **US-105** — A member files an absence (day range, reason, optional note). It appears in the company list for admins and in the member's own list, and writes exactly one `create` audit row (`entityType = 'absence'`).
+- **US-105** — The audit rows for an absence carry the owner and the affected days only; `kind` (which includes `sick`/`doctor`) and the free-text note never reach the immutable log. `createAbsence` also caps an author at 20 notices per hour.
+- **US-106** — Lead time is enforced: a notice whose first day is today or earlier is rejected with `too_late` and writes no row; tomorrow is accepted. The clock is a separate service parameter, never a field on the client-supplied input/patch object — a server action deserializes its arguments from the browser, so a `today` key in the payload would otherwise let anyone backdate a notice.
+- **US-107** — _Retired._ Shipped briefly as a non-blocking "Pozdě nahlášeno" flag on absences of 5+ days filed under 30 days ahead, then dropped at the requester's direction before release. Absence length no longer affects anything; the month-ahead ask survives only as hint text under the form. See [ADR-0016](../decisions/0016-absence-notices-manual-entry-and-per-viewer-seen-state.md).
+- **US-108** — The nav badge counts absences in the active company that the viewing admin has neither written nor acknowledged and that haven't ended yet. Plain members see only their own rows, so their badge is always 0.
+- **US-109** — Opening an absence row (or "Označit vše jako přečtené") writes an `AbsenceRead` row and clears the badge **for that viewer only**; a second admin still sees it as new. Acknowledging twice is idempotent.
+- **US-110** — Editing an absence deletes every `AbsenceRead` row for it, so a moved date re-notifies everyone; the edit writes exactly one `update` audit row.
+- **US-111** — The week overview returns the seven days from a given Monday and, per member, the days they're away — including a run that started before the window. A plain member sees only their own row.
+- **US-112** — Cross-company returns `not_found` on every absence operation (list, past list, week overview, create, update, delete, mark-seen) with no audit rows written. Within a company, a plain member cannot edit or delete someone else's notice; the author and admins can.
+
 ## Coverage check
 
 ```bash
 pnpm test:trace
 ```
 
-Walks every test file (`*.test.{ts,tsx}`, `*.spec.{ts,tsx}`, `tests/**`) and looks for `\bUS-N\b`. Exits non-zero if any of US-1..US-104 has zero matches, except US-16 and US-17, which are retired (the tag feature they described was removed in AIAGE-57) and are excluded from both the miss list and the coverage denominator.
+Walks every test file (`*.test.{ts,tsx}`, `*.spec.{ts,tsx}`, `tests/**`) and looks for `\bUS-N\b`. Exits non-zero if any of US-1..US-112 has zero matches, except US-16, US-17 (the tag feature they described was removed in AIAGE-57) and US-107 (the absence short-notice flag, dropped in ABSENCE-01), which are retired and excluded from both the miss list and the coverage denominator.

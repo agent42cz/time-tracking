@@ -34,6 +34,7 @@ export function BottomTabBar(props: MobileNavProps): ReactElement {
       >
         {tabs.map((tab: NavItem) => {
           const active = isActive(pathname, tab.href);
+          const badge = props.badges?.[tab.href] ?? 0;
           return (
             <Link
               key={tab.href}
@@ -41,7 +42,17 @@ export function BottomTabBar(props: MobileNavProps): ReactElement {
               aria-current={active ? 'page' : undefined}
               className={tabClass(active)}
             >
-              <NavGlyph icon={tab.icon} className="h-5 w-5" />
+              <span className="relative">
+                <NavGlyph icon={tab.icon} className="h-5 w-5" />
+                {badge > 0 && (
+                  <span
+                    aria-label={`${badge} nových záznamů`}
+                    className="absolute -right-2 -top-1.5 inline-flex min-w-4 items-center justify-center rounded-full bg-indigo-600 px-1 text-[10px] font-semibold leading-4 text-white"
+                  >
+                    {badge}
+                  </span>
+                )}
+              </span>
               <span className="text-[11px] leading-none">{tab.label}</span>
             </Link>
           );

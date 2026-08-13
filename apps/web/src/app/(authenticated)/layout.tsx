@@ -1,6 +1,7 @@
 import type { ReactElement, ReactNode } from 'react';
 import Link from 'next/link';
-import { requireUser } from '@/lib/session';
+import { prisma, requireUser } from '@/lib/session';
+import { countUnseenAbsences } from '@/lib/services/absences';
 import { CompanySwitcher } from '@/components/CompanySwitcher';
 import { FaviconSwitcher } from '@/components/FaviconSwitcher';
 import { LogoutButton } from '@/components/LogoutButton';
@@ -17,6 +18,14 @@ export default async function AuthLayout({
   const isAdmin = session.activeRole === 'admin';
   const roleLabel = isAdmin ? 'Správce' : 'Člen';
   const visibleGroups = filterVisibleGroups(navGroups, isAdmin);
+  // The "someone filed a new absence" dot. This layout renders on every
+  // authenticated page, so the query is skipped for anyone it can only ever
+  // answer 0 for: members read nothing but their own notices.
+  const unseenAbsences =
+    isAdmin && session.activeCompanyId
+      ? await countUnseenAbsences(prisma(), session.userId, session.activeCompanyId)
+      : 0;
+  const badges: Record<string, number> = { '/absence': unseenAbsences };
 
   return (
     <div className="flex min-h-screen bg-zinc-50 dark:bg-zinc-900">
@@ -52,9 +61,17 @@ export default async function AuthLayout({
                   <Link
                     key={item.href}
                     href={item.href}
-                    className="block rounded-md px-3 py-2 text-sm text-zinc-700 transition-colors hover:bg-zinc-100 hover:text-zinc-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 dark:text-zinc-300 dark:hover:bg-zinc-700 dark:hover:text-zinc-100"
+                    className="flex items-center justify-between gap-2 rounded-md px-3 py-2 text-sm text-zinc-700 transition-colors hover:bg-zinc-100 hover:text-zinc-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 dark:text-zinc-300 dark:hover:bg-zinc-700 dark:hover:text-zinc-100"
                   >
-                    {item.label}
+                    <span>{item.label}</span>
+                    {(badges[item.href] ?? 0) > 0 && (
+                      <span
+                        aria-label={`${badges[item.href]} nových záznamů`}
+                        className="inline-flex min-w-5 items-center justify-center rounded-full bg-indigo-600 px-1.5 text-[11px] font-semibold leading-5 text-white"
+                      >
+                        {badges[item.href]}
+                      </span>
+                    )}
                   </Link>
                 ))}
               </div>
@@ -84,6 +101,7 @@ export default async function AuthLayout({
         </main>
       </div>
       <BottomTabBar
+        badges={badges}
         isAdmin={isAdmin}
         fullName={session.fullName}
         email={session.email}
