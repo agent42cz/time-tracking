@@ -1,8 +1,9 @@
 'use client';
 
-import { useState, type ReactElement } from 'react';
+import { useState, type FormEvent, type ReactElement } from 'react';
 import { useRouter } from 'next/navigation';
 import {
+  Alert,
   Badge,
   Button,
   Card,
@@ -10,15 +11,23 @@ import {
   CardHeader,
   CardTitle,
   EmptyState,
+  Field,
+  Input,
+  Select,
   useConfirm,
 } from '@tt/ui';
 import type { AbsenceKind } from '@prisma/client';
-import { deleteAbsenceAction, markAbsenceSeenAction } from '@/lib/actions/absences';
+import {
+  deleteAbsenceAction,
+  markAbsenceSeenAction,
+  updateAbsenceAction,
+} from '@/lib/actions/absences';
 import {
   ABSENCE_KIND_CLASSES,
   ABSENCE_KIND_LABELS,
+  ABSENCE_KIND_ORDER,
   formatDayRange,
-  weekdayLabelForDay,
+  formatDayRangeWithWeekday,
 } from './kinds';
 
 export interface AbsenceListItem {
@@ -41,23 +50,28 @@ export function AbsenceList({
   items,
   viewerId,
   canAcknowledge,
+  minDate,
   title,
   emptyText,
 }: {
   items: AbsenceListItem[];
   viewerId: string;
   canAcknowledge: boolean;
+  /** Tomorrow in Europe/Prague, from the server — see `AbsenceForm`. */
+  minDate: string;
   title: string;
   emptyText: string;
 }): ReactElement {
   const router = useRouter();
   const confirm = useConfirm();
   const [openId, setOpenId] = useState<string | null>(null);
+  const [editId, setEditId] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
 
   async function toggle(item: AbsenceListItem): Promise<void> {
     const next = openId === item.id ? null : item.id;
     setOpenId(next);
+    setEditId(null);
     if (next && canAcknowledge && !item.seen) {
       await markAbsenceSeenAction(item.id);
       router.refresh();
@@ -66,9 +80,9 @@ export function AbsenceList({
 
   async function remove(item: AbsenceListItem): Promise<void> {
     const ok = await confirm({
-      title: 'Zrušit nepřítomnost?',
+      title: 'Smazat nepřítomnost?',
       description: `${item.userName} — ${formatDayRange(item.startDate, item.endDate)}. Záznam se smaže a nadřízený ho v přehledu už neuvidí.`,
-      confirmLabel: 'Zrušit záznam',
+      confirmLabel: 'Smazat záznam',
       cancelLabel: 'Ponechat',
       tone: 'danger',
     });
@@ -95,6 +109,12 @@ export function AbsenceList({
             {items.map((item) => {
               const isOpen = openId === item.id;
               const unseen = canAcknowledge && !item.seen;
+              const canWrite = item.userId === viewerId || canAcknowledge;
+              // Not offered once the absence has started: `updateAbsence`
+              // re-checks the lead time against the *new* start day, so the
+              // service would reject the save anyway. A finished or running
+              // notice is corrected by deleting it.
+              const canEdit = canWrite && item.startDate >= minDate;
               return (
                 <li key={item.id} className="py-2">
                   <button
@@ -133,29 +153,49 @@ export function AbsenceList({
                         {unseen ? <Badge tone="info">Nové</Badge> : null}
                       </span>
                       <span className="mt-0.5 block text-sm text-zinc-500 dark:text-zinc-400">
-                        {weekdayLabelForDay(item.startDate)}{' '}
-                        {formatDayRange(item.startDate, item.endDate)}
+                        {formatDayRangeWithWeekday(item.startDate, item.endDate)}
                       </span>
                     </span>
                   </button>
-                  {isOpen ? (
+                  {isOpen && editId === item.id ? (
+                    <AbsenceEditForm
+                      item={item}
+                      minDate={minDate}
+                      onCancel={() => setEditId(null)}
+                      onSaved={() => {
+                        setEditId(null);
+                        router.refresh();
+                      }}
+                    />
+                  ) : isOpen ? (
                     <div className="flex flex-wrap items-center justify-between gap-2 px-7 pb-2 pt-1">
                       {item.note ? (
                         <p className="text-sm text-zinc-700 dark:text-zinc-300">{item.note}</p>
                       ) : (
                         <p className="text-sm text-zinc-400 dark:text-zinc-500">Bez poznámky</p>
                       )}
-                      {(item.userId === viewerId || canAcknowledge) && (
-                        <Button
-                          type="button"
-                          variant="danger"
-                          size="sm"
-                          className="ml-auto"
-                          disabled={busy === item.id}
-                          onClick={() => void remove(item)}
-                        >
-                          {busy === item.id ? 'Ruším…' : 'Zrušit záznam'}
-                        </Button>
+                      {canWrite && (
+                        <div className="ml-auto flex items-center gap-2">
+                          {canEdit && (
+                            <Button
+                              type="button"
+                              variant="secondary"
+                              size="sm"
+                              onClick={() => setEditId(item.id)}
+                            >
+                              Upravit záznam
+                            </Button>
+                          )}
+                          <Button
+                            type="button"
+                            variant="danger"
+                            size="sm"
+                            disabled={busy === item.id}
+                            onClick={() => void remove(item)}
+                          >
+                            {busy === item.id ? 'Mažu…' : 'Smazat záznam'}
+                          </Button>
+                        </div>
                       )}
                     </div>
                   ) : null}
@@ -166,5 +206,111 @@ export function AbsenceList({
         )}
       </CardBody>
     </Card>
+  );
+}
+
+/**
+ * Correcting a notice in place — the same four fields as `AbsenceForm`,
+ * prefilled. A mistyped date is the common mistake, and delete-and-retype was
+ * the only way to fix it.
+ *
+ * Nothing is validated here beyond what the date inputs enforce: the service
+ * re-checks the lead time and the range on every patch, and its Czech message
+ * is what lands in the `Alert`. Saving drops everyone's `AbsenceRead` rows, so
+ * a corrected date re-notifies — that is `updateAbsence`'s existing behaviour,
+ * not something this form decides.
+ */
+function AbsenceEditForm({
+  item,
+  minDate,
+  onCancel,
+  onSaved,
+}: {
+  item: AbsenceListItem;
+  minDate: string;
+  onCancel: () => void;
+  onSaved: () => void;
+}): ReactElement {
+  const [startDate, setStartDate] = useState(item.startDate);
+  const [endDate, setEndDate] = useState(item.endDate);
+  const [kind, setKind] = useState<string>(item.kind);
+  const [note, setNote] = useState(item.note);
+  const [error, setError] = useState<string | null>(null);
+  const [pending, setPending] = useState(false);
+
+  async function onSubmit(e: FormEvent<HTMLFormElement>): Promise<void> {
+    e.preventDefault();
+    setPending(true);
+    setError(null);
+    const result = await updateAbsenceAction(item.id, { kind, startDate, endDate, note });
+    setPending(false);
+    if (!result.ok) {
+      setError(result.error);
+      return;
+    }
+    onSaved();
+  }
+
+  return (
+    <form onSubmit={(e) => void onSubmit(e)} className="space-y-3 px-7 pb-3 pt-1">
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <Field label="Od" htmlFor={`absence-start-${item.id}`}>
+          <Input
+            id={`absence-start-${item.id}`}
+            type="date"
+            required
+            min={minDate}
+            value={startDate}
+            onChange={(e) => {
+              setStartDate(e.target.value);
+              // Same rule as the create form: a start past the end drags the
+              // end along, so the range can never be saved backwards.
+              if (e.target.value > endDate) setEndDate(e.target.value);
+            }}
+          />
+        </Field>
+        <Field label="Do" htmlFor={`absence-end-${item.id}`}>
+          <Input
+            id={`absence-end-${item.id}`}
+            type="date"
+            required
+            min={startDate}
+            value={endDate}
+            onChange={(e) => setEndDate(e.target.value)}
+          />
+        </Field>
+        <Field label="Důvod" htmlFor={`absence-kind-${item.id}`}>
+          <Select
+            id={`absence-kind-${item.id}`}
+            value={kind}
+            onChange={(e) => setKind(e.target.value)}
+          >
+            {ABSENCE_KIND_ORDER.map((k) => (
+              <option key={k} value={k}>
+                {ABSENCE_KIND_LABELS[k]}
+              </option>
+            ))}
+          </Select>
+        </Field>
+        <Field label="Poznámka (nepovinné)" htmlFor={`absence-note-${item.id}`}>
+          <Input
+            id={`absence-note-${item.id}`}
+            type="text"
+            maxLength={500}
+            value={note}
+            onChange={(e) => setNote(e.target.value)}
+          />
+        </Field>
+      </div>
+      {error ? <Alert tone="danger">{error}</Alert> : null}
+      <div className="flex items-center justify-end gap-2">
+        <Button type="button" variant="ghost" size="sm" onClick={onCancel} disabled={pending}>
+          Zpět
+        </Button>
+        <Button type="submit" size="sm" disabled={pending}>
+          {pending ? 'Ukládám…' : 'Uložit změny'}
+        </Button>
+      </div>
+    </form>
   );
 }

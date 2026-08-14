@@ -51,6 +51,16 @@ export function weekdayLabelForDay(day: string): string {
   return WEEKDAYS[iso]!;
 }
 
+/**
+ * `Čt 10.09.2026 – Út 15.09.2026` — `formatDayRange` with a weekday on **both**
+ * ends. The last absent day is the one the reader plans around ("so he's back
+ * on Wednesday"), and a bare end date makes them count it out on a calendar.
+ */
+export function formatDayRangeWithWeekday(start: string, end: string): string {
+  const from = `${weekdayLabelForDay(start)} ${formatDayKey(start)}`;
+  return start === end ? from : `${from} – ${weekdayLabelForDay(end)} ${formatDayKey(end)}`;
+}
+
 /** Weekend check for a bare calendar day — see `weekdayLabelForDay`. */
 export function isWeekendDay(day: string): boolean {
   const dow = new Date(`${day}T00:00:00.000Z`).getUTCDay();

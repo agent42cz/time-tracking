@@ -17,6 +17,9 @@ export default async function AbsencePage({
   const params = await searchParams;
 
   const today = appZoneDay();
+  // The earliest day a notice may cover — shared by the create form and the
+  // inline edit form so both pickers agree with the server's lead-time rule.
+  const minDate = addDaysToDay(today, 1);
   const currentWeek = appZoneWeekStartDay();
   const weekStart = params.week && isDayString(params.week) ? params.week : currentWeek;
   const isAdmin = s.activeRole === 'admin';
@@ -56,11 +59,12 @@ export default async function AbsencePage({
             isCurrentWeek={weekStart === currentWeek}
           />
         )}
-        <AbsenceForm minDate={addDaysToDay(today, 1)} />
+        <AbsenceForm minDate={minDate} />
         <AbsenceList
           items={upcoming}
           viewerId={s.userId}
           canAcknowledge={isAdmin}
+          minDate={minDate}
           title={isAdmin ? 'Nadcházející nepřítomnosti' : 'Moje nadcházející nepřítomnosti'}
           emptyText="Žádná nahlášená nepřítomnost"
         />
@@ -69,6 +73,7 @@ export default async function AbsencePage({
             items={past}
             viewerId={s.userId}
             canAcknowledge={false}
+            minDate={minDate}
             title="Historie"
             emptyText="Zatím nic"
           />
