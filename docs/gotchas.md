@@ -217,3 +217,13 @@ strategy ("Port NNNNN not bound after 60000ms"). It needs the same bridge-IP tre
 
 Lesson: the sandbox workaround in `@tt/db` covers the database only. Any test that boots
 its own container has to repeat it.
+
+### 2026-08-24 — Reports "Dnes" filter returns no rows
+
+**Symptom.** Picking a date preset (especially **Dnes**) on `/reports` and clicking _Použít filtry_ shows "Žádné záznamy odpovídající filtru" even when entries exist that day. The last day of _Minulý měsíc_ is missing too.
+
+**Cause.** The form sends inclusive `YYYY-MM-DD` (`from` and `to` are the same calendar day for "Dnes"). `runReport` filters with half-open `startedAt < to`. The page parsed both with `new Date('YYYY-MM-DD')`, which is UTC midnight of that day — so `from === to` and the range is empty. The same parse lived on the CSV/PDF export routes and the audit log.
+
+**Fix.** `parseInclusiveAppZoneRange` in `packages/shared/src/time/index.ts` (next to `parseAppZoneInput`): `from` is Prague midnight of that day, `to` is Prague midnight of the _next_ day. Wired into `reports/page.tsx`, both export routes, and `audit/page.tsx`.
+
+**See also.** AIAGE-65, US-41.

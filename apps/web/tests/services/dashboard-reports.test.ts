@@ -16,6 +16,7 @@ import {
   peopleTotals,
   topProjects,
 } from '../../src/lib/services/dashboard.js';
+import { parseInclusiveAppZoneRange } from '@tt/shared/time';
 import { rowsToCsv, runReport } from '../../src/lib/services/reports.js';
 import { hashPassword } from '../../src/lib/auth/passwords.js';
 import {
@@ -288,6 +289,25 @@ describe('reports', () => {
         expect(res.value[0]!.userId).toBe(w.user);
         expect(res.value[0]!.clientName).toBe('Acme');
       }
+    });
+  });
+
+  it('US-41: a same-day YYYY-MM-DD filter includes entries from that Prague day', async () => {
+    await withTx(async (tx) => {
+      const w = await buildWorld(tx, 'us41day');
+      // Mimics the reports form "Dnes" preset: from and to are the same
+      // inclusive calendar day. `new Date('2026-05-01')` for both would be
+      // an empty half-open range and drop every row.
+      const range = parseInclusiveAppZoneRange('2026-05-01', '2026-05-01');
+      const res = await runReport(tx, w.admin, {
+        companyId: w.company,
+        from: range.from,
+        to: range.to,
+      });
+      expect(res.ok).toBe(true);
+      if (!res.ok) return;
+      expect(res.value).toHaveLength(2);
+      expect(res.value.map((r) => r.description).sort()).toEqual(['Code review', 'Layout work']);
     });
   });
 

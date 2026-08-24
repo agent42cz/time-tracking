@@ -5,6 +5,7 @@ import {
   getPeriodRange,
   formatDurationHMS,
   parseAppZoneInput,
+  parseInclusiveAppZoneRange,
   getPreviousMonthRange,
   weekRangeFor,
   isoWorkingDayCountInMonth,
@@ -37,6 +38,37 @@ describe('time helpers', () => {
     expect(parseAppZoneInput('2026-05-08', '15:00').toISOString()).toBe('2026-05-08T13:00:00.000Z');
     // Winter date (CET = UTC+1).
     expect(parseAppZoneInput('2026-01-15', '09:30').toISOString()).toBe('2026-01-15T08:30:00.000Z');
+  });
+
+  it('US-41: inclusive same-day YYYY-MM-DD range covers the whole Prague day', () => {
+    // Reports form "Dnes" sends from=to=that calendar day. The service filter is
+    // half-open [from, to), so `to` must be midnight of the *next* Prague day.
+    const r = parseInclusiveAppZoneRange('2026-08-24', '2026-08-24');
+    // 24 Aug 2026 00:00 CEST (UTC+2)
+    expect(r.from?.toISOString()).toBe('2026-08-23T22:00:00.000Z');
+    expect(r.to?.toISOString()).toBe('2026-08-24T22:00:00.000Z');
+  });
+
+  it('US-41: inclusive last-day-of-month is not dropped from the half-open range', () => {
+    const r = parseInclusiveAppZoneRange('2026-06-01', '2026-06-30');
+    // 1 Jun 2026 00:00 CEST
+    expect(r.from?.toISOString()).toBe('2026-05-31T22:00:00.000Z');
+    // exclusive end = 1 Jul 2026 00:00 CEST
+    expect(r.to?.toISOString()).toBe('2026-06-30T22:00:00.000Z');
+  });
+
+  it('US-41: inclusive range uses CET in winter', () => {
+    const r = parseInclusiveAppZoneRange('2026-01-15', '2026-01-15');
+    // 15 Jan 2026 00:00 CET (UTC+1)
+    expect(r.from?.toISOString()).toBe('2026-01-14T23:00:00.000Z');
+    expect(r.to?.toISOString()).toBe('2026-01-15T23:00:00.000Z');
+  });
+
+  it('US-41: empty date strings are omitted so an unfiltered report stays unfiltered', () => {
+    expect(parseInclusiveAppZoneRange('', '')).toEqual({});
+    expect(parseInclusiveAppZoneRange(undefined, undefined)).toEqual({});
+    expect(parseInclusiveAppZoneRange(null, '2026-08-24').from).toBeUndefined();
+    expect(parseInclusiveAppZoneRange('2026-08-24', null).to).toBeUndefined();
   });
 
   it('getPreviousMonthRange returns the previous full calendar month as a half-open Prague range', () => {

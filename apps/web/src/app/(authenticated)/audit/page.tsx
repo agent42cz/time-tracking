@@ -1,4 +1,5 @@
 import type { ReactElement } from 'react';
+import { parseInclusiveAppZoneRange } from '@tt/shared/time';
 import {
   Card,
   CardBody,
@@ -26,12 +27,13 @@ export default async function AuditPage({
 }): Promise<ReactElement> {
   const s = await requireAdmin();
   const sp = await searchParams;
+  const { from, to } = parseInclusiveAppZoneRange(sp.from, sp.to);
   const result = await listAuditLog(prisma(), s.userId, {
     companyId: s.activeCompanyId,
     action: ALL_ACTIONS.includes(sp.action as AuditAction) ? (sp.action as AuditAction) : undefined,
     entityType: sp.entity || undefined,
-    from: sp.from ? new Date(sp.from) : undefined,
-    to: sp.to ? new Date(sp.to) : undefined,
+    from,
+    to,
     limit: 100,
   });
   if (!result.ok) {

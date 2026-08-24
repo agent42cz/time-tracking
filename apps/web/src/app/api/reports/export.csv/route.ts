@@ -1,4 +1,5 @@
 import type { NextRequest } from 'next/server';
+import { parseInclusiveAppZoneRange } from '@tt/shared/time';
 import { prisma, requireActiveCompany } from '@/lib/session';
 import { rowsToCsv, runReport } from '@/lib/services/reports';
 
@@ -7,10 +8,11 @@ export const dynamic = 'force-dynamic';
 export async function GET(req: NextRequest): Promise<Response> {
   const s = await requireActiveCompany();
   const sp = req.nextUrl.searchParams;
+  const { from, to } = parseInclusiveAppZoneRange(sp.get('from'), sp.get('to'));
   const result = await runReport(prisma(), s.userId, {
     companyId: s.activeCompanyId,
-    from: sp.get('from') ? new Date(sp.get('from')!) : undefined,
-    to: sp.get('to') ? new Date(sp.get('to')!) : undefined,
+    from,
+    to,
     clientIds: sp.getAll('client'),
     projectIds: sp.getAll('project'),
     memberIds: sp.getAll('member'),

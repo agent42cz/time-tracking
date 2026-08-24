@@ -48,6 +48,28 @@ export function parseAppZoneInput(date: string, time: string): Date {
   return fromZonedTime(`${date}T${time}:00`, APP_TIMEZONE);
 }
 
+/**
+ * Convert inclusive `YYYY-MM-DD` form values (`<input type="date">`, report
+ * presets) into a half-open `[from, to)` UTC range in Europe/Prague.
+ *
+ * The UI treats `to` as the last included calendar day. Callers filter with
+ * `startedAt < to`, so the returned `to` is midnight of the *following*
+ * Prague day. Same-day input (the "Dnes" preset) therefore covers that
+ * whole Prague day instead of collapsing to an empty range.
+ */
+export function parseInclusiveAppZoneRange(
+  from?: string | null,
+  to?: string | null,
+): { from?: Date; to?: Date } {
+  const range: { from?: Date; to?: Date } = {};
+  if (from) range.from = parseAppZoneInput(from, '00:00');
+  if (to) {
+    const lastDayMidnight = toAppZone(parseAppZoneInput(to, '00:00'));
+    range.to = fromAppZone(addDays(lastDayMidnight, 1));
+  }
+  return range;
+}
+
 /** The current Europe/Prague calendar day as `yyyy-MM-dd`. */
 export function appZoneDay(reference: Date = now()): string {
   return formatInTimeZone(reference, APP_TIMEZONE, 'yyyy-MM-dd');

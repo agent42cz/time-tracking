@@ -1,4 +1,5 @@
 import type { ReactElement } from 'react';
+import { parseInclusiveAppZoneRange } from '@tt/shared/time';
 import { Card, CardBody, CardHeader, CardTitle } from '@tt/ui';
 import { getTranslations } from 'next-intl/server';
 import { prisma, requireActiveCompany } from '@/lib/session';
@@ -55,10 +56,11 @@ export default async function ReportsPage({
       : Promise.resolve([]),
   ]);
 
+  const { from, to } = parseInclusiveAppZoneRange(sp.from, sp.to);
   const filters = {
     companyId: s.activeCompanyId,
-    from: sp.from ? new Date(sp.from) : undefined,
-    to: sp.to ? new Date(sp.to) : undefined,
+    from,
+    to,
     clientIds: asArray(sp.client),
     projectIds: asArray(sp.project),
     memberIds: asArray(sp.member),
@@ -72,7 +74,7 @@ export default async function ReportsPage({
   ]);
   const report = buildGroupedReport(result.ok ? result.value : [], {
     groupBy,
-    clampEnd: filters.to,
+    clampEnd: to,
   });
 
   return (

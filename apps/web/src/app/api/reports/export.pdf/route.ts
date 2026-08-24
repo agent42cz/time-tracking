@@ -3,7 +3,12 @@ import { getTranslations } from 'next-intl/server';
 import { prisma, requireActiveCompany } from '@/lib/session';
 import { buildGroupedReport, parseGroupBy, runReport } from '@/lib/services/reports';
 import { buildReportPdf, type ReportPdfStrings } from '@/lib/services/report-pdf';
-import { getPreviousMonthRange, pad2, toAppZone } from '@tt/shared/time';
+import {
+  getPreviousMonthRange,
+  pad2,
+  parseInclusiveAppZoneRange,
+  toAppZone,
+} from '@tt/shared/time';
 
 export const dynamic = 'force-dynamic';
 
@@ -51,8 +56,9 @@ export async function GET(req: NextRequest): Promise<Response> {
     from = r.start;
     to = r.end;
   } else {
-    from = sp.get('from') ? new Date(sp.get('from')!) : undefined;
-    to = sp.get('to') ? new Date(sp.get('to')!) : undefined;
+    const dateRange = parseInclusiveAppZoneRange(sp.get('from'), sp.get('to'));
+    from = dateRange.from;
+    to = dateRange.to;
   }
 
   const result = await runReport(prisma(), s.userId, {

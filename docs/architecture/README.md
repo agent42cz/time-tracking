@@ -131,7 +131,7 @@ The chronological v1 build is recorded in [`build-log.md`](build-log.md) — use
 
 Reporty's data flow is:
 
-1. `runReport(db, actorUserId, filters)` — single Prisma query; returns `ReportRow[]` with IDs, names, durations.
+1. `runReport(db, actorUserId, filters)` — single Prisma query; returns `ReportRow[]` with IDs, names, durations. Date filters arrive as inclusive `YYYY-MM-DD` form values (the "Dnes" preset sends `from === to`) and are converted by `parseInclusiveAppZoneRange` into a half-open Europe/Prague `[from, to)` before the query — `new Date('YYYY-MM-DD')` is UTC midnight of that day, which made a same-day filter empty.
 2. `buildGroupedReport(rows, { groupBy, clampEnd })` — pure function; groups by project / member / day, computes per-group `subtotalMs` and `grandTotalMs`. Consumed by both the page component and the PDF builder.
 3. `buildReportPdf(report, meta)` — pure async function (pdfmake `PdfPrinter`, ADR-0010); receives all translated strings via `meta.t`, so it is unit-testable without next-intl. Embeds DejaVu Sans for Czech diacritics.
 
