@@ -170,12 +170,18 @@ export async function setStoredSession(
   }
 }
 
+/** Strip whitespace and trailing slashes so `${base}/api/v1/...` never double-slashes. */
+export function normalizeApiBase(base: string): string {
+  return base.trim().replace(/\/+$/, '');
+}
+
 export async function getApiBase(storage: StorageAdapter): Promise<string> {
-  return (await storage.get<string>(API_BASE_KEY)) ?? DEFAULT_API_BASE;
+  const stored = await storage.get<string>(API_BASE_KEY);
+  return stored ? normalizeApiBase(stored) : DEFAULT_API_BASE;
 }
 
 export async function setApiBase(storage: StorageAdapter, base: string): Promise<void> {
-  await storage.set(API_BASE_KEY, base);
+  await storage.set(API_BASE_KEY, normalizeApiBase(base));
 }
 
 class ApiError extends Error {
@@ -193,7 +199,7 @@ async function call<T>(
   init: RequestInit,
   token: string | null,
 ): Promise<T> {
-  const res = await fetch(`${base}${path}`, {
+  const res = await fetch(`${normalizeApiBase(base)}${path}`, {
     ...init,
     headers: {
       'Content-Type': 'application/json',
@@ -222,8 +228,9 @@ export interface LoginInput {
 }
 
 export async function login(input: LoginInput): Promise<ApiSession> {
+  const apiBase = normalizeApiBase(input.apiBase);
   const data = await call<{ token: string; expiresAt: string; userId: string }>(
-    input.apiBase,
+    apiBase,
     '/api/v1/auth/login',
     {
       method: 'POST',
@@ -235,7 +242,7 @@ export async function login(input: LoginInput): Promise<ApiSession> {
     },
     null,
   );
-  return { token: data.token, expiresAt: data.expiresAt, apiBase: input.apiBase };
+  return { token: data.token, expiresAt: data.expiresAt, apiBase };
 }
 
 export async function logout(session: ApiSession): Promise<void> {

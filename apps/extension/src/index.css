@@ -2,10 +2,26 @@
 @tailwind components;
 @tailwind utilities;
 
+/*
+ * Chrome sizes the MV3 popup to the <html> box. Without an explicit width
+ * (and with height: auto/fit-content) some Chrome profiles stretch the
+ * popup to the last-used default (~800×600), leaving empty space below
+ * the form (AIAGE-63). Cap height so a long history list scrolls inside
+ * the popup instead of growing the window.
+ */
+html {
+  width: 380px;
+  height: fit-content;
+  max-height: 600px;
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
 html,
 body,
 #root {
   margin: 0;
+  width: 380px;
   font-family:
     system-ui,
     -apple-system,

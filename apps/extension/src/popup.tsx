@@ -51,6 +51,7 @@ import {
   createChromeStorageAdapter,
   type StorageAdapter,
 } from './storage.js';
+import { writeIconHint } from './icon-hint.js';
 
 const storage: StorageAdapter =
   typeof chrome !== 'undefined' && chrome?.storage?.local
@@ -92,6 +93,7 @@ export function Popup(): ReactElement {
       ]);
       setState({ session, me: user, timer, catalog });
       await setPopupCache(storage, { me: user, timer, catalog });
+      await writeIconHint(storage, (timer.running ?? []).length);
       void diag.log('refresh:done', { running: (timer.running ?? []).map((e) => e.id) });
 
       const activeCompanyId = timer.companyId ?? companyId;
@@ -134,6 +136,7 @@ export function Popup(): ReactElement {
     if (cached) {
       setState({ session, ...cached });
       setView('app');
+      void writeIconHint(storage, (cached.timer.running ?? []).length);
       void refresh(session).catch(async (err) => {
         if (err instanceof ApiError && err.status === 401) {
           await setStoredSession(storage, null);
@@ -206,6 +209,7 @@ export function Popup(): ReactElement {
         await logout(state.session);
         await setStoredSession(storage, null);
         await clearPopupCache(storage);
+        await writeIconHint(storage, 0);
         setState(null);
         setView('login');
       }}
@@ -215,7 +219,7 @@ export function Popup(): ReactElement {
 
 function Spinner(): ReactElement {
   return (
-    <div className="flex h-32 w-[360px] items-center justify-center text-sm text-zinc-500 dark:text-zinc-400">
+    <div className="flex h-32 w-[380px] items-center justify-center text-sm text-zinc-500 dark:text-zinc-400">
       Načítám…
     </div>
   );
@@ -294,7 +298,7 @@ function LoginForm({
   }
 
   return (
-    <form onSubmit={submit} className="w-[360px] space-y-3 p-4 text-sm">
+    <form onSubmit={submit} className="w-[380px] space-y-3 p-4 text-sm">
       <div className="flex items-center justify-between">
         <h1 className="text-base font-semibold text-zinc-900 dark:text-zinc-100">Time Tracker</h1>
         <button

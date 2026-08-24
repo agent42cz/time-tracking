@@ -2,6 +2,23 @@ import { expect, test } from '@playwright/test';
 import { buildApiFixture, openPopup } from './fixtures.js';
 
 test.describe('extension popup', () => {
+  test.describe('size', () => {
+    // A desktop-sized window reproduces the Chrome bug where the popup
+    // stretched to the last-used default (~800×600) instead of the 380 px card.
+    test.use({ viewport: { width: 800, height: 800 } });
+
+    test('stays 380px wide and no taller than 600px on a larger window', async ({ page }) => {
+      await openPopup(page, buildApiFixture({ historyCount: 4 }));
+      await expect(page.getByText('Probíhá (1)')).toBeVisible();
+      const box = await page.evaluate(() => {
+        const html = document.documentElement.getBoundingClientRect();
+        return { width: Math.round(html.width), height: Math.round(html.height) };
+      });
+      expect(box.width).toBe(380);
+      expect(box.height).toBeLessThanOrEqual(600);
+    });
+  });
+
   test('boots with a running timer and a scrollable history', async ({ page }) => {
     await openPopup(page, buildApiFixture());
 

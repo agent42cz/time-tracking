@@ -59,6 +59,23 @@ async function setIconState(state) {
   });
 }
 
+const ICON_HINT_KEY = 'tt:icon-hint';
+
+function normalizeApiBase(base) {
+  return String(base ?? '')
+    .trim()
+    .replace(/\/+$/, '');
+}
+
+function applyRunningCount(running) {
+  const n = typeof running === 'number' && running > 0 ? running : 0;
+  void setIconState(n > 0 ? 'active' : 'idle');
+  void chrome.action.setBadgeText({ text: n > 0 ? String(n) : '' });
+  if (n > 0) {
+    void chrome.action.setBadgeBackgroundColor({ color: '#10b981' });
+  }
+}
+
 async function loadSession() {
   const out = await chrome.storage.local.get(['tt:session']);
   return out['tt:session'] ?? null;
@@ -67,57 +84,65 @@ async function loadSession() {
 async function poll() {
   const session = await loadSession();
   if (!session?.token || !session?.apiBase) {
-    await setIconState('idle');
-    await chrome.action.setBadgeText({ text: '' });
+    applyRunningCount(0);
     return;
   }
+  const apiBase = normalizeApiBase(session.apiBase);
+  const url = `${apiBase}/api/v1/timer`;
   try {
-    const res = await fetch(`${session.apiBase}/api/v1/timer`, {
+    const res = await fetch(url, {
       headers: { Authorization: `Bearer ${session.token}` },
+      credentials: 'omit',
+      cache: 'no-store',
     });
     if (res.status === 401) {
       // Token rejected — clear it so the popup falls back to login. The diag
       // buffer goes with it: it holds entry ids from the session that just
       // ended (mirrors setStoredSession in src/api.ts).
       void diag('poll:401');
-      await chrome.storage.local.remove(['tt:session', DIAG_KEY]);
-      await setIconState('idle');
-      await chrome.action.setBadgeText({ text: '' });
+      await chrome.storage.local.remove(['tt:session', DIAG_KEY, ICON_HINT_KEY]);
+      applyRunningCount(0);
       return;
     }
     if (!res.ok) {
       // Don't change state on transient errors; keep last shown.
+      void diag('poll:http', { status: res.status });
       return;
     }
     const data = await res.json();
     const running = Array.isArray(data?.running) ? data.running.length : 0;
     void diag('poll:result', { running });
-    await setIconState(running > 0 ? 'active' : 'idle');
-    await chrome.action.setBadgeText({
-      text: running > 0 ? String(running) : '',
-    });
-    if (running > 0) {
-      await chrome.action.setBadgeBackgroundColor({ color: '#10b981' });
-    }
-  } catch {
+    applyRunningCount(running);
+  } catch (err) {
     // Network down — leave the icon as-is rather than flapping to idle.
-    void diag('poll:error');
+    // The popup writes tt:icon-hint on refresh so the icon can still update
+    // without this fetch succeeding (AIAGE-63).
+    void diag('poll:error', {
+      message: err instanceof Error ? err.message : String(err),
+    });
   }
 }
 
-chrome.runtime.onInstalled.addListener(() => {
+function ensureAlarm() {
   void chrome.alarms.create(POLL_ALARM, {
     periodInMinutes: POLL_PERIOD_MIN,
     delayInMinutes: 0,
   });
+}
+
+// Re-create the alarm on every worker start. onInstalled/onStartup do not
+// fire when Chrome kills and restarts an idle MV3 worker, and some Chrome
+// profiles drop persisted alarms after an update (AIAGE-63).
+ensureAlarm();
+void poll();
+
+chrome.runtime.onInstalled.addListener(() => {
+  ensureAlarm();
   void poll();
 });
 
 chrome.runtime.onStartup.addListener(() => {
-  void chrome.alarms.create(POLL_ALARM, {
-    periodInMinutes: POLL_PERIOD_MIN,
-    delayInMinutes: 0,
-  });
+  ensureAlarm();
   void poll();
 });
 
@@ -138,7 +163,10 @@ chrome.storage.onChanged.addListener((changes, area) => {
   if (!onlyDiagChanged) {
     void diag('storage:changed', { keys: changedKeys });
   }
-  if (changes['tt:session'] || changes['tt:icon-hint']) {
+  if (changes[ICON_HINT_KEY] && typeof changes[ICON_HINT_KEY].newValue === 'number') {
+    applyRunningCount(changes[ICON_HINT_KEY].newValue);
+  }
+  if (changes['tt:session'] || changes[ICON_HINT_KEY]) {
     void poll();
   }
 });
@@ -168,7 +196,7 @@ chrome.runtime.onMessageExternal.addListener((msg, _sender, sendResponse) => {
         'tt:session': {
           token: msg.token,
           expiresAt: msg.expiresAt,
-          apiBase: msg.apiBase,
+          apiBase: normalizeApiBase(msg.apiBase),
         },
       })
       .then(() => poll())
