@@ -24,6 +24,8 @@ test-results/
 
 # OS / editor
 .DS_Store
+# macOS AppleDouble sidecars, created when copying onto a non-HFS volume
+._*
 Thumbs.db
 .vscode/
 .idea/
@@ -40,6 +42,7 @@ packages/db/generated/
 # Extension build
 apps/extension/dist/
 apps/extension/time-tracker-extension-v*.zip
+apps/extension/time-tracker-extension-v*/
 apps/extension/store/
 
 # Docker volumes

@@ -32,7 +32,7 @@ import {
 } from './api.js';
 import { formatDurationHMS } from '@tt/shared/time/duration';
 import { fmtDurationHM } from './format.js';
-import { useExtensionSync, diag } from './sync.js';
+import { useExtensionSync, connectionErrorMessage, diag, mutationErrorMessage } from './sync.js';
 import { EntrySheet, type EntrySheetInitial } from './EntrySheet.js';
 import { AutoStackSheet } from './AutoStackSheet.js';
 import { NewProjectSheet } from './NewProjectSheet.js';
@@ -156,7 +156,7 @@ export function Popup(): ReactElement {
         await clearPopupCache(storage);
         setView('login');
       } else {
-        setError('Nelze se připojit k serveru');
+        setError(connectionErrorMessage(err));
         setView('login');
       }
     }
@@ -268,7 +268,7 @@ function LoginForm({
                 : 'Neplatné přihlašovací údaje',
         );
       } else {
-        setError('Nelze se připojit k serveru');
+        setError(connectionErrorMessage(err));
       }
     } finally {
       setPending(false);
@@ -1089,8 +1089,8 @@ function StartRow({
       setDescription('');
       setClientId('');
       setProjectId('');
-    } catch {
-      setError('Nepodařilo se spustit');
+    } catch (err) {
+      setError(mutationErrorMessage(err));
     } finally {
       setPending(false);
     }

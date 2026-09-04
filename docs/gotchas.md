@@ -227,3 +227,23 @@ its own container has to repeat it.
 **Fix.** `parseInclusiveAppZoneRange` in `packages/shared/src/time/index.ts` (next to `parseAppZoneInput`): `from` is Prague midnight of that day, `to` is Prague midnight of the _next_ day. Wired into `reports/page.tsx`, both export routes, and `audit/page.tsx`.
 
 **See also.** AIAGE-65, US-41.
+
+### 2026-09-03 — Extension stops tracking: every start lands in the offline queue
+
+**Symptom.** The Chrome extension's Start button appears to work but no timer ever runs. The toolbar icon stays idle, the "unsynced" badge climbs, and the diagnostic buffer (US-104) is a wall of `poll:error {"message":"Failed to fetch"}` from the service worker — 279 of them over ten hours — interleaved with `start:queued`, `queue:flush {"applied":0,"conflicts":0}` and a `ws:close` storm with no `ws:open`.
+
+**Cause.** `tracker.agent42.cz` was put behind **Cloudflare Access**. Access answers every request without its cookie — bearer token or not — with a 302 to `https://<team>.cloudflareaccess.com/cdn-cgi/access/login/...`. That host is not in the extension's `host_permissions` (`http://localhost:3000/*`, `https://*.agent42.cz/*`), so Chrome refuses the cross-origin hop and the redirect-following `fetch` dies as a bare `TypeError: Failed to fetch`. The extension cannot pass Access at all: the service worker polls with `credentials: 'omit'`, and the popup's origin is `chrome-extension://…`, so the Access cookie is never sent either way. The WebSocket handshake hits the same 302, which is why it never opened.
+
+Because `isNetworkError()` treated every non-`ApiError` as "we are offline", each start was queued instead of reported, and the replay failed the same way forever.
+
+**Fix (infrastructure — this is the one that restores tracking).** Give the API a path that Access does not intercept. In Cloudflare Zero Trust → Access → Applications → the `tracker.agent42.cz` app, add a **Bypass** policy covering `/api/v1/*` and the WebSocket endpoint. The API authenticates itself with opaque bearer tokens (`sessions` table, ADR-0014), so it is not unprotected — but be deliberate: bypassing Access removes the second gate in front of that surface, leaving only the app's own auth. A Service Auth token is not an option here; the secret would ship inside the extension. The same trade-off is already documented for the Coolify panel in `.github/workflows/ci.yml`.
+
+**Fix (client — makes the next occurrence diagnosable in seconds).** Requests now use `redirect: 'manual'`, so an intercepted call surfaces as `AccessBlockedError` naming the URL instead of an anonymous network failure:
+
+- `apps/extension/src/api.ts` — `AccessBlockedError`, `isAccessRedirect()`.
+- `apps/extension/src/sync.ts` — `isNetworkError()` no longer counts a blocked request as offline, so the mutation is not queued; the popup shows "požadavek zachytila ochranná proxy" instead of silently succeeding. `classifyReplayFailure()` marks a refused flush as `blocked` in the `queue:flush` record, which previously read `{applied:0, conflicts:0}` — the same thing an empty queue logs.
+- `apps/extension/public/background.js` — a refused poll logs `poll:blocked {url, status}`; `poll:error` now carries the URL it failed on.
+
+**Lesson.** An extension can never satisfy a cookie-based access proxy, and Chrome reports a blocked redirect as an ordinary network failure. Any client that silently queues on "network error" will swallow the outage — classify the failure before deciding it is offline.
+
+**See also.** AIAGE-66, US-34, US-104.

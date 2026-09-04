@@ -39,6 +39,29 @@ After CI is green on `main`, the `cd` job in `.github/workflows/ci.yml` calls th
 
 The production URL is currently `https://tracker.agent42.cz` (configured in CI environment).
 
+## Cloudflare Access in front of the app
+
+If the app's hostname sits behind Cloudflare Access, the **Chrome extension stops working
+entirely** — silently. Access answers every request that lacks its cookie with a 302 to
+`https://<team>.cloudflareaccess.com/...`, a host the extension's `host_permissions` does
+not cover, so Chrome kills the fetch. The extension cannot obtain that cookie: the service
+worker polls with `credentials: 'omit'`, and the popup's origin is `chrome-extension://…`.
+A Service Auth token is not usable either — the secret would ship inside the extension,
+readable by anyone who unpacks it.
+
+Required configuration: in **Zero Trust → Access → Applications → the app**, add a **Bypass**
+policy covering `/api/v1/*` and the WebSocket endpoint (`WS_PUBLIC_URL`).
+
+Understand what that buys and costs. Those paths are then reachable from the internet with
+only the app's own authentication in front of them — opaque hashed bearer tokens in the
+`sessions` table (ADR-0014), which is what the extension authenticates with anyway. Access
+was never authenticating the extension; it was only blocking it. Leave Access on the
+interactive routes (`/`, `/timer`, the admin pages), where a browser can complete the login.
+
+Symptoms of getting this wrong are documented in `docs/gotchas.md` (2026-09-03) and were
+diagnosed as AIAGE-66. The same interception already bit the CI deploy job — see the
+`CF_ACCESS_CLIENT_ID` comments in `.github/workflows/ci.yml`.
+
 ## First-run bootstrap
 
 The first user is created via the seed (run from a host that can reach the running `web` container):

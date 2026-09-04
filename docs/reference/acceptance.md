@@ -50,6 +50,8 @@ Each box maps to the file (and test name) that proves it. v1 was declared comple
 - [x] **Chrome extension supports login, multiple parallel timers, weekly view, edit/delete, real-time sync with web, and offline queue.**
   - `apps/extension/src/queue.test.ts` — US-29 (persistent session), US-30 (popup state load), US-32 (verbatim replay), US-33 ("play again" enqueues fresh), US-34 (in-order replay, conflict resolution, transient retry, browser-kill resume), US-35 (pending count = unsynced indicator).
   - `apps/ws/src/server.test.ts` — US-31 (1s sync between user clients, zero leak across companies).
+  - `apps/extension/src/access-block.test.ts` — US-34 (a request an access proxy redirects raises `AccessBlockedError` naming the URL, is sent with `redirect: 'manual'`, and is not classified as offline, so the mutation is never queued).
+  - `apps/extension/src/mutation-errors.test.ts` — US-34 (the popup names the proxy instead of blaming the connection; a blocked replay stays transient and is flagged `blocked`).
 
 - [x] **Deployed via Coolify with Postgres, SMTP, and HTTPS via Traefik.**
   - `docker-compose.yml` — web + ws + postgres + redis + db-backup with `expose:` only.
@@ -100,3 +102,4 @@ Total at v1: **81 tests, ~100s wall**. US coverage: **50/50 (100%)**. Lint + typ
 - [x] **Diagnostics: a capped ring buffer in the extension plus a `TT_DIAG`-gated server timeline give one ordered view of timer changes across surfaces.**
   - `apps/extension/src/diag.test.ts` — US-104 (records events with surface/instance, chronological order, capped at `DIAG_CAP` dropping oldest first, clear empties the buffer).
   - `apps/web/tests/services/diag-log.test.ts` — US-104 (writes nothing unless `TT_DIAG=1`; one JSON line per call when enabled; a stdout failure never propagates to the caller).
+  - `apps/extension/src/background-poll.test.ts` — US-104 (a redirected poll logs `poll:blocked` with the refused URL, `poll:error` carries the URL it failed on, a successful poll still reports the running count).

@@ -94,7 +94,19 @@ async function poll() {
       headers: { Authorization: `Bearer ${session.token}` },
       credentials: 'omit',
       cache: 'no-store',
+      // Never follow a redirect. An access proxy in front of the API answers
+      // with a 302 to its own login host, which host_permissions does not
+      // cover, so a redirect-following fetch dies as an unattributable
+      // "Failed to fetch" (AIAGE-66). Mirrors isAccessRedirect in src/api.ts —
+      // duplicated because this file cannot import TypeScript (see header).
+      redirect: 'manual',
     });
+    if (res.type === 'opaqueredirect' || (res.status >= 300 && res.status < 400)) {
+      // Reachable, but something in front of the app is intercepting the call.
+      // Keep the last icon state: the timer data we have is stale, not wrong.
+      void diag('poll:blocked', { url, status: res.status });
+      return;
+    }
     if (res.status === 401) {
       // Token rejected — clear it so the popup falls back to login. The diag
       // buffer goes with it: it holds entry ids from the session that just
@@ -119,6 +131,7 @@ async function poll() {
     // without this fetch succeeding (AIAGE-63).
     void diag('poll:error', {
       message: err instanceof Error ? err.message : String(err),
+      url,
     });
   }
 }

@@ -193,20 +193,45 @@ class ApiError extends Error {
   }
 }
 
+/**
+ * The API answered with a cross-origin redirect instead of JSON — in practice an
+ * access proxy (Cloudflare Access) bouncing the request to its own login page
+ * (AIAGE-66). The redirect target is not in the manifest's host_permissions, so
+ * a redirect-following fetch dies as a bare `TypeError: Failed to fetch` and is
+ * indistinguishable from being offline. Requests therefore use
+ * `redirect: 'manual'` and raise this instead, which callers must NOT treat as
+ * an offline condition: queueing the mutation would hide a server-side outage
+ * behind an "unsynced" badge forever.
+ */
+class AccessBlockedError extends Error {
+  constructor(public url: string) {
+    super(`access_blocked ${url}`);
+  }
+}
+
+/** True when `fetch(..., { redirect: 'manual' })` refused to follow a cross-origin hop. */
+export function isAccessRedirect(res: Response): boolean {
+  return res.type === 'opaqueredirect' || (res.status >= 300 && res.status < 400);
+}
+
 async function call<T>(
   base: string,
   path: string,
   init: RequestInit,
   token: string | null,
 ): Promise<T> {
-  const res = await fetch(`${normalizeApiBase(base)}${path}`, {
+  const url = `${normalizeApiBase(base)}${path}`;
+  const res = await fetch(url, {
     ...init,
+    // Never follow a redirect: see AccessBlockedError.
+    redirect: 'manual',
     headers: {
       'Content-Type': 'application/json',
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
       ...(init.headers ?? {}),
     },
   });
+  if (isAccessRedirect(res)) throw new AccessBlockedError(url);
   if (!res.ok) {
     let code = 'http_error';
     try {
@@ -486,4 +511,4 @@ export async function applyAutoStack(
   return res.plan;
 }
 
-export { ApiError };
+export { ApiError, AccessBlockedError };

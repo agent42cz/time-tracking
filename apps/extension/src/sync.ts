@@ -12,6 +12,7 @@
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
+  AccessBlockedError,
   ApiError,
   createManualEntry,
   createProject,
@@ -77,10 +78,53 @@ export interface SyncState {
   resolvePendingOverlap: (entryId: string) => Promise<void>;
 }
 
-function isNetworkError(err: unknown): boolean {
+/**
+ * Should this failure be treated as "we are offline" — i.e. queue the mutation
+ * and replay it later? Only a genuine transport failure qualifies. A response
+ * from the server (`ApiError`) is a decision, not an outage; an access proxy
+ * bouncing us to its login page (`AccessBlockedError`, AIAGE-66) is a server
+ * misconfiguration that replaying cannot fix — queueing it made every start
+ * vanish into the offline queue while the popup claimed all was well.
+ */
+export function isNetworkError(err: unknown): boolean {
   if (err instanceof ApiError) return false;
+  if (err instanceof AccessBlockedError) return false;
   if (err instanceof TypeError) return true; // fetch threw before getting a response
   return true;
+}
+
+const ACCESS_BLOCKED_MESSAGE =
+  'Server neodpověděl — požadavek zachytila ochranná proxy. Kontaktujte správce.';
+
+/**
+ * What the popup shows after a mutation failed. A blocked request is named for
+ * what it is: the app itself never answered, so "zkuste to znovu" would be a
+ * lie (AIAGE-66).
+ */
+export function mutationErrorMessage(err: unknown): string {
+  if (err instanceof AccessBlockedError) return ACCESS_BLOCKED_MESSAGE;
+  return 'Nepodařilo se spustit';
+}
+
+/** Same distinction on the load/login path, where the fallback names the connection. */
+export function connectionErrorMessage(err: unknown): string {
+  if (err instanceof AccessBlockedError) return ACCESS_BLOCKED_MESSAGE;
+  return 'Nelze se připojit k serveru';
+}
+
+/**
+ * How the replay loop treats a failed mutation. `blocked` is reported
+ * separately from `reason` so the diagnostic buffer records *why* a flush
+ * applied nothing — the AIAGE-66 log showed only `{applied: 0, conflicts: 0}`,
+ * which is equally consistent with an empty queue.
+ */
+export function classifyReplayFailure(err: unknown): {
+  reason: 'conflict' | 'transient';
+  blocked: boolean;
+} {
+  if (err instanceof AccessBlockedError) return { reason: 'transient', blocked: true };
+  if (err instanceof ApiError) return { reason: 'conflict', blocked: false };
+  return { reason: 'transient', blocked: false };
 }
 
 function nudgeServiceWorker(): void {
@@ -128,6 +172,7 @@ export function useExtensionSync({ session, wsUrl, companyId, onRefresh }: UseSy
   // --- drain on reconnect / mount / after each mutation
   const drain = useCallback(async (): Promise<void> => {
     if (!session) return;
+    let blocked = false;
     const result = await queue.flush(
       async (m) => {
         try {
@@ -141,15 +186,22 @@ export function useExtensionSync({ session, wsUrl, companyId, onRefresh }: UseSy
           }
           return { ok: true as const };
         } catch (err) {
-          if (err instanceof ApiError) return { ok: false, reason: 'conflict' };
-          return { ok: false, reason: 'transient' };
+          const verdict = classifyReplayFailure(err);
+          if (verdict.blocked) blocked = true;
+          return { ok: false, reason: verdict.reason };
         }
       },
       {
         onConflict: () => setConflicts((c) => c + 1),
       },
     );
-    void diag.log('queue:flush', { applied: result.applied, conflicts: result.conflicts });
+    void diag.log('queue:flush', {
+      applied: result.applied,
+      conflicts: result.conflicts,
+      // Without this, a flush that a proxy refused is indistinguishable in the
+      // log from a flush that had nothing to do (AIAGE-66).
+      ...(blocked ? { blocked: true } : {}),
+    });
     setPending(await queue.size());
     await refreshPendingOverlap();
     if (result.applied > 0 || result.conflicts > 0) {
