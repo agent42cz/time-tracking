@@ -49,8 +49,21 @@ worker polls with `credentials: 'omit'`, and the popup's origin is `chrome-exten
 A Service Auth token is not usable either — the secret would ship inside the extension,
 readable by anyone who unpacks it.
 
-Required configuration: in **Zero Trust → Access → Applications → the app**, add a **Bypass**
-policy covering `/api/v1/*` and the WebSocket endpoint (`WS_PUBLIC_URL`).
+Required configuration, in **Zero Trust → Access → Applications**:
+
+- The app itself (`tracker.agent42.cz`) — add a **Bypass** policy, selector **Everyone**,
+  scoped to path `/api/v1/*`. Access stays in front of the interactive routes (`/`,
+  `/timer`, the admin pages), where a browser can complete the login.
+- The WebSocket service (`WS_PUBLIC_URL`, currently `wss://tracker-ws.agent42.cz`) — a
+  **separate** Access application with its own policies; a bypass on the app's hostname
+  does not cover it. Clients connect at the root (`${wsUrl}/?token=…`), so the bypass has
+  to cover the whole host rather than a path. Deleting that Access application entirely is
+  equivalent.
+
+Verify with `curl -s -o /dev/null -w "%{http_code}" <url>`: `/api/v1/timer` must answer
+`401` from the application, and the WS host `200` (its healthcheck body is `ok`) — not a
+`302` to `*.cloudflareaccess.com`. The WS service keeps rejecting unauthenticated upgrades
+on its own with `401`.
 
 Understand what that buys and costs. Those paths are then reachable from the internet with
 only the app's own authentication in front of them — opaque hashed bearer tokens in the
