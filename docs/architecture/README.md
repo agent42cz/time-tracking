@@ -35,6 +35,18 @@ The tags/štítky feature (US-16, US-17) was removed entirely in AIAGE-57, down 
 | **ws**        | [`apps/ws`](../../apps/ws)               | `ws` (Node WebSocket library) + `ioredis`              | Real-time fan-out. Authenticates via session cookie or `?token=`. Subscribes each socket to `user:{id}` and `company:{id}` channels via a single Redis `psubscribe`, filters per connection. Mutation routes in `web` publish to Redis; this service forwards.                                                                                                                                   |
 | **extension** | [`apps/extension`](../../apps/extension) | Vite + React 19, MV3 manifest                          | Chrome popup. Mirrors web in real time via `apps/ws`. Persistent FIFO offline queue in `chrome.storage.local` (commit-before-send so a browser kill mid-replay leaves a recoverable queue). Stop-timer replays that detect an overlap write the `OverlapInfo` to the `tt:pending-overlaps` key in `chrome.storage.local`; the popup reads and clears the key when it opens the auto-stack sheet. |
 
+The extension uses Chrome's native `action.default_popup`. Before React mounts,
+`popup-lifecycle.ts` installs focus/visibility listeners for actual popup views
+(`chrome.extension.getViews({ type: 'popup' })`), so a popup left open by Chrome
+closes when focus leaves or the document becomes hidden. A deferred blur check,
+cancelled on refocus, preserves internal control interactions and initial focus
+acquisition. Normal tabs and Vite previews are excluded. An explicit X also calls
+`window.close()` during loading, login, or tracking; closing does not stop timers,
+clear stored authentication, or change the offline queue. The tracking header is
+sticky so the X remains reachable through a long history. Its label comes from
+the shared `next-intl` Czech catalogue at build time (`apps/web/messages/cs.json`,
+`extension.closePopup`). See AIAGE-68.
+
 ## Packages
 
 | Package        | Path                                       | Purpose                                                                                                                                                                                                   |

@@ -45,7 +45,7 @@ Feature catalogue keyed by user-story IDs from PRD §13. Test names embed the US
 ## Time tracking — Chrome extension
 
 - **US-29** — Extension stays logged in across browser sessions.
-- **US-30** — Popup shows running timers and this week's entries.
+- **US-30** — Popup shows running timers and this week's entries. The action popup closes automatically when focus leaves it or it becomes hidden, even if native dismissal fails; internal controls and regular tabs are unaffected. An explicit X ("Zavřít tracker") also closes the popup during loading, login, or tracking without stopping timers or logging out; the tracking header stays visible when history is scrolled (AIAGE-68).
 - **US-31** — Changes propagate between extension and web within ~1s. Cross-company isolation is verified over a 3s window.
 - **US-32** — User starts/stops/edits/deletes entries from the popup.
 - **US-33** — "Play again" button on past entries resumes the activity as a new timer.

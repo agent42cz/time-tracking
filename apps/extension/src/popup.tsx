@@ -52,6 +52,8 @@ import {
   type StorageAdapter,
 } from './storage.js';
 import { writeIconHint } from './icon-hint.js';
+// Reuse the next-intl catalogue at build time in the standalone Vite popup.
+import { extension as extensionMessages } from '../../web/messages/cs.json';
 
 const storage: StorageAdapter =
   typeof chrome !== 'undefined' && chrome?.storage?.local
@@ -217,9 +219,37 @@ export function Popup(): ReactElement {
   );
 }
 
+function ClosePopupButton(): ReactElement {
+  return (
+    <button
+      type="button"
+      aria-label={extensionMessages.closePopup}
+      title={extensionMessages.closePopup}
+      onClick={() => window.close()}
+      className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded text-zinc-500 hover:bg-zinc-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-zinc-500 dark:text-zinc-400 dark:hover:bg-zinc-800"
+    >
+      <svg
+        aria-hidden="true"
+        width="16"
+        height="16"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+      >
+        <path d="m6 6 12 12M6 18 18 6" />
+      </svg>
+    </button>
+  );
+}
+
 function Spinner(): ReactElement {
   return (
-    <div className="flex h-32 w-[380px] items-center justify-center text-sm text-zinc-500 dark:text-zinc-400">
+    <div className="relative flex h-32 w-[380px] items-center justify-center text-sm text-zinc-500 dark:text-zinc-400">
+      <div className="absolute right-3 top-2">
+        <ClosePopupButton />
+      </div>
       Načítám…
     </div>
   );
@@ -301,13 +331,16 @@ function LoginForm({
     <form onSubmit={submit} className="w-[380px] space-y-3 p-4 text-sm">
       <div className="flex items-center justify-between">
         <h1 className="text-base font-semibold text-zinc-900 dark:text-zinc-100">Time Tracker</h1>
-        <button
-          type="button"
-          onClick={() => setShowSettings((s) => !s)}
-          className="text-xs text-zinc-500 underline dark:text-zinc-400"
-        >
-          {showSettings ? 'Zavřít' : 'API'}
-        </button>
+        <div className="flex items-center gap-1.5">
+          <button
+            type="button"
+            onClick={() => setShowSettings((s) => !s)}
+            className="text-xs text-zinc-500 underline dark:text-zinc-400"
+          >
+            {showSettings ? 'Zavřít' : 'API'}
+          </button>
+          <ClosePopupButton />
+        </div>
       </div>
       {showSettings ? (
         <div className="space-y-2 rounded-md bg-zinc-50 p-2 dark:bg-zinc-800">
@@ -655,7 +688,7 @@ function Header({
   onLogout: () => void | Promise<void>;
 }): ReactElement {
   return (
-    <div className="flex items-center justify-between px-3 py-2">
+    <div className="sticky top-0 z-20 flex items-center justify-between bg-zinc-50 px-3 py-2 dark:bg-zinc-900">
       <div className="min-w-0">
         <div className="truncate text-xs font-medium text-zinc-900 dark:text-zinc-100">
           {user.fullName}
@@ -711,6 +744,7 @@ function Header({
           onSetFundDisplay={onSetFundDisplay}
           onLogout={onLogout}
         />
+        <ClosePopupButton />
       </div>
     </div>
   );

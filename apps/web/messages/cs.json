@@ -138,7 +138,10 @@
       "groupingLabel": "Seskupení",
       "submit": "Exportovat",
       "invalidRange": "Datum „od“ nesmí být pozdější než „do“.",
-      "format": { "pdf": "PDF", "csv": "CSV" }
+      "format": {
+        "pdf": "PDF",
+        "csv": "CSV"
+      }
     },
     "pdf": {
       "title": "Výkaz práce",
@@ -275,5 +278,8 @@
     "saveWithoutShift": "Uložit bez posunu",
     "saveWithShift": "Posunout a uložit",
     "errorCascadeWindow": "Tento posun by zasáhl příliš mnoho dní. Uložte bez posunu."
+  },
+  "extension": {
+    "closePopup": "Zavřít tracker"
   }
 }

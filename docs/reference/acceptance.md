@@ -49,6 +49,8 @@ Each box maps to the file (and test name) that proves it. v1 was declared comple
 
 - [x] **Chrome extension supports login, multiple parallel timers, weekly view, edit/delete, real-time sync with web, and offline queue.**
   - `apps/extension/src/queue.test.ts` — US-29 (persistent session), US-30 (popup state load), US-32 (verbatim replay), US-33 ("play again" enqueues fresh), US-34 (in-order replay, conflict resolution, transient retry, browser-kill resume), US-35 (pending count = unsynced indicator).
+  - `apps/extension/tests/e2e/popup-close.spec.ts` — US-30 (AIAGE-68: real focus loss closes a retained popup; internal controls and regular tabs stay open; X closes an actual script-opened window during loading, login, tracking, and scrolled history; no timer mutation or logout request).
+  - `apps/extension/src/popup-lifecycle.test.ts` — US-30 (deferred dismissal, initial focus, refocus cancellation, retained document focus, hidden state, and cleanup).
   - `apps/ws/src/server.test.ts` — US-31 (1s sync between user clients, zero leak across companies).
   - `apps/extension/src/access-block.test.ts` — US-34 (a request an access proxy redirects raises `AccessBlockedError` naming the URL, is sent with `redirect: 'manual'`, and is not classified as offline, so the mutation is never queued).
   - `apps/extension/src/mutation-errors.test.ts` — US-34 (the popup names the proxy instead of blaming the connection; a blocked replay stays transient and is flagged `blocked`).
