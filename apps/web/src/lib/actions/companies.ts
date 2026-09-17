@@ -1,5 +1,6 @@
 'use server';
 
+import { getTranslations } from 'next-intl/server';
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { prisma, requireAdmin, requireUser, setActiveCompany } from '../session.js';
@@ -20,10 +21,16 @@ export type ActionResult = { ok: true } | { ok: false; error: string };
 export async function createCompanyAction(formData: FormData): Promise<ActionResult> {
   const s = await requireUser();
   const name = String(formData.get('name') ?? '').trim();
-  if (!name) return { ok: false, error: 'Vyplňte název' };
-  const c = await createCompany(prisma(), { name, createdByUserId: s.userId });
+  const t = await getTranslations('companies');
+  if (!name || name.length > 200) return { ok: false, error: t('invalidName') };
+  let c: { id: string };
+  try {
+    c = await createCompany(prisma(), { name, createdByUserId: s.userId });
+  } catch {
+    return { ok: false, error: t('createError') };
+  }
   await setActiveCompany(c.id);
-  revalidatePath('/');
+  revalidatePath('/', 'layout');
   redirect('/timer');
 }
 
@@ -103,8 +110,7 @@ export async function changeRoleAction(
   if (!r.ok) {
     if (r.reason === 'last_admin')
       return { ok: false, error: 'Nelze degradovat posledního správce' };
-    if (r.reason === 'self_demotion')
-      return { ok: false, error: 'Nemůžete degradovat sami sebe' };
+    if (r.reason === 'self_demotion') return { ok: false, error: 'Nemůžete degradovat sami sebe' };
     return { ok: false, error: 'Nelze' };
   }
   revalidatePath('/members');
@@ -118,8 +124,7 @@ export async function removeMemberAction(targetUserId: string): Promise<ActionRe
     targetUserId,
   });
   if (!r.ok) {
-    if (r.reason === 'last_admin')
-      return { ok: false, error: 'Nelze odebrat posledního správce' };
+    if (r.reason === 'last_admin') return { ok: false, error: 'Nelze odebrat posledního správce' };
     return { ok: false, error: 'Nelze' };
   }
   revalidatePath('/members');

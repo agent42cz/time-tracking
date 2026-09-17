@@ -13,6 +13,7 @@ export function CreateTokenDialog({
 }): ReactElement {
   const t = useTranslations('settings.apiTokens');
   const [open, setOpen] = useState(false);
+  const [allCompanies, setAllCompanies] = useState(false);
   const [name, setName] = useState('');
   const [companyId, setCompanyId] = useState(companies[0]?.id ?? '');
   const [plaintext, setPlaintext] = useState<string | null>(null);
@@ -22,6 +23,7 @@ export function CreateTokenDialog({
   function handleClose(): void {
     setOpen(false);
     setName('');
+    setAllCompanies(false);
     setCompanyId(companies[0]?.id ?? '');
     setPlaintext(null);
     setError(null);
@@ -93,7 +95,7 @@ export function CreateTokenDialog({
               setError(null);
               start(async () => {
                 try {
-                  const res = await issueTokenAction({ companyId, name });
+                  const res = await issueTokenAction({ companyId, name, allCompanies });
                   setPlaintext(res.plaintext);
                 } catch {
                   setError('Nepodařilo se vytvořit token.');
@@ -116,8 +118,17 @@ export function CreateTokenDialog({
                   autoFocus
                 />
               </Field>
+              <label className="flex items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  checked={allCompanies}
+                  onChange={(e) => setAllCompanies(e.target.checked)}
+                />
+                {t('allCompanies')}
+              </label>
+              <p className="text-xs text-zinc-500">{t('scopeHint')}</p>
               {companies.length > 1 && (
-                <Field label={t('company')} htmlFor="token-company">
+                <Field label={t('defaultCompany')} htmlFor="token-company">
                   <Select
                     id="token-company"
                     value={companyId}

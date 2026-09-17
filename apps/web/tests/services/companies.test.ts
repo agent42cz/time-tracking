@@ -299,3 +299,19 @@ describe('companies / memberships / invites', () => {
     });
   });
 });
+
+it('US-6: adding a second company preserves the first membership and audits its creation once', async () => {
+  await withTx(async (tx) => {
+    const w = await bootstrap(tx, 'second');
+    const auditCount = () => tx.auditLog.count();
+    const before = await auditCount();
+    const second = await createCompany(tx, { name: 'My own firm', createdByUserId: w.user });
+    expect(await listMyCompanies(tx, w.user)).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ id: w.company, role: 'user' }),
+        expect.objectContaining({ id: second.id, role: 'admin' }),
+      ]),
+    );
+    expect(await auditCount()).toBe(before + 1);
+  });
+});

@@ -32,6 +32,7 @@ export async function GET(req: NextRequest): Promise<Response> {
   if (!session) return errorCors(req, 401, 'unauthorized');
   const preferred = req.nextUrl.searchParams.get('company');
   const active = pickActiveCompany(session, preferred);
+  if (preferred !== null && !active) return errorCors(req, 404, 'not_found');
   if (!active)
     return jsonCors(req, {
       companyId: null,
@@ -126,6 +127,7 @@ export async function POST(req: NextRequest): Promise<Response> {
   if (!session) return errorCors(req, 401, 'unauthorized');
   const preferred = req.nextUrl.searchParams.get('company');
   const active = pickActiveCompany(session, preferred);
+  if (preferred !== null && !active) return errorCors(req, 404, 'not_found');
   if (!active) return errorCors(req, 404, 'no_company');
   let body: {
     description?: string;

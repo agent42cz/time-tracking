@@ -9,6 +9,7 @@ export interface McpAuthContext {
   userId: string;
   companyId: string;
   tokenId: string;
+  allCompanies?: boolean;
 }
 
 const UNAUTHORIZED = (): Response =>
@@ -55,5 +56,6 @@ export async function authenticateRequest(
     userId: verified.value.userId,
     companyId: verified.value.companyId,
     tokenId: verified.value.tokenId,
+    allCompanies: verified.value.allCompanies,
   };
 }

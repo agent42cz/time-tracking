@@ -14,7 +14,7 @@ All requests must carry a bearer token issued from `/settings/api-tokens`:
 Authorization: Bearer tt_pat_<24-char-random>
 ```
 
-Tokens are scoped to one `(user, company)` pair. The plaintext token is shown exactly once at issuance; subsequent loads in the UI show only the prefix (e.g. `tt_pat_aBcD12…`). Treat tokens like passwords — store them in your MCP client's secrets config, not in plain text files.
+Tokens default to one `(user, company)` pair; their owner can explicitly enable all their memberships on the same credential (see Multiple companies below). The plaintext token is shown exactly once at issuance; subsequent loads in the UI show only the prefix (e.g. `tt_pat_aBcD12…`). Treat tokens like passwords — store them in your MCP client's secrets config, not in plain text files.
 
 **HTTP 401** is returned when the token is missing, malformed, unknown, or revoked.
 
@@ -34,6 +34,7 @@ When the limit is exceeded the server returns **HTTP 429** with a `Retry-After` 
 | `stop_timer`           | Stops the entry identified by `entryId`. Requires the entry to belong to the authenticated user's company. Broadcasts `timer.stopped`.                                                                                              |
 | `update_entry`         | Patches one or more fields (`title`, `description`, clientId, projectId) of the entry identified by `entryId`. `title` is the entry name; `description` is the longer free-text detail. Writes one audit row with `source = 'mcp'`. |
 | `list_catalog`         | Returns the full list of active clients and projects for the authenticated company — useful for resolving names to IDs before calling other tools.                                                                                  |
+| `list_companies`       | Returns the companies accessible to the token owner within its scope, including the default company.                                                                                                                                |
 
 > The tag feature was removed in AIAGE-57: `tagIds` is no longer accepted by `start_timer` or `update_entry`, and no tool returns tag data.
 
@@ -82,6 +83,25 @@ The Plane `mark_done` and `create_comment` steps run in the same LLM turn via th
 
 ## Issuing and revoking tokens
 
-Tokens are managed from the web UI at `/settings/api-tokens`. Each token can be given a label (e.g. "Claude Code — laptop") and is scoped to the company that was active when you issued it. To rotate a token: revoke the old one and issue a new one; update your MCP client config with the new value.
+Tokens are managed from the web UI at `/settings/api-tokens`. Each token can be given a label (e.g. "Claude Code — laptop") and uses the company selected at issuance as its default. Its owner can enable all memberships without rotating the token. To rotate a token: revoke the old one and issue a new one; update your MCP client config with the new value.
 
 There is no token expiry by default. Revocation is immediate — a revoked token returns 401 on the next request.
+
+## Multiple companies through an existing connection
+
+In **Nastavení → API tokeny**, enable **Všechny moje firmy** on the existing token.
+Its secret and MCP URL stay the same; no second connector is required. The option
+includes present and future companies where the token owner is a member. Leaving
+it disabled preserves the original single-company scope.
+
+Call `list_companies` to discover permitted company IDs and the default. Pass
+`companyId` to `list_catalog`, `list_running_entries`, `list_recent_entries`, and
+`start_timer`. Omitting it uses the token's original company. `stop_timer` and
+`update_entry` infer company from `entryId`; optional `companyId` must agree.
+Selection applies only to that call and does not change another conversation,
+the web cookie, or the extension. An inaccessible company returns `not_found`.
+
+Deploy the additive `20260917211500_api_token_company_scope` migration before the
+new application. Existing tokens default to `allCompanies = false`. The original
+company remains the default and lifecycle anchor (membership removal invalidates
+authentication; deleting that company deletes its tokens). See ADR-0017.

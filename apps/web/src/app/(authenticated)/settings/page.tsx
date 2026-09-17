@@ -1,5 +1,6 @@
 import type { ReactElement } from 'react';
 import Link from 'next/link';
+import { getTranslations } from 'next-intl/server';
 import { Card, CardBody, CardHeader, CardTitle } from '@tt/ui';
 import { requireUser } from '@/lib/session';
 import { PageHeader } from '@/components/PageHeader';
@@ -9,9 +10,21 @@ import { ThemeToggle } from '@/components/ThemeToggle';
 
 export default async function SettingsPage(): Promise<ReactElement> {
   const session = await requireUser();
+  const t = await getTranslations('companies');
   return (
     <div className="space-y-6">
       <PageHeader title="Nastavení" />
+      <Card>
+        <CardHeader>
+          <CardTitle>{t('settingsTitle')}</CardTitle>
+        </CardHeader>
+        <CardBody className="space-y-3">
+          <p className="text-sm text-zinc-500">{t('settingsHint')}</p>
+          <Link href="/companies" className="inline-flex rounded-md border px-3 py-2 text-sm">
+            {t('manage')}
+          </Link>
+        </CardBody>
+      </Card>
       <Card>
         <CardHeader>
           <CardTitle>Profil</CardTitle>

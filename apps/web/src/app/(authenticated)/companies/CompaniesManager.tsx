@@ -35,6 +35,7 @@ interface Membership {
 }
 
 export function CreateCompanyForm(): ReactElement {
+  const t = useTranslations('companies');
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
   return (
@@ -51,11 +52,11 @@ export function CreateCompanyForm(): ReactElement {
     >
       <FieldGroup>
         {error ? <Alert tone="danger">{error}</Alert> : null}
-        <Field label="Název firmy" htmlFor="name">
-          <Input id="name" name="name" required />
+        <Field label={t('name')} htmlFor="name">
+          <Input id="name" name="name" required maxLength={200} />
         </Field>
         <Button type="submit" loading={pending}>
-          Vytvořit firmu
+          {t('create')}
         </Button>
       </FieldGroup>
     </form>

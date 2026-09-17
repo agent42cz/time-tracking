@@ -14,6 +14,7 @@ export async function GET(req: NextRequest): Promise<Response> {
   if (!session) return errorCors(req, 401, 'unauthorized');
   const preferred = req.nextUrl.searchParams.get('company');
   const active = pickActiveCompany(session, preferred);
+  if (preferred !== null && !active) return errorCors(req, 404, 'not_found');
   // `tags: []` is a compatibility shim, not a feature. AIAGE-57 removed tags, but the
   // extension ships through the Chrome Web Store, so installed copies (<=1.6.1) still
   // do `catalog.tags.length` and crash on an absent key. Serving an empty array keeps

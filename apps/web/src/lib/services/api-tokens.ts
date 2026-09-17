@@ -1,8 +1,8 @@
 /**
  * Personal API tokens for the MCP server. Argon2id-hashed at rest;
- * plaintext is returned exactly once at issue time. Tokens are scoped
- * to a (user, company) pair — the MCP request inherits both from the
- * token, never trusts client-supplied identifiers.
+ * plaintext is returned exactly once at issue time. Tokens default to a (user, company) scope. Owners may explicitly enable
+ * all current/future memberships on the same credential (ADR-0017).
+ * Requested companies are validated against both scope and live membership.
  */
 import { randomBytes } from 'node:crypto';
 import type { Prisma, PrismaClient } from '@prisma/client';
@@ -32,6 +32,7 @@ function randomBase32(n: number): string {
 export interface IssueInput {
   companyId: string;
   name: string;
+  allCompanies?: boolean;
 }
 
 export async function issueToken(
@@ -54,6 +55,7 @@ export async function issueToken(
     data: {
       userId: actorUserId,
       companyId: input.companyId,
+      allCompanies: input.allCompanies ?? false,
       name: trimmed,
       tokenHash,
       prefix,
@@ -65,7 +67,7 @@ export async function issueToken(
     action: 'create',
     entityType: 'ApiToken',
     entityId: created.id,
-    after: { name: trimmed, prefix },
+    after: { name: trimmed, prefix, allCompanies: input.allCompanies ?? false },
   });
   return { ok: true, value: { id: created.id, plaintext } };
 }
@@ -73,7 +75,7 @@ export async function issueToken(
 export async function verifyToken(
   db: Db,
   presented: string,
-): Promise<Result<{ tokenId: string; userId: string; companyId: string }>> {
+): Promise<Result<{ tokenId: string; userId: string; companyId: string; allCompanies: boolean }>> {
   if (!presented.startsWith(TOKEN_PREFIX)) return { ok: false, reason: 'not_found' };
   const prefix = presented.slice(0, PREFIX_LEN);
   const candidates = await db.apiToken.findMany({
@@ -84,7 +86,12 @@ export async function verifyToken(
     if (await verifyPassword(c.tokenHash, presented)) {
       return {
         ok: true,
-        value: { tokenId: c.id, userId: c.userId, companyId: c.companyId },
+        value: {
+          tokenId: c.id,
+          userId: c.userId,
+          companyId: c.companyId,
+          allCompanies: c.allCompanies,
+        },
       };
     }
   }
@@ -121,6 +128,7 @@ export async function listTokens(
   Array<{
     id: string;
     companyId: string;
+    allCompanies: boolean;
     name: string;
     prefix: string;
     lastUsedAt: Date | null;
@@ -134,6 +142,7 @@ export async function listTokens(
     select: {
       id: true,
       companyId: true,
+      allCompanies: true,
       name: true,
       prefix: true,
       lastUsedAt: true,
@@ -146,4 +155,34 @@ export async function listTokens(
 
 export async function touchLastUsed(db: Db, tokenId: string): Promise<void> {
   await db.apiToken.update({ where: { id: tokenId }, data: { lastUsedAt: new Date() } });
+}
+
+/** Update the existing credential without rotating its secret or adding a connector. */
+export async function setTokenCompanyScope(
+  db: Db,
+  actorUserId: string,
+  tokenId: string,
+  allCompanies: boolean,
+): Promise<Result<true>> {
+  if ('$transaction' in db)
+    return db.$transaction((tx) => setTokenCompanyScope(tx, actorUserId, tokenId, allCompanies));
+  const token = await db.apiToken.findUnique({ where: { id: tokenId } });
+  if (!token || token.userId !== actorUserId || token.revokedAt)
+    return { ok: false, reason: 'not_found' };
+  const membership = await db.membership.findUnique({
+    where: { userId_companyId: { userId: actorUserId, companyId: token.companyId } },
+  });
+  if (!membership) return { ok: false, reason: 'not_found' };
+  if (token.allCompanies === allCompanies) return { ok: true, value: true };
+  await db.apiToken.update({ where: { id: tokenId }, data: { allCompanies } });
+  await writeAudit(db, {
+    companyId: token.companyId,
+    actorUserId,
+    action: 'update',
+    entityType: 'ApiToken',
+    entityId: tokenId,
+    before: { allCompanies: token.allCompanies },
+    after: { allCompanies },
+  });
+  return { ok: true, value: true };
 }

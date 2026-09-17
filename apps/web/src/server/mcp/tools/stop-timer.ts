@@ -1,9 +1,10 @@
+import { companyIdInput, canAccessEntry } from '../company-scope.js';
 import { z } from 'zod';
 import { stopTimer } from '../../../lib/services/time-entries.js';
 import { mapServiceReason, toolError } from '../errors.js';
 import { toolRegistrars, type ToolContext } from './registry.js';
 
-const InputSchema = z.object({ entryId: z.string().min(1) }).strict();
+const InputSchema = z.object({ companyId: companyIdInput, entryId: z.string().min(1) }).strict();
 const OutputSchema = z.object({ ok: z.literal(true) });
 
 toolRegistrars.push((server, ctx: ToolContext) => {
@@ -17,6 +18,8 @@ toolRegistrars.push((server, ctx: ToolContext) => {
       outputSchema: OutputSchema.shape,
     },
     async (args) => {
+      if (!(await canAccessEntry(ctx, args.entryId, args.companyId)))
+        return toolError('not_found', 'Not found');
       const res = await stopTimer(ctx.db, ctx.auth.userId, args.entryId, undefined, {
         source: 'mcp',
       });

@@ -135,3 +135,23 @@ describe('service worker poll behind an access proxy', () => {
     expect(result?.data).toMatchObject({ running: 2 });
   });
 });
+
+it('US-7: the closed popup poll follows the selected second company', async () => {
+  chromeStub.store['tt:active-company'] = {
+    apiBase: 'https://tracker.agent42.cz',
+    userId: 'user',
+    companyId: 'second',
+  };
+  const fetcher = vi.fn(async () => ({
+    ok: true,
+    status: 200,
+    type: 'basic',
+    json: async () => ({ running: [] }),
+  }));
+  vi.stubGlobal('fetch', fetcher);
+  await runWorker();
+  expect(fetcher).toHaveBeenCalledWith(
+    'https://tracker.agent42.cz/api/v1/timer?company=second',
+    expect.anything(),
+  );
+});

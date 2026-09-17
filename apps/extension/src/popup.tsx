@@ -84,15 +84,40 @@ export function Popup(): ReactElement {
     void getFundDisplay(storage).then(setFundDisplayState);
   }, []);
 
-  const refresh = useCallback(async (session: ApiSession, companyId?: string) => {
+  const requestedCompany = useRef<string | undefined>(undefined);
+  const refreshGeneration = useRef(0);
+  const [switching, setSwitching] = useState(false);
+
+  const refresh = useCallback(async (session: ApiSession) => {
+    const generation = ++refreshGeneration.current;
     setRefreshing(true);
     try {
-      const [user, timer, catalog, display] = await Promise.all([
-        me(session),
+      const user = await me(session);
+      const saved = await storage.get<{ apiBase: string; userId: string; companyId: string }>(
+        'tt:active-company',
+      );
+      const preferred =
+        requestedCompany.current ??
+        (saved?.apiBase === session.apiBase && saved.userId === user.userId
+          ? saved.companyId
+          : undefined);
+      const companyId = user.memberships.some((m) => m.companyId === preferred)
+        ? preferred
+        : undefined;
+      const [timer, catalog, display] = await Promise.all([
         getTimer(session, companyId),
         getCatalog(session, companyId),
         getFundDisplay(storage),
       ]);
+      if (generation !== refreshGeneration.current) return;
+      requestedCompany.current = timer.companyId ?? undefined;
+      if (timer.companyId)
+        await storage.set('tt:active-company', {
+          apiBase: session.apiBase,
+          userId: user.userId,
+          companyId: timer.companyId,
+        });
+      setFund(null);
       setState({ session, me: user, timer, catalog });
       await setPopupCache(storage, { me: user, timer, catalog });
       await writeIconHint(storage, (timer.running ?? []).length);
@@ -104,15 +129,16 @@ export function Popup(): ReactElement {
       );
       if (admin && display !== 'off') {
         try {
-          setFund(await getFundProgress(session, activeCompanyId));
+          const nextFund = await getFundProgress(session, activeCompanyId);
+          if (generation === refreshGeneration.current) setFund(nextFund);
         } catch {
-          setFund(null);
+          if (generation === refreshGeneration.current) setFund(null);
         }
       } else {
         setFund(null);
       }
     } finally {
-      setRefreshing(false);
+      if (generation === refreshGeneration.current) setRefreshing(false);
     }
   }, []);
 
@@ -120,7 +146,7 @@ export function Popup(): ReactElement {
     async (v: FundDisplay): Promise<void> => {
       setFundDisplayState(v);
       await setFundDisplay(storage, v);
-      if (state) await refresh(state.session, state.timer.companyId ?? undefined);
+      if (state) await refresh(state.session);
     },
     [state, refresh],
   );
@@ -191,6 +217,7 @@ export function Popup(): ReactElement {
         initialError={error}
         onLoggedIn={async (session) => {
           setError(null);
+          requestedCompany.current = undefined;
           await setStoredSession(storage, session);
           await refresh(session);
           setView('app');
@@ -200,22 +227,46 @@ export function Popup(): ReactElement {
   }
 
   return (
-    <AppShell
-      state={state}
-      refreshing={refreshing}
-      fund={fund}
-      fundDisplay={fundDisplay}
-      onSetFundDisplay={handleSetFundDisplay}
-      onChange={() => refresh(state.session, state.timer.companyId ?? undefined)}
-      onLogout={async () => {
-        await logout(state.session);
-        await setStoredSession(storage, null);
-        await clearPopupCache(storage);
-        await writeIconHint(storage, 0);
-        setState(null);
-        setView('login');
-      }}
-    />
+    <div>
+      {error ? (
+        <div role="alert" className="px-3 py-2 text-xs text-red-600">
+          {error}
+        </div>
+      ) : null}
+      <AppShell
+        switching={switching}
+        key={state.timer.companyId}
+        onSwitchCompany={async (companyId) => {
+          const previous = state.timer.companyId ?? undefined;
+          requestedCompany.current = companyId;
+          setSwitching(true);
+          setError(null);
+          try {
+            await refresh(state.session);
+          } catch (err) {
+            requestedCompany.current = previous;
+            setError(connectionErrorMessage(err));
+          } finally {
+            setSwitching(false);
+          }
+        }}
+        state={state}
+        refreshing={refreshing}
+        fund={fund}
+        fundDisplay={fundDisplay}
+        onSetFundDisplay={handleSetFundDisplay}
+        onChange={() => refresh(state.session)}
+        onLogout={async () => {
+          await logout(state.session);
+          await setStoredSession(storage, null);
+          await clearPopupCache(storage);
+          await writeIconHint(storage, 0);
+          setState(null);
+          requestedCompany.current = undefined;
+          setView('login');
+        }}
+      />
+    </div>
   );
 }
 
@@ -426,6 +477,8 @@ function LoginForm({
 }
 
 function AppShell({
+  switching,
+  onSwitchCompany,
   state,
   refreshing,
   fund,
@@ -434,6 +487,8 @@ function AppShell({
   onChange,
   onLogout,
 }: {
+  onSwitchCompany: (companyId: string) => Promise<void>;
+  switching: boolean;
   state: AppState;
   refreshing: boolean;
   fund: ExtFundProgress | null;
@@ -531,6 +586,9 @@ function AppShell({
   return (
     <div className="relative w-[380px] divide-y divide-zinc-100 text-sm dark:divide-zinc-700/60">
       <Header
+        switching={switching}
+        companyId={state.timer.companyId}
+        onSwitchCompany={onSwitchCompany}
         me={state.me}
         apiBase={state.session.apiBase}
         online={sync.online}
@@ -549,94 +607,99 @@ function AppShell({
         onSetFundDisplay={onSetFundDisplay}
         onLogout={onLogout}
       />
-      {isAdmin && fundDisplay !== 'off' && fund ? (
-        <div className="px-3 py-1.5">
-          {fundDisplay === 'combined' ? (
-            <>
-              <FundMiniBar bar={fund.combined.weekly} label="Týden" />
-              <FundNums bar={fund.combined.weekly} />
-            </>
-          ) : (
-            fund.clients.map((c) => (
-              <div key={c.clientId} className="mb-1.5 last:mb-0">
-                <div className="mb-0.5 truncate text-[10px] text-zinc-500 dark:text-zinc-400">
-                  <span className="client-tint" style={clientTint(c.clientColor)}>
-                    {c.clientName}
-                  </span>
-                </div>
-                {c.days.length > 0 ? (
-                  <div className="flex gap-0.5">
-                    {c.days.map((d) => {
-                      const g =
-                        d.targetMinutes > 0
-                          ? Math.min(100, (d.allocatedMinutes / d.targetMinutes) * 100)
-                          : 0;
-                      const r = d.hasArrived ? 100 - g : 0;
-                      return (
-                        <div
-                          key={d.date}
-                          className="flex h-1 flex-1 overflow-hidden rounded-full bg-zinc-200 dark:bg-zinc-700"
-                        >
-                          <div className="h-full bg-emerald-500" style={{ width: `${g}%` }} />
-                          <div className="h-full bg-red-500" style={{ width: `${r}%` }} />
-                        </div>
-                      );
-                    })}
+      <fieldset
+        disabled={switching}
+        className="m-0 min-w-0 border-0 p-0 divide-y divide-zinc-100 dark:divide-zinc-700/60"
+      >
+        {isAdmin && fundDisplay !== 'off' && fund ? (
+          <div className="px-3 py-1.5">
+            {fundDisplay === 'combined' ? (
+              <>
+                <FundMiniBar bar={fund.combined.weekly} label="Týden" />
+                <FundNums bar={fund.combined.weekly} />
+              </>
+            ) : (
+              fund.clients.map((c) => (
+                <div key={c.clientId} className="mb-1.5 last:mb-0">
+                  <div className="mb-0.5 truncate text-[10px] text-zinc-500 dark:text-zinc-400">
+                    <span className="client-tint" style={clientTint(c.clientColor)}>
+                      {c.clientName}
+                    </span>
                   </div>
-                ) : (
-                  <FundMiniBar bar={c.weekly} />
-                )}
-                <FundNums bar={c.weekly} />
-              </div>
-            ))
-          )}
-        </div>
-      ) : null}
-      <StartRow catalog={state.catalog} onStart={sync.executeStart} />
-      <RunningList
-        entries={state.timer.running}
-        now={now}
-        onStop={sync.executeStop}
-        onEdit={openEdit}
-      />
-      {showStats ? <SummaryCards summary={state.timer.summary} /> : null}
-      <HistoryList
-        entries={state.timer.history ?? []}
-        onPlayAgain={sync.executePlayAgain}
-        onDelete={sync.executeDelete}
-        onEdit={openEdit}
-      />
-      {sheet ? (
-        <EntrySheet
-          mode={sheet.mode}
-          catalog={state.catalog}
-          nowIso={sheet.nowIso}
-          initial={sheet.initial}
-          onClose={() => setSheet(null)}
-          onSave={sync.executeUpdate}
-          onCreate={sync.executeCreateManual}
+                  {c.days.length > 0 ? (
+                    <div className="flex gap-0.5">
+                      {c.days.map((d) => {
+                        const g =
+                          d.targetMinutes > 0
+                            ? Math.min(100, (d.allocatedMinutes / d.targetMinutes) * 100)
+                            : 0;
+                        const r = d.hasArrived ? 100 - g : 0;
+                        return (
+                          <div
+                            key={d.date}
+                            className="flex h-1 flex-1 overflow-hidden rounded-full bg-zinc-200 dark:bg-zinc-700"
+                          >
+                            <div className="h-full bg-emerald-500" style={{ width: `${g}%` }} />
+                            <div className="h-full bg-red-500" style={{ width: `${r}%` }} />
+                          </div>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <FundMiniBar bar={c.weekly} />
+                  )}
+                  <FundNums bar={c.weekly} />
+                </div>
+              ))
+            )}
+          </div>
+        ) : null}
+        <StartRow catalog={state.catalog} onStart={sync.executeStart} />
+        <RunningList
+          entries={state.timer.running}
+          now={now}
+          onStop={sync.executeStop}
+          onEdit={openEdit}
         />
-      ) : null}
-      {sync.pendingOverlap ? (
-        <AutoStackSheet
-          key={sync.pendingOverlap.entryId}
-          session={state.session}
-          overlap={sync.pendingOverlap}
-          onResolved={() => {
-            const id = sync.pendingOverlap!.entryId;
-            void sync.resolvePendingOverlap(id);
-            void onChange();
-          }}
-          onDismiss={() => void sync.resolvePendingOverlap(sync.pendingOverlap!.entryId)}
+        {showStats ? <SummaryCards summary={state.timer.summary} /> : null}
+        <HistoryList
+          entries={state.timer.history ?? []}
+          onPlayAgain={sync.executePlayAgain}
+          onDelete={sync.executeDelete}
+          onEdit={openEdit}
         />
-      ) : null}
-      {projectOpen ? (
-        <NewProjectSheet
-          catalog={state.catalog}
-          onClose={() => setProjectOpen(false)}
-          onCreate={sync.executeCreateProject}
-        />
-      ) : null}
+        {sheet ? (
+          <EntrySheet
+            mode={sheet.mode}
+            catalog={state.catalog}
+            nowIso={sheet.nowIso}
+            initial={sheet.initial}
+            onClose={() => setSheet(null)}
+            onSave={sync.executeUpdate}
+            onCreate={sync.executeCreateManual}
+          />
+        ) : null}
+        {sync.pendingOverlap ? (
+          <AutoStackSheet
+            key={sync.pendingOverlap.entryId}
+            session={state.session}
+            overlap={sync.pendingOverlap}
+            onResolved={() => {
+              const id = sync.pendingOverlap!.entryId;
+              void sync.resolvePendingOverlap(id);
+              void onChange();
+            }}
+            onDismiss={() => void sync.resolvePendingOverlap(sync.pendingOverlap!.entryId)}
+          />
+        ) : null}
+        {projectOpen ? (
+          <NewProjectSheet
+            catalog={state.catalog}
+            onClose={() => setProjectOpen(false)}
+            onCreate={sync.executeCreateProject}
+          />
+        ) : null}
+      </fieldset>
     </div>
   );
 }
@@ -651,6 +714,9 @@ function openDashboard(apiBase: string): void {
 }
 
 function Header({
+  switching,
+  companyId,
+  onSwitchCompany,
   me: user,
   apiBase,
   online,
@@ -669,6 +735,9 @@ function Header({
   onSetFundDisplay,
   onLogout,
 }: {
+  switching: boolean;
+  companyId: string | null;
+  onSwitchCompany: (companyId: string) => Promise<void>;
   me: MeResponse;
   apiBase: string;
   online: boolean;
@@ -694,7 +763,24 @@ function Header({
           {user.fullName}
         </div>
         <div className="truncate text-[10px] text-zinc-500 dark:text-zinc-400">
-          {user.memberships[0]?.companyName ?? '— bez firmy —'}
+          {user.memberships.length > 1 ? (
+            <select
+              aria-label={extensionMessages.activeCompany}
+              value={companyId ?? ''}
+              disabled={refreshing}
+              onChange={(event) => void onSwitchCompany(event.target.value)}
+              className="max-w-[165px] bg-transparent text-xs text-zinc-700 dark:text-zinc-300"
+            >
+              {user.memberships.map((m) => (
+                <option key={m.companyId} value={m.companyId}>
+                  {m.companyName}
+                </option>
+              ))}
+            </select>
+          ) : (
+            (user.memberships.find((m) => m.companyId === companyId)?.companyName ??
+            extensionMessages.noCompany)
+          )}
         </div>
       </div>
       <div className="flex items-center gap-1.5">
@@ -730,20 +816,22 @@ function Header({
             ! {conflicts}
           </span>
         ) : null}
-        <MoreMenu
-          apiBase={apiBase}
-          theme={theme}
-          showStats={showStats}
-          isAdmin={isAdmin}
-          fundDisplay={fundDisplay}
-          onManualEntry={onManualEntry}
-          onNewProject={onNewProject}
-          onRefresh={onRefresh}
-          onSetTheme={onSetTheme}
-          onToggleStats={onToggleStats}
-          onSetFundDisplay={onSetFundDisplay}
-          onLogout={onLogout}
-        />
+        <fieldset disabled={switching} className="m-0 min-w-0 border-0 p-0">
+          <MoreMenu
+            apiBase={apiBase}
+            theme={theme}
+            showStats={showStats}
+            isAdmin={isAdmin}
+            fundDisplay={fundDisplay}
+            onManualEntry={onManualEntry}
+            onNewProject={onNewProject}
+            onRefresh={onRefresh}
+            onSetTheme={onSetTheme}
+            onToggleStats={onToggleStats}
+            onSetFundDisplay={onSetFundDisplay}
+            onLogout={onLogout}
+          />
+        </fieldset>
         <ClosePopupButton />
       </div>
     </div>

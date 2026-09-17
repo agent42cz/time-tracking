@@ -159,6 +159,8 @@ export async function setStoredSession(
     return;
   }
   await storage.remove(SESSION_KEY);
+  await storage.remove('tt:active-company');
+  await clearPopupCache(storage);
   // Clearing the session also clears the diagnostic buffer (US-104): it holds
   // entry ids from the session that just ended, and on a shared machine those
   // should not outlive it. Best-effort — failing to clear diagnostics must not

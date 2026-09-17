@@ -148,8 +148,8 @@ export function useExtensionSync({ session, wsUrl, companyId, onRefresh }: UseSy
   const [pendingOverlap, setPendingOverlap] = useState<OverlapInfo | null>(null);
 
   const refreshPendingOverlap = useCallback(async (): Promise<void> => {
-    setPendingOverlap(await pendingOverlaps.head());
-  }, []);
+    setPendingOverlap(await pendingOverlaps.head(companyId ?? undefined));
+  }, [companyId]);
 
   // --- pending count, refresh on mount
   useEffect(() => {
@@ -179,7 +179,10 @@ export function useExtensionSync({ session, wsUrl, companyId, onRefresh }: UseSy
           const r = await replayMutation(session, m);
           if (m.kind === 'stopTimer' && r && r.overlap) {
             try {
-              await pendingOverlaps.add(r.overlap);
+              await pendingOverlaps.add(
+                r.overlap,
+                typeof m.payload.companyId === 'string' ? m.payload.companyId : undefined,
+              );
             } catch {
               /* non-fatal: the stop succeeded; surfacing the overlap is best-effort */
             }
@@ -317,7 +320,7 @@ export function useExtensionSync({ session, wsUrl, companyId, onRefresh }: UseSy
         if (isNetworkError(err)) {
           await queue.enqueue({
             kind: 'stopTimer',
-            payload: { id: entryId },
+            payload: { id: entryId, companyId },
             clientId: crypto.randomUUID(),
           });
           void diag.log('stop:queued');
@@ -339,7 +342,7 @@ export function useExtensionSync({ session, wsUrl, companyId, onRefresh }: UseSy
       await refreshRef.current();
       if (res.overlap) {
         try {
-          await pendingOverlaps.add(res.overlap);
+          await pendingOverlaps.add(res.overlap, companyId ?? undefined);
           await refreshPendingOverlap();
         } catch {
           /* non-fatal: the stop is committed and the UI already refreshed;
@@ -347,7 +350,7 @@ export function useExtensionSync({ session, wsUrl, companyId, onRefresh }: UseSy
         }
       }
     },
-    [session, refreshPendingOverlap],
+    [session, companyId, refreshPendingOverlap],
   );
 
   const executePlayAgain = useCallback(

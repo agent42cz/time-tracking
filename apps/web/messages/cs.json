@@ -3,6 +3,11 @@
     "title": "Sledování času",
     "tagline": "Self-hostovaný tracker pro agenturu i osobní použití"
   },
+  "extension": {
+    "closePopup": "Zavřít tracker",
+    "activeCompany": "Aktivní firma",
+    "noCompany": "Bez firmy"
+  },
   "nav": {
     "timer": "Stopky",
     "absence": "Nepřítomnost",
@@ -208,7 +213,11 @@
       "copy": "Zkopírovat",
       "downloadConfig": "Stáhnout JSON pro Claude Code",
       "empty": "Zatím nemáte žádné tokeny.",
-      "linkLabel": "Spravovat API tokeny"
+      "linkLabel": "Spravovat API tokeny",
+      "allCompanies": "Všechny moje firmy",
+      "defaultCompany": "Výchozí firma",
+      "scopeHint": "Zahrnuje současné i budoucí firmy, ve kterých jste členem. Stávající připojení zůstane stejné; asistent vybere firmu pro každý požadavek.",
+      "scopeError": "Rozsah tokenu se nepodařilo změnit."
     }
   },
   "errors": {
@@ -222,7 +231,17 @@
       "leaveDescription": "Ztratíš přístup k záznamům této firmy.",
       "deleteTitle": "Smazat firmu „{name}\"?",
       "deleteDescription": "Tato akce je nevratná. Smažou se VŠECHNY záznamy, projekty, klienti a členství."
-    }
+    },
+    "settingsTitle": "Moje firmy",
+    "settingsHint": "Přidejte vlastní firmu ke stávajícímu účtu. Každá firma má své klienty, projekty a záznamy času.",
+    "manage": "Spravovat a přidat firmu",
+    "name": "Název firmy",
+    "create": "Vytvořit firmu",
+    "invalidName": "Název firmy musí mít 1 až 200 znaků.",
+    "createError": "Firmu se nepodařilo vytvořit. Zkuste to znovu.",
+    "active": "Aktivní firma",
+    "admin": "správce",
+    "member": "člen"
   },
   "clients": {
     "title": "Seznam",
@@ -278,8 +297,5 @@
     "saveWithoutShift": "Uložit bez posunu",
     "saveWithShift": "Posunout a uložit",
     "errorCascadeWindow": "Tento posun by zasáhl příliš mnoho dní. Uložte bez posunu."
-  },
-  "extension": {
-    "closePopup": "Zavřít tracker"
   }
 }

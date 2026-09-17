@@ -1,3 +1,4 @@
+import { companyIdInput, resolveCompany } from '../company-scope.js';
 import { z } from 'zod';
 import { listClients, listProjects } from '../../../lib/services/catalog.js';
 import { mapServiceReason, toolError } from '../errors.js';
@@ -6,6 +7,7 @@ import { toolRegistrars, type ToolContext } from './registry.js';
 const KindSchema = z.enum(['clients', 'projects']);
 const InputSchema = z
   .object({
+    companyId: companyIdInput,
     kind: KindSchema,
     query: z.string().max(200).optional(),
   })
@@ -37,8 +39,10 @@ toolRegistrars.push((server, ctx: ToolContext) => {
       outputSchema: OutputSchema.shape,
     },
     async (args) => {
+      const companyId = await resolveCompany(ctx, args.companyId);
+      if (!companyId) return toolError('not_found', 'Not found');
       if (args.kind === 'clients') {
-        const res = await listClients(ctx.db, ctx.auth.userId, ctx.auth.companyId);
+        const res = await listClients(ctx.db, ctx.auth.userId, companyId);
         if (!res.ok) {
           const { code, message } = mapServiceReason(res.reason);
           return toolError(code, message);
@@ -51,7 +55,7 @@ toolRegistrars.push((server, ctx: ToolContext) => {
           structuredContent: { items },
         };
       }
-      const res = await listProjects(ctx.db, ctx.auth.userId, ctx.auth.companyId, {});
+      const res = await listProjects(ctx.db, ctx.auth.userId, companyId, {});
       if (!res.ok) {
         const { code, message } = mapServiceReason(res.reason);
         return toolError(code, message);

@@ -34,7 +34,10 @@ export async function installChromeStub(
       (window as any).chrome = {
         storage: {
           local: {
-            get: (key: string) => Promise.resolve(key in store ? { [key]: store[key] } : {}),
+            get: (key: string | null) =>
+              Promise.resolve(
+                key === null ? { ...store } : key in store ? { [key]: store[key] } : {},
+              ),
             set: (obj: Record<string, unknown>) => {
               Object.assign(store, obj);
               return Promise.resolve();
@@ -152,8 +155,8 @@ export async function installApiStubs(page: Page, api: ApiFixture): Promise<void
     route.fulfill({ status: 500, json: { error: 'unstubbed', url: route.request().url() } }),
   );
   await page.route('**/api/v1/me', (route) => route.fulfill({ json: api.me }));
-  await page.route('**/api/v1/catalog', (route) => route.fulfill({ json: api.catalog }));
-  await page.route('**/api/v1/timer', (route) => route.fulfill({ json: api.timer }));
+  await page.route('**/api/v1/catalog{,?*}', (route) => route.fulfill({ json: api.catalog }));
+  await page.route('**/api/v1/timer{,?*}', (route) => route.fulfill({ json: api.timer }));
 }
 
 /** Boot the popup with stubs installed and wait for first paint. */

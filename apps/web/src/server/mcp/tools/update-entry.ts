@@ -1,3 +1,4 @@
+import { companyIdInput, canAccessEntry } from '../company-scope.js';
 import { z } from 'zod';
 import { updateEntry } from '../../../lib/services/time-entries.js';
 import { mapServiceReason, toolError } from '../errors.js';
@@ -5,6 +6,7 @@ import { toolRegistrars, type ToolContext } from './registry.js';
 
 const InputSchema = z
   .object({
+    companyId: companyIdInput,
     entryId: z.string().min(1),
     title: z.string().max(5000).optional(),
     description: z.string().max(5000).optional(),
@@ -26,6 +28,8 @@ toolRegistrars.push((server, ctx: ToolContext) => {
       outputSchema: OutputSchema.shape,
     },
     async (args) => {
+      if (!(await canAccessEntry(ctx, args.entryId, args.companyId)))
+        return toolError('not_found', 'Not found');
       const res = await updateEntry(
         ctx.db,
         ctx.auth.userId,

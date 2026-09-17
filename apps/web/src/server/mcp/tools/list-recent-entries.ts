@@ -1,3 +1,4 @@
+import { companyIdInput, resolveCompany } from '../company-scope.js';
 import { z } from 'zod';
 import { listRecentEntries } from '../../../lib/services/time-entries.js';
 import { mapServiceReason, toolError } from '../errors.js';
@@ -6,7 +7,9 @@ import { toolRegistrars, type ToolContext } from './registry.js';
 /** Per-row cap so a single huge title/description can't bloat the tool response. */
 const truncate = (s: string): string => (s.length > 500 ? s.slice(0, 500) : s);
 
-const InputSchema = z.object({ limit: z.number().int().min(1).optional() }).strict();
+const InputSchema = z
+  .object({ companyId: companyIdInput, limit: z.number().int().min(1).optional() })
+  .strict();
 const OutputSchema = z.object({
   entries: z.array(
     z.object({
@@ -27,13 +30,15 @@ toolRegistrars.push((server, ctx: ToolContext) => {
     {
       title: 'List recent time entries',
       description:
-        'Lists the most-recent time entries (running or stopped) for the authenticated user in their token-scoped company, newest first. `limit` defaults to 10, capped at 50. `title` and `description` are each truncated to 500 chars per row.',
+        'Lists the most-recent time entries (running or stopped) for the authenticated user in the selected company (or token default), newest first. `limit` defaults to 10, capped at 50. `title` and `description` are each truncated to 500 chars per row.',
       inputSchema: InputSchema.shape,
       outputSchema: OutputSchema.shape,
     },
     async (args) => {
+      const companyId = await resolveCompany(ctx, args.companyId);
+      if (!companyId) return toolError('not_found', 'Not found');
       const limit = Math.min(50, args.limit ?? 10);
-      const res = await listRecentEntries(ctx.db, ctx.auth.userId, ctx.auth.companyId, limit);
+      const res = await listRecentEntries(ctx.db, ctx.auth.userId, companyId, limit);
       if (!res.ok) {
         const { code, message } = mapServiceReason(res.reason);
         return toolError(code, message);

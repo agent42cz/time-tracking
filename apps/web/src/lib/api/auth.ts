@@ -80,8 +80,9 @@ export function pickActiveCompany(
   preferred: string | null,
 ): { companyId: string; role: Role } | null {
   const m =
-    (preferred && session.memberships.find((mm) => mm.companyId === preferred)) ||
-    session.memberships[0];
+    preferred !== null
+      ? session.memberships.find((mm) => mm.companyId === preferred)
+      : session.memberships[0];
   if (!m) return null;
   return { companyId: m.companyId, role: m.role };
 }

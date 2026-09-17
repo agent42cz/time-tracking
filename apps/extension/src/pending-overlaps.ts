@@ -10,19 +10,21 @@
 import type { StorageAdapter } from './storage.js';
 import type { OverlapInfo } from './api.js';
 
+type PendingOverlap = OverlapInfo & { companyId?: string };
+
 const STORAGE_KEY = 'tt:pending-overlaps';
 
 export class PendingOverlaps {
   constructor(private storage: StorageAdapter) {}
 
-  async list(): Promise<OverlapInfo[]> {
-    return (await this.storage.get<OverlapInfo[]>(STORAGE_KEY)) ?? [];
+  async list(): Promise<PendingOverlap[]> {
+    return (await this.storage.get<PendingOverlap[]>(STORAGE_KEY)) ?? [];
   }
 
-  async add(info: OverlapInfo): Promise<void> {
+  async add(info: OverlapInfo, companyId?: string): Promise<void> {
     const all = await this.list();
     if (all.some((o) => o.entryId === info.entryId)) return;
-    all.push(info);
+    all.push(companyId ? { ...info, companyId } : info);
     await this.storage.set(STORAGE_KEY, all);
   }
 
@@ -32,7 +34,11 @@ export class PendingOverlaps {
     else await this.storage.set(STORAGE_KEY, all);
   }
 
-  async head(): Promise<OverlapInfo | null> {
-    return (await this.list())[0] ?? null;
+  async head(companyId?: string): Promise<OverlapInfo | null> {
+    return (
+      (await this.list()).find(
+        (item) => !companyId || !item.companyId || item.companyId === companyId,
+      ) ?? null
+    );
   }
 }

@@ -1,3 +1,4 @@
+import { companyIdInput, resolveCompany } from '../company-scope.js';
 import { z } from 'zod';
 import { startTimer } from '../../../lib/services/time-entries.js';
 import { mapServiceReason, toolError } from '../errors.js';
@@ -5,6 +6,7 @@ import { toolRegistrars, type ToolContext } from './registry.js';
 
 const InputSchema = z
   .object({
+    companyId: companyIdInput,
     title: z.string().max(2000).optional(),
     clientId: z.string().optional(),
     projectId: z.string().optional(),
@@ -24,11 +26,13 @@ toolRegistrars.push((server, ctx: ToolContext) => {
       outputSchema: OutputSchema.shape,
     },
     async (args) => {
+      const companyId = await resolveCompany(ctx, args.companyId);
+      if (!companyId) return toolError('not_found', 'Not found');
       const res = await startTimer(
         ctx.db,
         ctx.auth.userId,
         {
-          companyId: ctx.auth.companyId,
+          companyId: companyId,
           description: args.title,
           clientId: args.clientId,
           projectId: args.projectId,

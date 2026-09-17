@@ -105,3 +105,10 @@ Total at v1: **81 tests, ~100s wall**. US coverage: **50/50 (100%)**. Lint + typ
   - `apps/extension/src/diag.test.ts` — US-104 (records events with surface/instance, chronological order, capped at `DIAG_CAP` dropping oldest first, clear empties the buffer).
   - `apps/web/tests/services/diag-log.test.ts` — US-104 (writes nothing unless `TT_DIAG=1`; one JSON line per call when enabled; a stdout failure never propagates to the caller).
   - `apps/extension/src/background-poll.test.ts` — US-104 (a redirected poll logs `poll:blocked` with the refused URL, `poll:error` carries the URL it failed on, a successful poll still reports the running count).
+
+## Multiple companies (US-6, US-7, US-55, US-61)
+
+- Creating a second company retains the first membership, makes the creator admin of the new company, writes one audit row, and refreshes navigation.
+- Extension selection restores on reopening, replaces catalog/timers/role, clears drafts, and keeps existing timers running. A failed switch leaves the original view. Offline mutations and overlap prompts keep their originating company.
+- One existing MCP token can opt in to all memberships without a new credential or connection. `list_companies` discovers IDs; explicit per-call selection never changes the default in other clients.
+- Single-company token access, removed memberships, foreign-company IDs, and cross-company client/project references return not_found/404 with no mutation or audit row.
