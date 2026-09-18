@@ -3,6 +3,7 @@
 import { useTranslations } from 'next-intl';
 import type { ReactElement } from 'react';
 import { useTransition } from 'react';
+import { useRouter } from 'next/navigation';
 import { Select } from '@tt/ui';
 import { switchCompanyAction } from '@/lib/actions/auth';
 
@@ -14,6 +15,7 @@ export function CompanySwitcher({
   memberships: { companyId: string; companyName: string; role: string }[];
 }): ReactElement | null {
   const t = useTranslations('companies');
+  const router = useRouter();
   const [pending, startTransition] = useTransition();
   if (memberships.length === 0) return null;
   return (
@@ -29,6 +31,7 @@ export function CompanySwitcher({
           const id = e.target.value;
           startTransition(async () => {
             await switchCompanyAction(id);
+            router.refresh();
           });
         }}
       >
