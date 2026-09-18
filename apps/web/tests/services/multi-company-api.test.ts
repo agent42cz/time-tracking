@@ -6,7 +6,11 @@ import { createSession } from '../../src/lib/auth/sessions.js';
 import { createCompany } from '../../src/lib/services/companies.js';
 
 const ctx = vi.hoisted(() => ({ db: null as unknown as Prisma.TransactionClient }));
-vi.mock('@/lib/session', () => ({ prisma: () => ctx.db, SESSION_COOKIE: 'tt-session' }));
+vi.mock('@/lib/session', () => ({
+  prisma: () => ctx.db,
+  SESSION_COOKIE: 'tt-session',
+  COMPANY_COOKIE: 'tt-company',
+}));
 const timer = await import('../../src/app/api/v1/timer/route.js');
 const catalog = await import('../../src/app/api/v1/catalog/route.js');
 const entries = await import('../../src/app/api/v1/entries/route.js');
@@ -54,5 +58,33 @@ it('US-7: REST explicitly selects the second company and rejects unknown compani
       expect((await entries.POST(request('entries', company, 'POST'))).status).toBe(404);
     }
     expect(await auditCount()).toBe(before + 1);
+  });
+});
+
+it('US-7: cookie-authenticated timer read uses the active-company cookie, not the first membership', async () => {
+  await withTx(async (db) => {
+    ctx.db = db;
+    const user = await db.user.create({ data: { email: 'cookie-multi@test.cz', fullName: 'M' } });
+    const first = await createCompany(db, { name: 'First', createdByUserId: user.id });
+    const second = await createCompany(db, { name: 'Second', createdByUserId: user.id });
+    const { token } = await createSession(db, user.id);
+    const startOnSecond = new NextRequest(`http://localhost/api/v1/timer?company=${second.id}`, {
+      method: 'POST',
+      headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json' },
+      body: JSON.stringify({ description: 'Second company work' }),
+    });
+    expect((await timer.POST(startOnSecond)).status).toBe(200);
+
+    const webRead = new NextRequest('http://localhost/api/v1/timer', {
+      headers: { cookie: `tt-session=${token}; tt-company=${second.id}` },
+    });
+    const body = (await (await timer.GET(webRead)).json()) as {
+      companyId: string;
+      running: { description: string }[];
+    };
+    expect(body.companyId).toBe(second.id);
+    expect(body.companyId).not.toBe(first.id);
+    expect(body.running).toHaveLength(1);
+    expect(body.running[0]?.description).toBe('Second company work');
   });
 });

@@ -56,12 +56,14 @@ function toHistory(e: TimerEntry): HistoryEntryView | null {
 
 export function TimerLists({
   wsUrl,
+  companyId,
   initialRunning,
   initialHistory,
   initialNowMs,
   autoStackOverlaps = false,
 }: {
   wsUrl: string | null;
+  companyId: string;
   initialRunning: RunningEntry[];
   initialHistory: HistoryEntryView[];
   initialNowMs: number;
@@ -120,7 +122,10 @@ export function TimerLists({
 
   const refetch = useCallback(async (): Promise<void> => {
     try {
-      const res = await fetch('/api/v1/timer', { credentials: 'same-origin', cache: 'no-store' });
+      const res = await fetch(`/api/v1/timer?company=${encodeURIComponent(companyId)}`, {
+        credentials: 'same-origin',
+        cache: 'no-store',
+      });
       if (!res.ok) return;
       const parsed = TimerStateResponseSchema.safeParse(await res.json());
       if (!parsed.success || cancelledRef.current) return;
@@ -138,7 +143,7 @@ export function TimerLists({
     } catch {
       // ignore network/parse errors
     }
-  }, []);
+  }, [companyId]);
 
   // Fallbacks for when the socket is down or `wsUrl` is unset: same-tab
   // custom event, and refetch-on-focus for tabs that were merely hidden.

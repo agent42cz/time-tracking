@@ -81,7 +81,8 @@ A mutation flows like this:
 
 - Every `Company` is a tenant. `User`s join via `Membership(role: admin|user)`.
 - A user can be Admin in Company A and User in Company B simultaneously.
-- The active company comes from the session cookie; the company switcher (`apps/web/src/components/CompanySwitcher.tsx`) updates it.
+- The active company comes from the `tt-company` session cookie; the company switcher (`apps/web/src/components/CompanySwitcher.tsx`) updates it.
+- Same-origin `/api/v1/*` fetches that omit `?company=` (timer refetch, favicon poll) must honor that cookie. `pickActiveCompany` uses the query param when present (404 if inaccessible — no silent fallback), otherwise the cookie for cookie-authenticated web requests, otherwise the first membership (bearer / extension default).
 - Every read endpoint scopes by `company_id`. Cross-tenant attempts return **404** (not 403).
 
 ## Real-time guarantees
@@ -101,7 +102,7 @@ Token-authenticated REST surface consumed by the Chrome extension and external t
 | `POST`   | `/api/v1/auth/logout`                     | token        | Invalidate the current session token.                                                                                                                                                                           |
 | `GET`    | `/api/v1/me`                              | token        | Return the authenticated user's profile and active company.                                                                                                                                                     |
 | `PATCH`  | `/api/v1/me`                              | token        | Update profile fields (e.g. theme preference).                                                                                                                                                                  |
-| `GET`    | `/api/v1/timer`                           | token        | Running timers + history (start-of-last-month..end-of-this-month) + this-week/month/last-month summary — drives the extension popup.                                                                            |
+| `GET`    | `/api/v1/timer`                           | token        | Running timers + history (start-of-last-month..end-of-this-month) + this-week/month/last-month summary. `?company=` selects the company; cookie-authenticated web requests without it use `tt-company`.         |
 | `POST`   | `/api/v1/timer`                           | token        | Start a new running timer in the active company (`?company=`).                                                                                                                                                  |
 | `POST`   | `/api/v1/timer/[id]/stop`                 | token        | Stop the running timer identified by `id`; 404 if not found or cross-company.                                                                                                                                   |
 | `GET`    | `/api/v1/catalog`                         | token        | Return active clients (with projects) for the active company (`?company=`).                                                                                                                                     |

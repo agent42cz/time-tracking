@@ -7,8 +7,10 @@
  *     — drives the extension popup's summary cards
  * POST /api/v1/timer  → start a timer in the active company
  *
- * Active company is the one in the `tt-company` query param if present,
- * otherwise the user's first membership. Outsiders / non-members are
+ * Active company is `?company=` if present (404 when inaccessible — no
+ * silent fallback). Cookie-authenticated web requests without the query
+ * use the `tt-company` cookie. Bearer requests without `?company=` keep
+ * the first membership (the token default). Outsiders / non-members are
  * implicitly filtered by the service layer's company-id check.
  */
 import type { NextRequest } from 'next/server';

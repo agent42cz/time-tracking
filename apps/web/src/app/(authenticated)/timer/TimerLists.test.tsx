@@ -44,7 +44,7 @@ const RUNNING_ENTRY = {
   startedAt: new Date('2026-07-27T10:00:00.000Z').toISOString(),
 };
 
-function renderTimerLists(): ReturnType<typeof render> {
+function renderTimerLists(companyId = 'co-1'): ReturnType<typeof render> {
   // Wrapped in StrictMode to match `next.config.mjs`'s `reactStrictMode: true`
   // — dev mounts every effect, runs its cleanup, then re-mounts on the same
   // fiber. That double-invoke is exactly what exposes a `cancelledRef` that
@@ -55,6 +55,7 @@ function renderTimerLists(): ReturnType<typeof render> {
       <ConfirmProvider>
         <TimerLists
           wsUrl={null}
+          companyId={companyId}
           initialRunning={[RUNNING_ENTRY]}
           initialHistory={[]}
           initialNowMs={Date.now()}
@@ -96,6 +97,28 @@ describe('TimerLists — stale-stop guard (US-103)', () => {
 
     // The row itself must be gone from the list too.
     expect(screen.queryByText('Writing tests')).not.toBeInTheDocument();
+
+    vi.unstubAllGlobals();
+  });
+
+  it('US-7: a stop refetch asks for the active company so a second-company timer is not treated as already stopped', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ running: [RUNNING_ENTRY], history: [] }),
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    stopTimerAction.mockResolvedValue({ ok: true });
+
+    renderTimerLists('co-2');
+    fireEvent.click(screen.getByRole('button', { name: /Stop/ }));
+
+    await waitFor(() => {
+      expect(stopTimerAction).toHaveBeenCalledWith('entry-1');
+    });
+    expect(fetchMock).toHaveBeenCalled();
+    const requested = fetchMock.mock.calls.map((call) => String(call[0]));
+    expect(requested.some((url) => url.includes('company=co-2'))).toBe(true);
+    expect(screen.queryByText('alreadyStopped')).not.toBeInTheDocument();
 
     vi.unstubAllGlobals();
   });

@@ -29,7 +29,7 @@ export default async function AuthLayout({
 
   return (
     <div className="flex min-h-screen bg-zinc-50 dark:bg-zinc-900">
-      <FaviconSwitcher />
+      <FaviconSwitcher companyId={session.activeCompanyId} />
       <aside className="hidden h-screen w-64 shrink-0 flex-col border-r border-zinc-200 bg-white md:sticky md:top-0 md:flex dark:border-zinc-700 dark:bg-zinc-800">
         <div className="flex h-16 shrink-0 items-center border-b border-zinc-200 px-5 dark:border-zinc-700">
           <Link

@@ -29,6 +29,18 @@ test('US-7: adds a second company and enables it on the existing MCP connection'
   await switcher.selectOption(secondId);
   await expect(switcher).toHaveValue(secondId);
 
+  await page.goto('/timer');
+  const description = `Druhá firma ${Date.now()}`;
+  await page.getByLabel('Co děláte?').fill(description);
+  await page.getByRole('button', { name: '▶ Spustit' }).click();
+  const stopButton = page.getByRole('button', { name: '■ Stop' }).first();
+  await expect(stopButton).toBeVisible();
+  await stopButton.click();
+  await expect(page.locator('li').filter({ hasText: description })).toBeVisible();
+  await expect(switcher).toHaveValue(secondId);
+  await expect(page.getByText('Tento záznam už byl zastaven jinde')).toHaveCount(0);
+  await expect(page.getByText('Měření nelze zastavit')).toHaveCount(0);
+
   const client = new Client({ name: 'multi-company-e2e', version: '1' }, { capabilities: {} });
   await client.connect(
     new StreamableHTTPClientTransport(new URL(`${baseURL}/api/mcp`), {
