@@ -62,3 +62,19 @@ it('US-7: web switching rejects an inaccessible company and leaves the current s
     expect(state.cookies.get('tt-company')).toBe(first.id);
   });
 });
+it('US-7: switching company updates the cookie and does not force /timer', async () => {
+  await withTx(async (db) => {
+    globalThis.__ttPrisma = db as PrismaClient;
+    state.cookies.clear();
+    state.revalidate.mockClear();
+    const user = await db.user.create({ data: { email: 'stay@test.cz', fullName: 'U' } });
+    const first = await createCompany(db, { name: 'First', createdByUserId: user.id });
+    const second = await createCompany(db, { name: 'Second', createdByUserId: user.id });
+    const session = await createSession(db, user.id);
+    state.cookies.set('tt-session', session.token);
+    state.cookies.set('tt-company', first.id);
+    await expect(switchCompanyAction(second.id)).resolves.toBeUndefined();
+    expect(state.cookies.get('tt-company')).toBe(second.id);
+    expect(state.revalidate).toHaveBeenCalledWith('/', 'layout');
+  });
+});

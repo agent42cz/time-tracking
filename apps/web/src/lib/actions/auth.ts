@@ -175,7 +175,6 @@ export async function switchCompanyAction(companyId: string): Promise<void> {
   if (!session.memberships.some((m) => m.companyId === companyId)) notFound();
   await setActiveCompany(companyId);
   revalidatePath('/', 'layout');
-  redirect('/timer');
 }
 
 // --- Settings ---
