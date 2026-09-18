@@ -108,6 +108,28 @@ async function snapshot(db: Db, id: string): Promise<EntrySnapshot | null> {
   return snapshotOf(e);
 }
 
+/** Foreign keys alone do not enforce tenant isolation or a project's client. */
+async function validCatalogLinks(
+  db: Db,
+  companyId: string,
+  clientId?: string | null,
+  projectId?: string | null,
+): Promise<boolean> {
+  if (
+    clientId &&
+    !(await db.client.findFirst({ where: { id: clientId, companyId }, select: { id: true } }))
+  )
+    return false;
+  if (projectId) {
+    const project = await db.project.findFirst({
+      where: { id: projectId, client: { companyId } },
+      select: { clientId: true },
+    });
+    if (!project || (clientId && project.clientId !== clientId)) return false;
+  }
+  return true;
+}
+
 // --- Start / stop ---
 export interface StartTimerInput {
   companyId: string;
@@ -125,6 +147,8 @@ export async function startTimer(
 ): Promise<Result<{ id: string }>> {
   const role = await getMembership(db, actorUserId, input.companyId);
   if (!role) return { ok: false, reason: 'not_found' };
+  if (!(await validCatalogLinks(db, input.companyId, input.clientId, input.projectId)))
+    return { ok: false, reason: 'not_found' };
   const entry = await db.timeEntry.create({
     data: {
       userId: actorUserId,
@@ -202,6 +226,8 @@ export async function createManualEntry(
 ): Promise<Result<{ id: string }, 'not_found' | 'invalid_window' | 'future_timestamp'>> {
   const role = await getMembership(db, actorUserId, input.companyId);
   if (!role) return { ok: false, reason: 'not_found' };
+  if (!(await validCatalogLinks(db, input.companyId, input.clientId, input.projectId)))
+    return { ok: false, reason: 'not_found' };
   const v = validateWindow(input.startedAt, input.endedAt, now);
   if (!v.ok) return v;
   const entry = await db.timeEntry.create({
@@ -258,6 +284,15 @@ export async function updateEntry(
   if (entry.userId !== actorUserId && role !== 'admin') {
     return { ok: false, reason: 'not_found' };
   }
+  if (
+    !(await validCatalogLinks(
+      db,
+      entry.companyId,
+      patch.clientId === undefined ? entry.clientId : patch.clientId,
+      patch.projectId === undefined ? entry.projectId : patch.projectId,
+    ))
+  )
+    return { ok: false, reason: 'not_found' };
   const window: ValidWindow = {
     startedAt: patch.startedAt ?? entry.startedAt,
     endedAt: patch.endedAt === undefined ? entry.endedAt : patch.endedAt,

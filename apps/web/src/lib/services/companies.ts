@@ -12,6 +12,7 @@
  * 404 not 403, to avoid existence leaks).
  */
 import type { Prisma, PrismaClient, Role } from '@prisma/client';
+import { writeAudit } from './audit.js';
 import { generateToken } from '../auth/tokens.js';
 
 type Db = PrismaClient | Prisma.TransactionClient;
@@ -41,12 +42,23 @@ export async function createCompany(
   db: Db,
   input: { name: string; createdByUserId: string },
 ): Promise<{ id: string; slug: string }> {
-  const slug = await uniqueSlug(db, slugify(input.name));
+  if ('$transaction' in db) return db.$transaction((tx) => createCompany(tx, input));
+  const name = input.name.trim();
+  if (!name || name.length > 200) throw new Error('invalid_name');
+  const slug = await uniqueSlug(db, slugify(name));
   const company = await db.company.create({
-    data: { name: input.name, slug, createdById: input.createdByUserId },
+    data: { name, slug, createdById: input.createdByUserId },
   });
   await db.membership.create({
     data: { userId: input.createdByUserId, companyId: company.id, role: 'admin' },
+  });
+  await writeAudit(db, {
+    companyId: company.id,
+    actorUserId: input.createdByUserId,
+    action: 'create',
+    entityType: 'Company',
+    entityId: company.id,
+    after: { name, slug },
   });
   return { id: company.id, slug: company.slug };
 }

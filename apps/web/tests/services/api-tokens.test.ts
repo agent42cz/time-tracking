@@ -128,3 +128,45 @@ describe('api tokens', () => {
     });
   });
 });
+
+it('US-55: enabling all companies preserves the same token, audits once and rejects another owner', async () => {
+  await withTx(async (db) => {
+    const { setTokenCompanyScope } = await import('../../src/lib/services/api-tokens.js');
+    const w = await setup(db, 'scope');
+    const other = await setup(db, 'scope-other');
+    const issued = await issueToken(db, w.userId, {
+      companyId: w.companyId,
+      name: 'Existing connection',
+    });
+    if (!issued.ok) throw new Error('setup');
+    const auditCount = () => db.auditLog.count();
+    const before = await auditCount();
+    expect(await setTokenCompanyScope(db, other.userId, issued.value.id, true)).toEqual({
+      ok: false,
+      reason: 'not_found',
+    });
+    expect(await auditCount()).toBe(before);
+    expect(await setTokenCompanyScope(db, w.userId, issued.value.id, true)).toEqual({
+      ok: true,
+      value: true,
+    });
+    expect(await auditCount()).toBe(before + 1);
+    expect(await verifyToken(db, issued.value.plaintext)).toMatchObject({
+      ok: true,
+      value: { allCompanies: true },
+    });
+    await setTokenCompanyScope(db, w.userId, issued.value.id, true);
+    expect(await auditCount()).toBe(before + 1);
+    await setTokenCompanyScope(db, w.userId, issued.value.id, false);
+    expect(await auditCount()).toBe(before + 2);
+    expect(await verifyToken(db, issued.value.plaintext)).toMatchObject({
+      ok: true,
+      value: { allCompanies: false },
+    });
+    await revokeToken(db, w.userId, issued.value.id);
+    expect(await setTokenCompanyScope(db, w.userId, issued.value.id, true)).toMatchObject({
+      ok: false,
+      reason: 'not_found',
+    });
+  });
+});

@@ -49,6 +49,8 @@ Each box maps to the file (and test name) that proves it. v1 was declared comple
 
 - [x] **Chrome extension supports login, multiple parallel timers, weekly view, edit/delete, real-time sync with web, and offline queue.**
   - `apps/extension/src/queue.test.ts` — US-29 (persistent session), US-30 (popup state load), US-32 (verbatim replay), US-33 ("play again" enqueues fresh), US-34 (in-order replay, conflict resolution, transient retry, browser-kill resume), US-35 (pending count = unsynced indicator).
+  - `apps/extension/tests/e2e/popup-close.spec.ts` — US-30 (AIAGE-68: real focus loss closes a retained popup; internal controls and regular tabs stay open; X closes an actual script-opened window during loading, login, tracking, and scrolled history; no timer mutation or logout request).
+  - `apps/extension/src/popup-lifecycle.test.ts` — US-30 (deferred dismissal, initial focus, refocus cancellation, retained document focus, hidden state, and cleanup).
   - `apps/ws/src/server.test.ts` — US-31 (1s sync between user clients, zero leak across companies).
   - `apps/extension/src/access-block.test.ts` — US-34 (a request an access proxy redirects raises `AccessBlockedError` naming the URL, is sent with `redirect: 'manual'`, and is not classified as offline, so the mutation is never queued).
   - `apps/extension/src/mutation-errors.test.ts` — US-34 (the popup names the proxy instead of blaming the connection; a blocked replay stays transient and is flagged `blocked`).
@@ -103,3 +105,10 @@ Total at v1: **81 tests, ~100s wall**. US coverage: **50/50 (100%)**. Lint + typ
   - `apps/extension/src/diag.test.ts` — US-104 (records events with surface/instance, chronological order, capped at `DIAG_CAP` dropping oldest first, clear empties the buffer).
   - `apps/web/tests/services/diag-log.test.ts` — US-104 (writes nothing unless `TT_DIAG=1`; one JSON line per call when enabled; a stdout failure never propagates to the caller).
   - `apps/extension/src/background-poll.test.ts` — US-104 (a redirected poll logs `poll:blocked` with the refused URL, `poll:error` carries the URL it failed on, a successful poll still reports the running count).
+
+## Multiple companies (US-6, US-7, US-55, US-61)
+
+- Creating a second company retains the first membership, makes the creator admin of the new company, writes one audit row, and refreshes navigation.
+- Extension selection restores on reopening, replaces catalog/timers/role, clears drafts, and keeps existing timers running. A failed switch leaves the original view. Offline mutations and overlap prompts keep their originating company.
+- One existing MCP token can opt in to all memberships without a new credential or connection. `list_companies` discovers IDs; explicit per-call selection never changes the default in other clients.
+- Single-company token access, removed memberships, foreign-company IDs, and cross-company client/project references return not_found/404 with no mutation or audit row.

@@ -35,6 +35,18 @@ The tags/štítky feature (US-16, US-17) was removed entirely in AIAGE-57, down 
 | **ws**        | [`apps/ws`](../../apps/ws)               | `ws` (Node WebSocket library) + `ioredis`              | Real-time fan-out. Authenticates via session cookie or `?token=`. Subscribes each socket to `user:{id}` and `company:{id}` channels via a single Redis `psubscribe`, filters per connection. Mutation routes in `web` publish to Redis; this service forwards.                                                                                                                                   |
 | **extension** | [`apps/extension`](../../apps/extension) | Vite + React 19, MV3 manifest                          | Chrome popup. Mirrors web in real time via `apps/ws`. Persistent FIFO offline queue in `chrome.storage.local` (commit-before-send so a browser kill mid-replay leaves a recoverable queue). Stop-timer replays that detect an overlap write the `OverlapInfo` to the `tt:pending-overlaps` key in `chrome.storage.local`; the popup reads and clears the key when it opens the auto-stack sheet. |
 
+The extension uses Chrome's native `action.default_popup`. Before React mounts,
+`popup-lifecycle.ts` installs focus/visibility listeners for actual popup views
+(`chrome.extension.getViews({ type: 'popup' })`), so a popup left open by Chrome
+closes when focus leaves or the document becomes hidden. A deferred blur check,
+cancelled on refocus, preserves internal control interactions and initial focus
+acquisition. Normal tabs and Vite previews are excluded. An explicit X also calls
+`window.close()` during loading, login, or tracking; closing does not stop timers,
+clear stored authentication, or change the offline queue. The tracking header is
+sticky so the X remains reachable through a long history. Its label comes from
+the shared `next-intl` Czech catalogue at build time (`apps/web/messages/cs.json`,
+`extension.closePopup`). See AIAGE-68.
+
 ## Packages
 
 | Package        | Path                                       | Purpose                                                                                                                                                                                                   |
@@ -69,7 +81,8 @@ A mutation flows like this:
 
 - Every `Company` is a tenant. `User`s join via `Membership(role: admin|user)`.
 - A user can be Admin in Company A and User in Company B simultaneously.
-- The active company comes from the session cookie; the company switcher (`apps/web/src/components/CompanySwitcher.tsx`) updates it.
+- The active company comes from the `tt-company` session cookie; the company switcher (`apps/web/src/components/CompanySwitcher.tsx`) updates it.
+- Same-origin `/api/v1/*` fetches that omit `?company=` (timer refetch, favicon poll) must honor that cookie. `pickActiveCompany` uses the query param when present (404 if inaccessible — no silent fallback), otherwise the cookie for cookie-authenticated web requests, otherwise the first membership (bearer / extension default).
 - Every read endpoint scopes by `company_id`. Cross-tenant attempts return **404** (not 403).
 
 ## Real-time guarantees
@@ -89,7 +102,7 @@ Token-authenticated REST surface consumed by the Chrome extension and external t
 | `POST`   | `/api/v1/auth/logout`                     | token        | Invalidate the current session token.                                                                                                                                                                           |
 | `GET`    | `/api/v1/me`                              | token        | Return the authenticated user's profile and active company.                                                                                                                                                     |
 | `PATCH`  | `/api/v1/me`                              | token        | Update profile fields (e.g. theme preference).                                                                                                                                                                  |
-| `GET`    | `/api/v1/timer`                           | token        | Running timers + history (start-of-last-month..end-of-this-month) + this-week/month/last-month summary — drives the extension popup.                                                                            |
+| `GET`    | `/api/v1/timer`                           | token        | Running timers + history (start-of-last-month..end-of-this-month) + this-week/month/last-month summary. `?company=` selects the company; cookie-authenticated web requests without it use `tt-company`.         |
 | `POST`   | `/api/v1/timer`                           | token        | Start a new running timer in the active company (`?company=`).                                                                                                                                                  |
 | `POST`   | `/api/v1/timer/[id]/stop`                 | token        | Stop the running timer identified by `id`; 404 if not found or cross-company.                                                                                                                                   |
 | `GET`    | `/api/v1/catalog`                         | token        | Return active clients (with projects) for the active company (`?company=`).                                                                                                                                     |

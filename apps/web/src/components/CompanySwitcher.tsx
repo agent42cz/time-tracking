@@ -1,5 +1,6 @@
 'use client';
 
+import { useTranslations } from 'next-intl';
 import type { ReactElement } from 'react';
 import { useTransition } from 'react';
 import { Select } from '@tt/ui';
@@ -12,14 +13,16 @@ export function CompanySwitcher({
   activeCompanyId: string | null;
   memberships: { companyId: string; companyName: string; role: string }[];
 }): ReactElement | null {
+  const t = useTranslations('companies');
   const [pending, startTransition] = useTransition();
   if (memberships.length === 0) return null;
   return (
     <div className="space-y-1.5">
       <label className="block text-xs font-medium uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
-        Aktivní firma
+        {t('active')}
       </label>
       <Select
+        aria-label={t('active')}
         value={activeCompanyId ?? ''}
         disabled={pending}
         onChange={(e) => {
@@ -31,7 +34,7 @@ export function CompanySwitcher({
       >
         {memberships.map((m) => (
           <option key={m.companyId} value={m.companyId}>
-            {m.companyName} ({m.role === 'admin' ? 'správce' : 'člen'})
+            {m.companyName} ({m.role === 'admin' ? t('admin') : t('member')})
           </option>
         ))}
       </Select>

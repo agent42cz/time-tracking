@@ -11,7 +11,7 @@ import 'server-only';
 import type { NextRequest } from 'next/server';
 import type { Role } from '@prisma/client';
 import { resolveSession } from '../auth/sessions.js';
-import { prisma, SESSION_COOKIE } from '../session.js';
+import { COMPANY_COOKIE, prisma, SESSION_COOKIE } from '../session.js';
 
 export type ThemePreference = 'light' | 'dark' | 'system';
 
@@ -33,6 +33,11 @@ export interface ApiSession {
    * without relying on any client-supplied value.
    */
   authSource: 'web' | 'extension';
+  /**
+   * `tt-company` cookie, when present. Web timer/dashboard fetches omit
+   * `?company=` and rely on this; bearer (extension) requests ignore it.
+   */
+  cookieCompanyId: string | null;
   memberships: { companyId: string; companyName: string; companySlug: string; role: Role }[];
 }
 
@@ -66,6 +71,7 @@ export async function resolveApiSession(req: NextRequest): Promise<ApiSession | 
     theme: isThemePreference(user.theme) ? user.theme : 'system',
     autoStackOverlaps: user.autoStackOverlaps,
     authSource,
+    cookieCompanyId: req.cookies.get(COMPANY_COOKIE)?.value ?? null,
     memberships: user.memberships.map((m) => ({
       companyId: m.companyId,
       companyName: m.company.name,
@@ -79,9 +85,17 @@ export function pickActiveCompany(
   session: ApiSession,
   preferred: string | null,
 ): { companyId: string; role: Role } | null {
-  const m =
-    (preferred && session.memberships.find((mm) => mm.companyId === preferred)) ||
-    session.memberships[0];
-  if (!m) return null;
-  return { companyId: m.companyId, role: m.role };
+  if (preferred !== null) {
+    const named = session.memberships.find((mm) => mm.companyId === preferred);
+    return named ? { companyId: named.companyId, role: named.role } : null;
+  }
+  // Cookie-authenticated web fetches (timer refetch, favicon) omit `?company=`
+  // and would otherwise silently snap back to the first membership.
+  if (session.authSource === 'web' && session.cookieCompanyId) {
+    const fromCookie = session.memberships.find((mm) => mm.companyId === session.cookieCompanyId);
+    if (fromCookie) return { companyId: fromCookie.companyId, role: fromCookie.role };
+  }
+  const fallback = session.memberships[0];
+  if (!fallback) return null;
+  return { companyId: fallback.companyId, role: fallback.role };
 }

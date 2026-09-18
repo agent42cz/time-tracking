@@ -34,3 +34,13 @@ describe('PendingOverlaps', () => {
     expect((await reborn.head())?.entryId).toBe('a');
   });
 });
+
+it('US-7: pending overlaps from the first company do not block prompts for the second', async () => {
+  const store = new PendingOverlaps(new InMemoryStorageAdapter());
+  await store.add(info('a'), 'first');
+  await store.add(info('b'), 'second');
+  expect((await store.head('second'))?.entryId).toBe('b');
+  await store.remove('b');
+  expect(await store.head('second')).toBeNull();
+  expect((await store.head('first'))?.entryId).toBe('a');
+});

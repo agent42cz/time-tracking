@@ -1,6 +1,6 @@
 'use server';
 
-import { redirect } from 'next/navigation';
+import { notFound, redirect } from 'next/navigation';
 import { revalidatePath } from 'next/cache';
 import { loginWithMagicLink, loginWithPassword } from '../auth/login.js';
 import { issueMagicLink } from '../auth/magic-link.js';
@@ -170,8 +170,11 @@ function friendlyInviteReason(r: string): string {
 }
 
 export async function switchCompanyAction(companyId: string): Promise<void> {
+  const { requireUser } = await import('../session.js');
+  const session = await requireUser();
+  if (!session.memberships.some((m) => m.companyId === companyId)) notFound();
   await setActiveCompany(companyId);
-  revalidatePath('/');
+  revalidatePath('/', 'layout');
   redirect('/timer');
 }
 

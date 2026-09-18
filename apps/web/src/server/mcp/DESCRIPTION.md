@@ -30,3 +30,5 @@ Token-authenticated MCP server. Exposes time-tracking tools (start/stop/update/l
 - Tool handlers stay thin — all business logic lives in `lib/services/*`. The MCP layer is just translation: Zod input validation, service call, error mapping via `errors.ts`, response shaping.
 - Existence-leak hygiene: `forbidden` and `not_found` from services both surface as MCP `not_found`. Never differentiate.
 - Audit + WS broadcasts come for free because tools call the existing services that already do both.
+
+Company selection is explicit per tool call; see ADR-0017. Existing tokens remain single-company unless their owner enables all companies. Entry mutations enforce token scope as well as membership.

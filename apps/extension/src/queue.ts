@@ -16,7 +16,7 @@ import type { StorageAdapter } from './storage.js';
 
 export type Mutation =
   | { kind: 'startTimer'; payload: Record<string, unknown>; clientId: string }
-  | { kind: 'stopTimer'; payload: { id: string }; clientId: string }
+  | { kind: 'stopTimer'; payload: { id: string; companyId?: string | null }; clientId: string }
   | { kind: 'createManual'; payload: Record<string, unknown>; clientId: string }
   | {
       kind: 'updateEntry';
@@ -54,6 +54,7 @@ function collapseKey(m: Mutation): string | null {
 }
 
 export class OfflineQueue {
+  private flushing: Promise<{ applied: number; conflicts: number }> | null = null;
   constructor(private storage: StorageAdapter) {}
 
   async load(): Promise<QueueState> {
@@ -90,6 +91,19 @@ export class OfflineQueue {
     send: (m: Mutation) => Promise<{ ok: true } | { ok: false; reason: 'conflict' | 'transient' }>,
     options: { onConflict?: (m: Mutation) => void } = {},
     now: () => number = Date.now,
+  ): Promise<{ applied: number; conflicts: number }> {
+    if (!this.flushing) {
+      this.flushing = this.flushOnce(send, options, now).finally(() => {
+        this.flushing = null;
+      });
+    }
+    return this.flushing;
+  }
+
+  private async flushOnce(
+    send: (m: Mutation) => Promise<{ ok: true } | { ok: false; reason: 'conflict' | 'transient' }>,
+    options: { onConflict?: (m: Mutation) => void },
+    now: () => number,
   ): Promise<{ applied: number; conflicts: number }> {
     const state = await this.load();
     let applied = 0;

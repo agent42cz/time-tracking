@@ -23,14 +23,18 @@ function setFavicon(state: 'idle' | 'active'): void {
   }
 }
 
-export function FaviconSwitcher(): null {
+export function FaviconSwitcher({ companyId }: { companyId: string | null }): null {
   useEffect(() => {
     let cancelled = false;
     let current: 'idle' | 'active' | null = null;
 
     async function check(): Promise<void> {
       try {
-        const res = await fetch('/api/v1/timer', { credentials: 'same-origin', cache: 'no-store' });
+        const qs = companyId ? `?company=${encodeURIComponent(companyId)}` : '';
+        const res = await fetch(`/api/v1/timer${qs}`, {
+          credentials: 'same-origin',
+          cache: 'no-store',
+        });
         if (!res.ok) return;
         const parsed = TimerStateResponseSchema.safeParse(await res.json());
         if (!parsed.success) return;
@@ -56,7 +60,7 @@ export function FaviconSwitcher(): null {
       window.removeEventListener(TIMER_CHANGED_EVENT, onChange);
       document.removeEventListener('visibilitychange', onVisibility);
     };
-  }, []);
+  }, [companyId]);
 
   return null;
 }

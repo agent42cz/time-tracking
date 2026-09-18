@@ -6,7 +6,11 @@ import { createSession } from '../../src/lib/auth/sessions.js';
 
 const ctx = vi.hoisted(() => ({ db: null as unknown as Prisma.TransactionClient }));
 // Real resolveApiSession; only the prisma() accessor is redirected to the tx.
-vi.mock('@/lib/session', () => ({ prisma: () => ctx.db, SESSION_COOKIE: 'tt-session' }));
+vi.mock('@/lib/session', () => ({
+  prisma: () => ctx.db,
+  SESSION_COOKIE: 'tt-session',
+  COMPANY_COOKIE: 'tt-company',
+}));
 const { resolveApiSession } = await import('../../src/lib/api/auth.js');
 
 beforeAll(async () => {

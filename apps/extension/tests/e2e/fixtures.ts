@@ -22,29 +22,40 @@ export function seedStorage(overrides: Partial<SeedState> = {}): Record<string, 
   };
 }
 
-export async function installChromeStub(page: Page, seed: Record<string, unknown>): Promise<void> {
-  await page.addInitScript((initial: Record<string, unknown>) => {
-    const store: Record<string, unknown> = { ...initial };
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (window as any).chrome = {
-      storage: {
-        local: {
-          get: (key: string) => Promise.resolve(key in store ? { [key]: store[key] } : {}),
-          set: (obj: Record<string, unknown>) => {
-            Object.assign(store, obj);
-            return Promise.resolve();
+export async function installChromeStub(
+  page: Page,
+  seed: Record<string, unknown>,
+  popupView = true,
+): Promise<void> {
+  await page.addInitScript(
+    ({ initial, popupView }) => {
+      const store: Record<string, unknown> = { ...initial };
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (window as any).chrome = {
+        storage: {
+          local: {
+            get: (key: string | null) =>
+              Promise.resolve(
+                key === null ? { ...store } : key in store ? { [key]: store[key] } : {},
+              ),
+            set: (obj: Record<string, unknown>) => {
+              Object.assign(store, obj);
+              return Promise.resolve();
+            },
+            remove: (key: string) => {
+              delete store[key];
+              return Promise.resolve();
+            },
           },
-          remove: (key: string) => {
-            delete store[key];
-            return Promise.resolve();
-          },
+          onChanged: { addListener: () => {}, removeListener: () => {} },
         },
-        onChanged: { addListener: () => {}, removeListener: () => {} },
-      },
-      tabs: { create: () => {} },
-      runtime: { sendMessage: () => Promise.resolve() },
-    };
-  }, seed);
+        tabs: { create: () => {} },
+        runtime: { sendMessage: () => Promise.resolve() },
+        extension: { getViews: () => (popupView ? [window] : []) },
+      };
+    },
+    { initial: seed, popupView },
+  );
 }
 
 export interface ApiFixture {
@@ -144,8 +155,8 @@ export async function installApiStubs(page: Page, api: ApiFixture): Promise<void
     route.fulfill({ status: 500, json: { error: 'unstubbed', url: route.request().url() } }),
   );
   await page.route('**/api/v1/me', (route) => route.fulfill({ json: api.me }));
-  await page.route('**/api/v1/catalog', (route) => route.fulfill({ json: api.catalog }));
-  await page.route('**/api/v1/timer', (route) => route.fulfill({ json: api.timer }));
+  await page.route('**/api/v1/catalog{,?*}', (route) => route.fulfill({ json: api.catalog }));
+  await page.route('**/api/v1/timer{,?*}', (route) => route.fulfill({ json: api.timer }));
 }
 
 /** Boot the popup with stubs installed and wait for first paint. */

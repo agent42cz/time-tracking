@@ -20,6 +20,7 @@ import { PageHeader } from '@/components/PageHeader';
 import { prisma, requireUser } from '@/lib/session';
 import { listTokens } from '@/lib/services/api-tokens';
 import { CreateTokenDialog } from './CreateTokenDialog';
+import { TokenCompanyScope } from './TokenCompanyScope';
 import { RevokeTokenButton } from './RevokeTokenButton';
 
 function formatDate(date: Date): string {
@@ -85,7 +86,17 @@ export default async function ApiTokensPage(): Promise<ReactElement> {
                             {token.prefix}…
                           </span>
                         </Td>
-                        <Td>{companyMap.get(token.companyId) ?? token.companyId}</Td>
+                        <Td>
+                          {token.allCompanies
+                            ? t('allCompanies')
+                            : (companyMap.get(token.companyId) ?? token.companyId)}
+                          {!token.revokedAt && (
+                            <TokenCompanyScope
+                              tokenId={token.id}
+                              allCompanies={token.allCompanies}
+                            />
+                          )}
+                        </Td>
                         <Td>{formatDate(token.createdAt)}</Td>
                         <Td>{token.lastUsedAt ? formatDate(token.lastUsedAt) : '—'}</Td>
                         <Td>
@@ -114,7 +125,12 @@ export default async function ApiTokensPage(): Promise<ReactElement> {
                         </div>
                       </DataCardRow>
                       <DataCardRow label={t('company')}>
-                        {companyMap.get(token.companyId) ?? token.companyId}
+                        {token.allCompanies
+                          ? t('allCompanies')
+                          : (companyMap.get(token.companyId) ?? token.companyId)}
+                        {!token.revokedAt && (
+                          <TokenCompanyScope tokenId={token.id} allCompanies={token.allCompanies} />
+                        )}
                       </DataCardRow>
                       <DataCardRow label={t('createdAt')}>
                         {formatDate(token.createdAt)}

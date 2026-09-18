@@ -18,11 +18,13 @@ export async function buildInProcessMcp(args: {
   db: Prisma.TransactionClient;
   userId: string;
   companyId: string;
+  allCompanies?: boolean;
 }): Promise<InProcessMcp> {
   const auth: McpAuthContext = {
     userId: args.userId,
     companyId: args.companyId,
     tokenId: 'test-token',
+    allCompanies: args.allCompanies,
   };
   const server = buildMcpServer({ auth, db: args.db });
 

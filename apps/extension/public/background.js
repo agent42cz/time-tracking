@@ -88,7 +88,10 @@ async function poll() {
     return;
   }
   const apiBase = normalizeApiBase(session.apiBase);
-  const url = `${apiBase}/api/v1/timer`;
+  const stored = await chrome.storage.local.get('tt:active-company');
+  const selected = stored['tt:active-company'];
+  const company = selected?.apiBase === session.apiBase ? selected.companyId : null;
+  const url = `${apiBase}/api/v1/timer${company ? `?company=${encodeURIComponent(company)}` : ''}`;
   try {
     const res = await fetch(url, {
       headers: { Authorization: `Bearer ${session.token}` },
@@ -112,7 +115,13 @@ async function poll() {
       // buffer goes with it: it holds entry ids from the session that just
       // ended (mirrors setStoredSession in src/api.ts).
       void diag('poll:401');
-      await chrome.storage.local.remove(['tt:session', DIAG_KEY, ICON_HINT_KEY]);
+      await chrome.storage.local.remove([
+        'tt:session',
+        'tt:active-company',
+        'tt:popup-cache',
+        DIAG_KEY,
+        ICON_HINT_KEY,
+      ]);
       applyRunningCount(0);
       return;
     }
@@ -179,7 +188,7 @@ chrome.storage.onChanged.addListener((changes, area) => {
   if (changes[ICON_HINT_KEY] && typeof changes[ICON_HINT_KEY].newValue === 'number') {
     applyRunningCount(changes[ICON_HINT_KEY].newValue);
   }
-  if (changes['tt:session'] || changes[ICON_HINT_KEY]) {
+  if (changes['tt:session'] || changes['tt:active-company'] || changes[ICON_HINT_KEY]) {
     void poll();
   }
 });

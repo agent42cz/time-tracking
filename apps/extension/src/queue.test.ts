@@ -210,3 +210,25 @@ describe('extension popup', () => {
     expect(await q.size()).toBe(0);
   });
 });
+
+it('US-7: switching company during an offline replay does not send a queued mutation twice', async () => {
+  const storage = new InMemoryStorageAdapter();
+  const queue = new OfflineQueue(storage);
+  await queue.enqueue({ kind: 'startTimer', payload: { companyId: 'first' }, clientId: 'one' });
+  let release!: () => void;
+  const gate = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  const sent: unknown[] = [];
+  const send = async (mutation: unknown) => {
+    sent.push(mutation);
+    await gate;
+    return { ok: true as const };
+  };
+  const first = queue.flush(send);
+  const second = queue.flush(send);
+  release();
+  await Promise.all([first, second]);
+  expect(sent).toHaveLength(1);
+  expect(await queue.size()).toBe(0);
+});

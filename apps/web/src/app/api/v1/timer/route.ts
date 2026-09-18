@@ -7,8 +7,10 @@
  *     — drives the extension popup's summary cards
  * POST /api/v1/timer  → start a timer in the active company
  *
- * Active company is the one in the `tt-company` query param if present,
- * otherwise the user's first membership. Outsiders / non-members are
+ * Active company is `?company=` if present (404 when inaccessible — no
+ * silent fallback). Cookie-authenticated web requests without the query
+ * use the `tt-company` cookie. Bearer requests without `?company=` keep
+ * the first membership (the token default). Outsiders / non-members are
  * implicitly filtered by the service layer's company-id check.
  */
 import type { NextRequest } from 'next/server';
@@ -32,6 +34,7 @@ export async function GET(req: NextRequest): Promise<Response> {
   if (!session) return errorCors(req, 401, 'unauthorized');
   const preferred = req.nextUrl.searchParams.get('company');
   const active = pickActiveCompany(session, preferred);
+  if (preferred !== null && !active) return errorCors(req, 404, 'not_found');
   if (!active)
     return jsonCors(req, {
       companyId: null,
@@ -126,6 +129,7 @@ export async function POST(req: NextRequest): Promise<Response> {
   if (!session) return errorCors(req, 401, 'unauthorized');
   const preferred = req.nextUrl.searchParams.get('company');
   const active = pickActiveCompany(session, preferred);
+  if (preferred !== null && !active) return errorCors(req, 404, 'not_found');
   if (!active) return errorCors(req, 404, 'no_company');
   let body: {
     description?: string;

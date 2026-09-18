@@ -1,9 +1,10 @@
+import { companyIdInput, resolveCompany } from '../company-scope.js';
 import { z } from 'zod';
 import { listRunningEntries } from '../../../lib/services/time-entries.js';
 import { mapServiceReason, toolError } from '../errors.js';
 import { toolRegistrars, type ToolContext } from './registry.js';
 
-const InputSchema = z.object({}).strict();
+const InputSchema = z.object({ companyId: companyIdInput }).strict();
 
 const EntrySchema = z.object({
   id: z.string(),
@@ -24,12 +25,14 @@ toolRegistrars.push((server, ctx: ToolContext) => {
     {
       title: 'List running time entries',
       description:
-        'Lists all currently running time entries (where endedAt is null) for the authenticated user in their token-scoped company. The user may have multiple concurrent timers (US-21). Timestamps are ISO 8601 in UTC; the user’s business day is Europe/Prague.',
+        'Lists all currently running time entries (where endedAt is null) for the authenticated user in the selected company (or token default). The user may have multiple concurrent timers (US-21). Timestamps are ISO 8601 in UTC; the user’s business day is Europe/Prague.',
       inputSchema: InputSchema.shape,
       outputSchema: OutputSchema.shape,
     },
-    async (_args) => {
-      const res = await listRunningEntries(ctx.db, ctx.auth.userId, ctx.auth.companyId);
+    async (args) => {
+      const companyId = await resolveCompany(ctx, args.companyId);
+      if (!companyId) return toolError('not_found', 'Not found');
+      const res = await listRunningEntries(ctx.db, ctx.auth.userId, companyId);
       if (!res.ok) {
         const { code, message } = mapServiceReason(res.reason);
         return toolError(code, message);

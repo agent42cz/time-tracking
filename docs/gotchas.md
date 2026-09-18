@@ -247,3 +247,13 @@ Because `isNetworkError()` treated every non-`ApiError` as "we are offline", eac
 **Lesson.** An extension can never satisfy a cookie-based access proxy, and Chrome reports a blocked redirect as an ordinary network failure. Any client that silently queues on "network error" will swallow the outage — classify the failure before deciding it is offline.
 
 **See also.** AIAGE-66, US-34, US-104.
+
+### 2026-09-18 — Stopping a timer in company 2 snaps the page back to company 1
+
+**Symptom.** With two memberships, the user is on company 2 (sidebar, Stopky, running timer). Clicking Stop (or any live refetch: focus, websocket, favicon poll) replaces the list with company 1's entries and reports that the timer cannot be stopped.
+
+**Cause.** `GET /api/v1/timer` treats a missing `?company=` as "first membership". The web timer page and favicon poll with `credentials: 'same-origin'`, so they _do_ send `tt-company`, but `pickActiveCompany` never read that cookie — only the query param. `guardStillRunning` therefore refetches company 1, the company-2 row vanishes, and the stale-stop guard (US-103) blocks the mutation as "already stopped".
+
+**Fix.** `resolveApiSession` records `cookieCompanyId`. For cookie-authenticated (`authSource: 'web'`) requests without `?company=`, `pickActiveCompany` uses the cookie. Explicit `?company=` still 404s when inaccessible (no silent fallback). Bearer requests keep the first-membership default. The web timer refetch and favicon also pass `?company=` explicitly.
+
+**See also.** ADR-0017, US-7, `apps/web/src/lib/api/auth.ts`.
