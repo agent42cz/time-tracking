@@ -62,7 +62,16 @@ export async function runReport(
     if (filters.to) where.startedAt.lt = filters.to;
   }
   if (filters.clientIds?.length) where.clientId = { in: filters.clientIds };
-  if (filters.projectIds?.length) where.projectId = { in: filters.projectIds };
+  if (filters.projectIds?.length) {
+    const ids = [...new Set(filters.projectIds)];
+    const owned = await db.project.count({
+      where: { id: { in: ids }, client: { companyId: filters.companyId } },
+    });
+    // A project from another company is not_found, same as a missing membership,
+    // so the export routes answer 404 instead of an empty file.
+    if (owned !== ids.length) return { ok: false, reason: 'not_found' };
+    where.projectId = { in: ids };
+  }
   if (filters.search) where.description = { contains: filters.search, mode: 'insensitive' };
 
   const rows = await db.timeEntry.findMany({

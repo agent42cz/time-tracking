@@ -87,7 +87,13 @@ export default async function ReportsPage({
             isAdmin={isAdmin}
             meId={s.userId}
             members={members.map((m) => ({ id: m.userId, name: m.user.fullName }))}
-            initial={{ from: sp.from ?? '', to: sp.to ?? '', memberIds: asArray(sp.member) }}
+            projects={projects.map((p) => ({ id: p.id, name: `${p.client.name} → ${p.name}` }))}
+            initial={{
+              from: sp.from ?? '',
+              to: sp.to ?? '',
+              memberIds: asArray(sp.member),
+              projectIds: asArray(sp.project),
+            }}
           />
         }
       />

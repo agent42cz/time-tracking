@@ -7,6 +7,8 @@ export interface ExportUrlInput {
   allMembers: boolean;
   memberIds: string[]; // used only when allMembers is false
   groupBy: GroupBy;
+  /** Empty or omitted → every project (the `project` param is left off). */
+  projectIds?: string[];
 }
 
 /**
@@ -30,6 +32,7 @@ export function buildExportUrl(input: ExportUrlInput): string {
   if (!input.allMembers) {
     for (const id of input.memberIds) qs.append('member', id);
   }
+  for (const id of input.projectIds ?? []) qs.append('project', id);
   qs.append('groupBy', input.groupBy);
   return `/api/reports/export.${input.format}?${qs.toString()}`;
 }

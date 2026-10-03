@@ -150,8 +150,8 @@ Reporty's data flow is:
 
 Two export routes hang off `/api/reports/`:
 
-- `export.csv` — thin wrapper over `rowsToCsv(rows)`.
-- `export.pdf` — calls `runReport → buildGroupedReport → buildReportPdf`; supports `preset=lastMonth` for a one-click previous-calendar-month PDF.
+- `export.csv` — thin wrapper over `rowsToCsv(rows)`. Repeated `project` params limit the rows to those projects; a project outside the active company is 404.
+- `export.pdf` — calls `runReport → buildGroupedReport → buildReportPdf`; supports `preset=lastMonth` for a one-click previous-calendar-month PDF. The same `project` params apply. The Export dialog on `/reports` sends them.
 
 ## See also
 

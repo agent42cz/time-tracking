@@ -49,6 +49,32 @@ describe('buildExportUrl', () => {
     });
     expect(url.split('?')[0]).toBe('/api/reports/export.csv');
   });
+
+  it('US-113: appends one project param per selected project', () => {
+    const url = buildExportUrl({
+      format: 'pdf',
+      from: '2026-06-01',
+      to: '2026-06-30',
+      allMembers: false,
+      memberIds: ['u1'],
+      groupBy: 'project',
+      projectIds: ['p1', 'p2'],
+    });
+    expect(query(url).getAll('project')).toEqual(['p1', 'p2']);
+  });
+
+  it('US-113: omits the project param when every project is exported', () => {
+    const url = buildExportUrl({
+      format: 'csv',
+      from: '2026-06-01',
+      to: '2026-06-30',
+      allMembers: true,
+      memberIds: [],
+      groupBy: 'member',
+      projectIds: [],
+    });
+    expect(query(url).has('project')).toBe(false);
+  });
 });
 
 describe('resolveExportGroupBy', () => {

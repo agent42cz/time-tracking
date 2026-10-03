@@ -118,6 +118,37 @@ describe('GET /api/reports/export.pdf', () => {
     });
   });
 
+  it('US-113: returns 404 when the project belongs to another company', async () => {
+    await withTx(async (tx) => {
+      ctx.db = tx;
+      const admin = await tx.user.create({ data: { email: 'pdf-p-o@x.test', fullName: 'Home' } });
+      const home = await createCompany(tx, { name: 'Home PDF', createdByUserId: admin.id });
+      const founder = await tx.user.create({
+        data: { email: 'pdf-p-f@x.test', fullName: 'Other' },
+      });
+      const foreign = await createCompany(tx, { name: 'Other PDF', createdByUserId: founder.id });
+      const client = await tx.client.create({ data: { companyId: foreign.id, name: 'Cizí' } });
+      const project = await tx.project.create({
+        data: { clientId: client.id, name: 'Cizí projekt' },
+      });
+      await tx.timeEntry.create({
+        data: {
+          userId: founder.id,
+          companyId: foreign.id,
+          clientId: client.id,
+          projectId: project.id,
+          description: 'FOREIGN_PDF',
+          startedAt: new Date('2026-05-10T08:00:00Z'),
+          endedAt: new Date('2026-05-10T09:00:00Z'),
+        },
+      });
+      ctx.session = { userId: admin.id, activeCompanyId: home.id, activeRole: 'admin' };
+
+      const res = await GET(reqUrl(`from=2026-05-01&to=2026-06-01&project=${project.id}`));
+      expect(res.status).toBe(404);
+    });
+  });
+
   it('US-89: returns 404 for a member-scoped export in a company the user does not belong to', async () => {
     await withTx(async (tx) => {
       ctx.db = tx;

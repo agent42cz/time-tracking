@@ -13,11 +13,17 @@ interface Member {
   name: string;
 }
 
+interface ProjectOption {
+  id: string;
+  name: string;
+}
+
 export interface ExportDialogProps {
   isAdmin: boolean;
   meId: string;
   members: Member[];
-  initial: { from: string; to: string; memberIds: string[] };
+  projects: ProjectOption[];
+  initial: { from: string; to: string; memberIds: string[]; projectIds: string[] };
 }
 
 const GROUP_KEYS: GroupBy[] = ['project', 'member', 'day'];
@@ -39,7 +45,13 @@ function chipClass(active: boolean): string {
   }`;
 }
 
-export function ExportDialog({ isAdmin, meId, members, initial }: ExportDialogProps): ReactElement {
+export function ExportDialog({
+  isAdmin,
+  meId,
+  members,
+  projects,
+  initial,
+}: ExportDialogProps): ReactElement {
   const t = useTranslations('reports');
   const [open, setOpen] = useState(false);
 
@@ -53,6 +65,7 @@ export function ExportDialog({ isAdmin, meId, members, initial }: ExportDialogPr
   const [memberIds, setMemberIds] = useState<string[]>(
     initial.memberIds.length > 0 ? initial.memberIds : [meId],
   );
+  const [projectIds, setProjectIds] = useState<string[]>(initial.projectIds);
   const [format, setFormat] = useState<'pdf' | 'csv'>('pdf');
   const [groupOverride, setGroupOverride] = useState<GroupBy | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -72,6 +85,7 @@ export function ExportDialog({ isAdmin, meId, members, initial }: ExportDialogPr
         to,
         allMembers: isAdmin && allMembers,
         memberIds: isAdmin && !allMembers ? memberIds : [],
+        projectIds,
         groupBy: effectiveGroupBy,
       }),
     );
@@ -166,6 +180,20 @@ export function ExportDialog({ isAdmin, meId, members, initial }: ExportDialogPr
               ) : null}
             </div>
           ) : null}
+
+          {/* Project — empty selection exports every project */}
+          <div className="space-y-2">
+            <p className="text-xs font-medium uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
+              {t('export.projectLabel')}
+            </p>
+            <MultiSelect
+              name="project"
+              options={projects.map((p) => ({ id: p.id, label: p.name }))}
+              defaultValues={initial.projectIds}
+              onChange={setProjectIds}
+              placeholder={t('export.allProjects')}
+            />
+          </div>
 
           {/* Format */}
           <div className="space-y-2">

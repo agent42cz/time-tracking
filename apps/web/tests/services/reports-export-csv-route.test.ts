@@ -75,6 +75,80 @@ describe('GET /api/reports/export.csv', () => {
     });
   });
 
+  it('US-113: scopes the CSV to the selected project only', async () => {
+    await withTx(async (tx) => {
+      ctx.db = tx;
+      const admin = await tx.user.create({
+        data: { email: 'csv-p-a@x.test', fullName: 'Admin P' },
+      });
+      const company = await createCompany(tx, { name: 'Proj CSV', createdByUserId: admin.id });
+      const client = await tx.client.create({ data: { companyId: company.id, name: 'Klient' } });
+      const alpha = await tx.project.create({ data: { clientId: client.id, name: 'Alpha' } });
+      const beta = await tx.project.create({ data: { clientId: client.id, name: 'Beta' } });
+      await tx.timeEntry.create({
+        data: {
+          userId: admin.id,
+          companyId: company.id,
+          clientId: client.id,
+          projectId: alpha.id,
+          description: 'ALPHA_WORK',
+          startedAt: new Date('2026-05-10T08:00:00Z'),
+          endedAt: new Date('2026-05-10T09:00:00Z'),
+        },
+      });
+      await tx.timeEntry.create({
+        data: {
+          userId: admin.id,
+          companyId: company.id,
+          clientId: client.id,
+          projectId: beta.id,
+          description: 'BETA_WORK',
+          startedAt: new Date('2026-05-11T08:00:00Z'),
+          endedAt: new Date('2026-05-11T09:00:00Z'),
+        },
+      });
+      ctx.session = { userId: admin.id, activeCompanyId: company.id, activeRole: 'admin' };
+
+      const res = await GET(reqUrl(`from=2026-05-01&to=2026-06-01&project=${alpha.id}`));
+      expect(res.status).toBe(200);
+      const body = await res.text();
+      expect(body).toContain('ALPHA_WORK');
+      expect(body).not.toContain('BETA_WORK');
+    });
+  });
+
+  it('US-113: returns 404 when the project belongs to another company', async () => {
+    await withTx(async (tx) => {
+      ctx.db = tx;
+      const admin = await tx.user.create({ data: { email: 'csv-p-o@x.test', fullName: 'Home' } });
+      const home = await createCompany(tx, { name: 'Home CSV', createdByUserId: admin.id });
+      const founder = await tx.user.create({
+        data: { email: 'csv-p-f@x.test', fullName: 'Other' },
+      });
+      const foreign = await createCompany(tx, { name: 'Other CSV', createdByUserId: founder.id });
+      const client = await tx.client.create({ data: { companyId: foreign.id, name: 'Cizí' } });
+      const project = await tx.project.create({
+        data: { clientId: client.id, name: 'Cizí projekt' },
+      });
+      await tx.timeEntry.create({
+        data: {
+          userId: founder.id,
+          companyId: foreign.id,
+          clientId: client.id,
+          projectId: project.id,
+          description: 'FOREIGN_WORK',
+          startedAt: new Date('2026-05-10T08:00:00Z'),
+          endedAt: new Date('2026-05-10T09:00:00Z'),
+        },
+      });
+      ctx.session = { userId: admin.id, activeCompanyId: home.id, activeRole: 'admin' };
+
+      const res = await GET(reqUrl(`from=2026-05-01&to=2026-06-01&project=${project.id}`));
+      expect(res.status).toBe(404);
+      expect(await res.text()).not.toContain('FOREIGN_WORK');
+    });
+  });
+
   it('US-89: returns 404 when the active company is one the user does not belong to', async () => {
     await withTx(async (tx) => {
       ctx.db = tx;

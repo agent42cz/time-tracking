@@ -129,6 +129,7 @@ Feature catalogue keyed by user-story IDs from PRD §13. Test names embed the US
 - Reports group time entries by project / member / day, with per-group subtotals and a grand total (see US-77 tests in `report-grouped.test.ts`).
 - Reports export to PDF (filter-respecting + one-click previous calendar month), Europe/Prague (see US-78 tests in `report-pdf.test.ts`).
 - **US-89** — Reports **Export dialog**: one "Export" button opens a dialog to pick the **period**, the **person(s)** (or "Všichni členové"), and the **format** (PDF/CSV). The export is scoped to that selection instead of always dumping every member together, and the three old header export buttons are removed; grouping defaults to per-member sections when several/all people are exported (see US-89 tests in `export-url.test.ts`, `date-presets.test.ts`, `reports-export-csv-route.test.ts`).
+- **US-113** — The same dialog can limit the PDF/CSV to one or more **projects** ("Všechny projekty" leaves the `project` param off). A project id from another company makes `runReport` return `not_found`, so both export routes answer 404 and include none of that company's rows.
 
 ## Dashboard — client work funds
 
@@ -176,4 +177,4 @@ notices they haven't looked at yet.
 pnpm test:trace
 ```
 
-Walks every test file (`*.test.{ts,tsx}`, `*.spec.{ts,tsx}`, `tests/**`) and looks for `\bUS-N\b`. Exits non-zero if any of US-1..US-112 has zero matches, except US-16, US-17 (the tag feature they described was removed in AIAGE-57) and US-107 (the absence short-notice flag, dropped in ABSENCE-01), which are retired and excluded from both the miss list and the coverage denominator.
+Walks every test file (`*.test.{ts,tsx}`, `*.spec.{ts,tsx}`, `tests/**`) and looks for `\bUS-N\b`. Exits non-zero if any of US-1..US-113 has zero matches, except US-16, US-17 (the tag feature they described was removed in AIAGE-57) and US-107 (the absence short-notice flag, dropped in ABSENCE-01), which are retired and excluded from both the miss list and the coverage denominator.
