@@ -25,6 +25,10 @@ const nextConfig = {
   },
   serverExternalPackages: ['@prisma/client', 'argon2', 'pdfmake'],
   poweredByHeader: false,
+  // The app never uses next/image. Turning the optimizer off makes
+  // /_next/image answer 404 before any decoding, which removes the attack
+  // surface of the AVIF/SVG RCEs in the optimizer and its sharp/libvips stack.
+  images: { unoptimized: true },
   experimental: {
     typedRoutes: false,
   },
