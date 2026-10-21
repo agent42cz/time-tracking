@@ -181,8 +181,9 @@ test.describe('US-100: export dialog MultiSelect escapes ConfirmModal', () => {
 
     // The person MultiSelect inside the modal — its accessible name is the
     // pre-selected admin's chip, not the "Osoba" placeholder, so locate it
-    // structurally instead (the only aria-expanded button inside the dialog).
-    const trigger = dialog.locator('button[aria-expanded]');
+    // structurally instead: the first aria-expanded button inside the dialog
+    // (the project MultiSelect from US-113 follows it).
+    const trigger = dialog.locator('button[aria-expanded]').first();
     await trigger.click();
     const popover = page.getByTestId('multiselect-popover');
     await expect(popover).toBeVisible();

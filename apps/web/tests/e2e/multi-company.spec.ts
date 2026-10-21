@@ -6,9 +6,12 @@ test('US-7: adds a second company and enables it on the existing MCP connection'
   page,
   baseURL,
 }) => {
+  // Unique per run: the token list keeps tokens from earlier tests and from a
+  // CI retry, and every row carries its own "Všechny moje firmy" checkbox.
+  const tokenName = `One connection ${Date.now()}`;
   await page.goto('/settings/api-tokens');
   await page.getByRole('button', { name: 'Vytvořit token' }).first().click();
-  await page.getByLabel('Název', { exact: true }).fill('One connection');
+  await page.getByLabel('Název', { exact: true }).fill(tokenName);
   await page.getByRole('button', { name: 'Vytvořit token' }).last().click();
   const secret = page.locator('pre').first();
   await expect(secret).toBeVisible();
@@ -52,8 +55,9 @@ test('US-7: adds a second company and enables it on the existing MCP connection'
     expect((before.structuredContent as { companies: unknown[] }).companies).toHaveLength(1);
     await page.goto('/settings/api-tokens');
     const scope = page
-      .getByRole('checkbox', { name: 'Všechny moje firmy' })
-      .filter({ visible: true });
+      .getByRole('row')
+      .filter({ hasText: tokenName })
+      .getByRole('checkbox', { name: 'Všechny moje firmy' });
     await scope.check();
     await expect(scope).toBeEnabled();
     await expect(scope).toBeChecked();

@@ -257,3 +257,16 @@ Because `isNetworkError()` treated every non-`ApiError` as "we are offline", eac
 **Fix.** `resolveApiSession` records `cookieCompanyId`. For cookie-authenticated (`authSource: 'web'`) requests without `?company=`, `pickActiveCompany` uses the cookie. Explicit `?company=` still 404s when inaccessible (no silent fallback). Bearer requests keep the first-membership default. The web timer refetch and favicon also pass `?company=` explicitly.
 
 **See also.** ADR-0017, US-7, `apps/web/src/lib/api/auth.ts`.
+
+### 2026-10-21 — CI on `main` red since July; CD never deployed
+
+**Symptom.** Every push to `main` since 2026-07-28 ends red, yet production keeps changing, so nobody looked. The "Deploy to Coolify" job either fails or is skipped.
+
+**Cause.** Two independent problems, one after the other:
+
+1. 2026-07-28 … 2026-09-04 — tests pass, but `Trigger Coolify deploy` gets a 302 from Cloudflare Access ("Cloudflare Access intercepted the Coolify API"): the `CF_ACCESS_CLIENT_ID` / `CF_ACCESS_CLIENT_SECRET` repo secrets are empty. On 2026-10-21 the default `COOLIFY_URL` (`panelqwertzuiop.agent42.cz`) also answers "no available server".
+2. Since 2026-09-17 — `pnpm test:e2e` fails before CD is reached. Both are Playwright strict-mode violations, not app bugs: `multi-company.spec.ts` picked the "Všechny moje firmy" checkbox page-wide, but the token list has one per token (earlier specs and the CI retry add tokens), and `reports-multiselect.spec.ts` assumed the export dialog's only `button[aria-expanded]` is the person picker, which stopped being true when US-113 added the project MultiSelect.
+
+**Fix.** (2) The token gets a per-run name and the checkbox is scoped to its table row; the export spec takes the first trigger (person precedes project). (1) is still open: set the CF Access service-token secrets and the right `COOLIFY_URL` / `COOLIFY_APP_UUID` repo variables, then confirm one green deploy.
+
+**Lesson.** A red CD job is silent when production also gets deployed some other way. After a push, check that the Actions run went green, not just that the site changed.
