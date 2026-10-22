@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Token-authenticated MCP server. Exposes time-tracking tools (start/stop/update/list time entries, list catalog) to MCP clients like Claude Code or Cursor.
+Token-authenticated MCP server. Exposes time-tracking tools (start/stop/update/create/list time entries, list catalog) to MCP clients like Claude Code or Cursor.
 
 ## Public surface
 
@@ -14,7 +14,7 @@ Token-authenticated MCP server. Exposes time-tracking tools (start/stop/update/l
 
 - `@modelcontextprotocol/sdk` — protocol implementation.
 - `lib/services/api-tokens` — issue/verify/revoke tokens.
-- `lib/services/time-entries` — start/stop/update/list helpers (the latter two added for MCP).
+- `lib/services/time-entries` — start/stop/update/list helpers (the latter two added for MCP). `createManualEntry` backs `create_entry` and takes the same audit `source` option.
 - `lib/services/catalog` — list clients/projects/tags.
 - `lib/auth/passwords` — argon2id hash/verify for tokens.
 - `lib/api/rate-limit-ip` — pattern source for per-token rate limit (not imported directly).

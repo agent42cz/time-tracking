@@ -33,6 +33,7 @@ When the limit is exceeded the server returns **HTTP 429** with a `Retry-After` 
 | `start_timer`          | Opens a new running entry with an optional `title`, client/project. Broadcasts `timer.started` over WebSocket.                                                                                                                      |
 | `stop_timer`           | Stops the entry identified by `entryId`. Requires the entry to belong to the authenticated user's company. Broadcasts `timer.stopped`.                                                                                              |
 | `update_entry`         | Patches one or more fields (`title`, `description`, clientId, projectId) of the entry identified by `entryId`. `title` is the entry name; `description` is the longer free-text detail. Writes one audit row with `source = 'mcp'`. |
+| `create_entry`         | Creates a completed entry for a past window: `startedAt`/`endedAt` (ISO 8601 with offset), optional `title`, `description`, clientId, projectId. Rejects a reversed or future window. One audit row, `source = 'mcp'`.              |
 | `list_catalog`         | Returns the full list of active clients and projects for the authenticated company — useful for resolving names to IDs before calling other tools.                                                                                  |
 | `list_companies`       | Returns the companies accessible to the token owner within its scope, including the default company.                                                                                                                                |
 
@@ -95,9 +96,10 @@ includes present and future companies where the token owner is a member. Leaving
 it disabled preserves the original single-company scope.
 
 Call `list_companies` to discover permitted company IDs and the default. Pass
-`companyId` to `list_catalog`, `list_running_entries`, `list_recent_entries`, and
-`start_timer`. Omitting it uses the token's original company. `stop_timer` and
-`update_entry` infer company from `entryId`; optional `companyId` must agree.
+`companyId` to `list_catalog`, `list_running_entries`, `list_recent_entries`,
+`start_timer`, and `create_entry`. Omitting it uses the token's original
+company. `stop_timer` and `update_entry` infer company from `entryId`; optional
+`companyId` must agree.
 Selection applies only to that call and does not change another conversation,
 the web cookie, or the extension. An inaccessible company returns `not_found`.
 

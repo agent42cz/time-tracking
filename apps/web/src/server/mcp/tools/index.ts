@@ -17,6 +17,7 @@ import './list-recent-entries.js';
 import './start-timer.js';
 import './stop-timer.js';
 import './update-entry.js';
+import './create-entry.js';
 import './list-catalog.js';
 
 import './list-companies.js';

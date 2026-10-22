@@ -223,6 +223,7 @@ export async function createManualEntry(
   actorUserId: string,
   input: ManualEntryInput,
   now: Date = new Date(),
+  audit: AuditOpts = {},
 ): Promise<Result<{ id: string }, 'not_found' | 'invalid_window' | 'future_timestamp'>> {
   const role = await getMembership(db, actorUserId, input.companyId);
   if (!role) return { ok: false, reason: 'not_found' };
@@ -249,6 +250,7 @@ export async function createManualEntry(
     entityType: 'TimeEntry',
     entityId: entry.id,
     after: (await snapshot(db, entry.id)) as never,
+    source: audit.source,
   });
   await publishTimeEntry('time_entry.created', {
     userId: actorUserId,
