@@ -52,3 +52,6 @@ apps/extension/store/
 *.tgz
 .claude/scheduled_tasks.lock
 /backups/
+
+# Linked git worktrees (devbox scratch checkouts)
+.worktrees/
