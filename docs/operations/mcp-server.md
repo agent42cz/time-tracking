@@ -26,16 +26,21 @@ When the limit is exceeded the server returns **HTTP 429** with a `Retry-After` 
 
 ## Tools
 
-| Tool                   | Description                                                                                                                                                                                                                         |
-| ---------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `list_running_entries` | Returns all currently running (no `endTime`) entries for the authenticated user. Returns an empty array when none are running.                                                                                                      |
-| `list_recent_entries`  | Returns the N most recent entries (running or stopped) for the authenticated user, newest first.                                                                                                                                    |
-| `start_timer`          | Opens a new running entry with an optional `title`, client/project. Broadcasts `timer.started` over WebSocket.                                                                                                                      |
-| `stop_timer`           | Stops the entry identified by `entryId`. Requires the entry to belong to the authenticated user's company. Broadcasts `timer.stopped`.                                                                                              |
-| `update_entry`         | Patches one or more fields (`title`, `description`, clientId, projectId) of the entry identified by `entryId`. `title` is the entry name; `description` is the longer free-text detail. Writes one audit row with `source = 'mcp'`. |
-| `create_entry`         | Creates a completed entry for a past window: `startedAt`/`endedAt` (ISO 8601 with offset), optional `title`, `description`, clientId, projectId. Rejects a reversed or future window. One audit row, `source = 'mcp'`.              |
-| `list_catalog`         | Returns the full list of active clients and projects for the authenticated company — useful for resolving names to IDs before calling other tools.                                                                                  |
-| `list_companies`       | Returns the companies accessible to the token owner within its scope, including the default company.                                                                                                                                |
+| Tool                   | Description                                                                                                                                                                                                                                                                                       |
+| ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `list_running_entries` | Returns all currently running (no `endTime`) entries for the authenticated user. Returns an empty array when none are running.                                                                                                                                                                    |
+| `list_recent_entries`  | Returns the N most recent entries (running or stopped) for the authenticated user, newest first.                                                                                                                                                                                                  |
+| `start_timer`          | Opens a new running entry with an optional `title`, client/project. Broadcasts `timer.started` over WebSocket.                                                                                                                                                                                    |
+| `stop_timer`           | Stops the entry identified by `entryId`. Requires the entry to belong to the authenticated user's company. Broadcasts `timer.stopped`.                                                                                                                                                            |
+| `update_entry`         | Patches one or more fields (`title`, `description`, clientId, projectId, `startedAt`/`endedAt`) of the entry identified by `entryId`. Times do not auto-stack other entries. `title` is the entry name; `description` is the longer free-text detail. Writes one audit row with `source = 'mcp'`. |
+| `create_entry`         | Creates a completed entry for a past window: `startedAt`/`endedAt` (ISO 8601 with offset), optional `title`, `description`, clientId, projectId. Rejects a reversed or future window. One audit row, `source = 'mcp'`.                                                                            |
+| `list_entries`         | The user's own entries oldest first, full text, `durationMinutes`, `running`. Filters `from`/`to` (inclusive Prague days), clientId, projectId, `query`; paginate with `cursor` → `nextCursor` (limit default 50, max 100).                                                                       |
+| `summarize_entries`    | Totals for a `from`/`to` range grouped by `client`, `project` or `day`; totals equal `/reports` (exact minutes, the UI floors).                                                                                                                                                                   |
+| `delete_entry`         | Moves the user's own entry `entryId` to the trash (restorable for 30 days). One audit row, `source = 'mcp'`.                                                                                                                                                                                      |
+| `create_client`        | Admins only: creates a client. One audit row, `source = 'mcp'`.                                                                                                                                                                                                                                   |
+| `create_project`       | Admins only: creates a project under `clientId`. One audit row, `source = 'mcp'`.                                                                                                                                                                                                                 |
+| `list_catalog`         | Returns the full list of active clients and projects for the authenticated company — useful for resolving names to IDs before calling other tools.                                                                                                                                                |
+| `list_companies`       | Returns the companies accessible to the token owner within its scope, including the default company.                                                                                                                                                                                              |
 
 > The tag feature was removed in AIAGE-57: `tagIds` is no longer accepted by `start_timer` or `update_entry`, and no tool returns tag data.
 
@@ -97,8 +102,9 @@ it disabled preserves the original single-company scope.
 
 Call `list_companies` to discover permitted company IDs and the default. Pass
 `companyId` to `list_catalog`, `list_running_entries`, `list_recent_entries`,
-`start_timer`, and `create_entry`. Omitting it uses the token's original
-company. `stop_timer` and `update_entry` infer company from `entryId`; optional
+`list_entries`, `summarize_entries`, `start_timer`, `create_entry`,
+`create_client` and `create_project`. Omitting it uses the token's original
+company. `stop_timer`, `update_entry` and `delete_entry` infer company from `entryId`; optional
 `companyId` must agree.
 Selection applies only to that call and does not change another conversation,
 the web cookie, or the extension. An inaccessible company returns `not_found`.

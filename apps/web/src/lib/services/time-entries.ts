@@ -356,6 +356,7 @@ export async function softDeleteEntry(
   actorUserId: string,
   entryId: string,
   now: Date = new Date(),
+  audit: AuditOpts = {},
 ): Promise<Result<true>> {
   const entry = await db.timeEntry.findUnique({ where: { id: entryId } });
   if (!entry || entry.deletedAt) return { ok: false, reason: 'not_found' };
@@ -377,6 +378,7 @@ export async function softDeleteEntry(
     entityId: entryId,
     before: before as never,
     after: (await snapshot(db, entryId)) as never,
+    source: audit.source,
   });
   await publishTimeEntry('time_entry.deleted', {
     userId: entry.userId,
@@ -678,6 +680,74 @@ export async function listRecentEntries(
       clientId: r.clientId,
       projectId: r.projectId,
     })),
+  };
+}
+
+export interface EntryListFilters {
+  from?: Date;
+  to?: Date;
+  clientId?: string;
+  projectId?: string;
+  /** Case-insensitive substring of the title (`description`) or detail (`note`). */
+  query?: string;
+}
+
+/** Keyset position: the last row of the previous page in (startedAt, id) order. */
+export interface EntryListAfter {
+  startedAt: Date;
+  id: string;
+}
+
+/**
+ * The actor's own entries, oldest first, filtered by a half-open `[from, to)`
+ * window on `startedAt` — the same window the reports use. Keyset-paginated on
+ * (startedAt, id) so a page boundary never skips or repeats a row.
+ */
+export async function listEntries(
+  db: Db,
+  actorUserId: string,
+  companyId: string,
+  filters: EntryListFilters,
+  page: { limit: number; after?: EntryListAfter },
+): Promise<Result<{ rows: TimeEntry[]; hasMore: boolean }>> {
+  const role = await getMembership(db, actorUserId, companyId);
+  if (!role) return { ok: false, reason: 'not_found' };
+  if (!(await validCatalogLinks(db, companyId, filters.clientId, filters.projectId)))
+    return { ok: false, reason: 'not_found' };
+
+  const and: Prisma.TimeEntryWhereInput[] = [];
+  if (filters.from) and.push({ startedAt: { gte: filters.from } });
+  if (filters.to) and.push({ startedAt: { lt: filters.to } });
+  if (filters.query)
+    and.push({
+      OR: [
+        { description: { contains: filters.query, mode: 'insensitive' } },
+        { note: { contains: filters.query, mode: 'insensitive' } },
+      ],
+    });
+  if (page.after)
+    and.push({
+      OR: [
+        { startedAt: { gt: page.after.startedAt } },
+        { startedAt: page.after.startedAt, id: { gt: page.after.id } },
+      ],
+    });
+
+  const rows = await db.timeEntry.findMany({
+    where: {
+      userId: actorUserId,
+      companyId,
+      deletedAt: null,
+      ...(filters.clientId ? { clientId: filters.clientId } : {}),
+      ...(filters.projectId ? { projectId: filters.projectId } : {}),
+      AND: and,
+    },
+    orderBy: [{ startedAt: 'asc' }, { id: 'asc' }],
+    take: page.limit + 1,
+  });
+  return {
+    ok: true,
+    value: { rows: rows.slice(0, page.limit), hasMore: rows.length > page.limit },
   };
 }
 

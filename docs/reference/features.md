@@ -95,6 +95,11 @@ Feature catalogue keyed by user-story IDs from PRD §13. Test names embed the US
 - **US-62** — A revoked token returns HTTP `401` on every call.
 - **US-63** — A token over the rate limit returns HTTP `429` with `Retry-After`; next bucket allows again.
 - **US-114** — `create_entry` records a completed entry for a past window (`startedAt`/`endedAt`, ISO 8601 with offset) with optional title, description, client and project; one `create` audit row with `source = 'mcp'`. A reversed or future window is `invalid_args`; a company or client outside the token's scope is `not_found`. Nothing is written in either case.
+- **US-115** — `list_entries` returns the user's own entries oldest first with full title/description, `durationMinutes` and a `running` flag. Filters: `from`/`to` (inclusive Prague days, matched on start like `/reports`), `clientId`, `projectId`, `query` (title or description). Keyset pagination: `limit` (default 50, max 100) and an opaque `cursor`/`nextCursor`. A reversed range or garbled cursor is `invalid_args`; a foreign company or client is `not_found`. `list_recent_entries` is unchanged.
+- **US-116** — `summarize_entries` totals the user's own time for a required `from`/`to` range, grouped by `client`, `project` or `day`, optionally narrowed to a client or project. Same rows and clipping as `/reports` (`runReport` + `clampEnd: to`), so the totals match the tracker report. A foreign company or client is `not_found`.
+- **US-117** — `delete_entry` moves the user's own entry to the trash (30-day restore) with one `delete` audit row, `source = 'mcp'`. A colleague's entry or one outside the token's companies is `not_found` and stays.
+- **US-118** — `update_entry` also takes `startedAt`/`endedAt` (ISO 8601 with offset), validated like manual entries; one `update` audit row. It does not auto-stack other entries.
+- **US-119** — `create_client` and `create_project` (admins only) create catalog items with one `create` audit row each, `source = 'mcp'`. A plain member, or a company/client outside the token's scope, gets `not_found` and nothing is written. `createClient` now writes an audit row for the web UI too.
 
 ## Auto-stack overlapping entries
 
@@ -179,4 +184,4 @@ notices they haven't looked at yet.
 pnpm test:trace
 ```
 
-Walks every test file (`*.test.{ts,tsx}`, `*.spec.{ts,tsx}`, `tests/**`) and looks for `\bUS-N\b`. Exits non-zero if any of US-1..US-114 has zero matches, except US-16, US-17 (the tag feature they described was removed in AIAGE-57) and US-107 (the absence short-notice flag, dropped in ABSENCE-01), which are retired and excluded from both the miss list and the coverage denominator.
+Walks every test file (`*.test.{ts,tsx}`, `*.spec.{ts,tsx}`, `tests/**`) and looks for `\bUS-N\b`. Exits non-zero if any of US-1..US-119 has zero matches, except US-16, US-17 (the tag feature they described was removed in AIAGE-57) and US-107 (the absence short-notice flag, dropped in ABSENCE-01), which are retired and excluded from both the miss list and the coverage denominator.

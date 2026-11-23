@@ -78,4 +78,78 @@ describe('mcp tool: update_entry', () => {
       expect(updated.description).toBe('old');
     });
   });
+  it('US-118: moves startedAt/endedAt of a stopped entry with one audit row', async () => {
+    await withTx(async (tx) => {
+      const w = await setup(tx, '118');
+      const e = await tx.timeEntry.create({
+        data: {
+          userId: w.userId,
+          companyId: w.companyId,
+          startedAt: new Date('2026-10-01T07:00:00Z'),
+          endedAt: new Date('2026-10-01T08:00:00Z'),
+        },
+      });
+      const before = await tx.auditLog.count();
+
+      const m = await buildInProcessMcp({ db: tx, userId: w.userId, companyId: w.companyId });
+      try {
+        const out = await m.client.callTool({
+          name: 'update_entry',
+          arguments: {
+            entryId: e.id,
+            startedAt: '2026-10-01T10:00:00+02:00',
+            endedAt: '2026-10-01T11:30:00+02:00',
+          },
+        });
+        expect(out.isError).toBeFalsy();
+      } finally {
+        await m.close();
+      }
+
+      const updated = await tx.timeEntry.findUniqueOrThrow({ where: { id: e.id } });
+      expect(updated.startedAt.toISOString()).toBe('2026-10-01T08:00:00.000Z');
+      expect(updated.endedAt?.toISOString()).toBe('2026-10-01T09:30:00.000Z');
+      expect(await tx.auditLog.count()).toBe(before + 1);
+      const audit = await tx.auditLog.findFirstOrThrow({
+        where: { entityType: 'TimeEntry', entityId: e.id, action: 'update' },
+      });
+      expect(audit.source).toBe('mcp');
+    });
+  });
+
+  it('US-118: an end before the start or in the future is invalid_args and writes nothing', async () => {
+    await withTx(async (tx) => {
+      const w = await setup(tx, '118-bad');
+      const e = await tx.timeEntry.create({
+        data: {
+          userId: w.userId,
+          companyId: w.companyId,
+          startedAt: new Date('2026-10-01T07:00:00Z'),
+          endedAt: new Date('2026-10-01T08:00:00Z'),
+        },
+      });
+      const before = await tx.auditLog.count();
+
+      const m = await buildInProcessMcp({ db: tx, userId: w.userId, companyId: w.companyId });
+      try {
+        for (const endedAt of [
+          '2026-10-01T06:00:00Z',
+          new Date(Date.now() + 24 * 3_600_000).toISOString(),
+        ]) {
+          const out = await m.client.callTool({
+            name: 'update_entry',
+            arguments: { entryId: e.id, endedAt },
+          });
+          expect(out.isError).toBe(true);
+          expect(out.structuredContent).toMatchObject({ code: 'invalid_args' });
+        }
+      } finally {
+        await m.close();
+      }
+
+      const unchanged = await tx.timeEntry.findUniqueOrThrow({ where: { id: e.id } });
+      expect(unchanged.endedAt?.toISOString()).toBe('2026-10-01T08:00:00.000Z');
+      expect(await tx.auditLog.count()).toBe(before);
+    });
+  });
 });

@@ -87,6 +87,13 @@ Total at v1: **81 tests, ~100s wall**. US coverage: **50/50 (100%)**. Lint + typ
   - `apps/web/tests/server/mcp/stop-timer.test.ts` — US-60 (`stop_timer` ends entry, broadcasts `timer.stopped`).
   - `apps/web/tests/server/mcp/tools/create-entry.test.ts` — US-114 (`create_entry` stores a past window with offset, audit row with `source = 'mcp'`; reversed/future window is `invalid_args`; foreign company or client is `not_found`, nothing written).
 
+- [x] **MCP tools read the full entry history, total it, delete entries, move their times, and create catalog items (AIAGE-78).**
+  - `apps/web/tests/server/mcp/tools/list-entries.test.ts` — US-115 (a 60-entry Prague month paged with `cursor`, client and text filters, running flag and duration, `invalid_args` for bad cursor/range, foreign company/client `not_found`, colleague's entries hidden).
+  - `apps/web/tests/server/mcp/tools/summarize-entries.test.ts` — US-116 (totals by client/project/day, end-of-range clipping, equal to `runReport` + `buildGroupedReport`; foreign company/client `not_found`).
+  - `apps/web/tests/server/mcp/tools/delete-entry.test.ts` — US-117 (soft delete with one audit row `source = 'mcp'`; colleague's or foreign entry `not_found`, untouched).
+  - `apps/web/tests/server/mcp/tools/update-entry.test.ts` — US-118 (moves `startedAt`/`endedAt` with one audit row; reversed or future end `invalid_args`, nothing written).
+  - `apps/web/tests/server/mcp/tools/create-catalog.test.ts` — US-119 (admin creates client + project, one audit row each; member and foreign company/client `not_found`, nothing written).
+
 - [x] **MCP layer enforces cross-company isolation, revocation, and rate limiting.**
   - `apps/web/tests/server/mcp/auth.test.ts` — US-61 (cross-company entry returns `not_found`, no existence leak), US-62 (revoked token returns HTTP 401), US-63 (rate-limit returns HTTP 429 with `Retry-After`; next window allows).
 

@@ -193,6 +193,87 @@ export function buildGroupedReport(
   };
 }
 
+export type SummaryGroupBy = 'client' | 'project' | 'day';
+
+export interface SummaryGroup {
+  clientId: string | null;
+  clientName: string | null;
+  projectId: string | null;
+  projectName: string | null;
+  day: string | null;
+  totalMs: number;
+  entryCount: number;
+}
+
+export interface EntrySummary {
+  totalMs: number;
+  entryCount: number;
+  groups: SummaryGroup[];
+}
+
+/**
+ * The actor's own time in `[from, to)`, grouped for MCP clients that need
+ * totals without pulling every row (AIAGE-78). Uses runReport + effectiveMs
+ * with `clampEnd: to`, the same inputs as the /reports page, so the numbers
+ * match what the user sees there.
+ */
+export async function summarizeOwnEntries(
+  db: Db,
+  actorUserId: string,
+  filters: Omit<ReportFilters, 'memberIds' | 'search' | 'from' | 'to'> & { from: Date; to: Date },
+  groupBy: SummaryGroupBy,
+): Promise<Result<EntrySummary>> {
+  // runReport checks project ownership but not client ownership; a foreign
+  // client must be not_found here rather than an empty summary.
+  const clientIds = [...new Set(filters.clientIds ?? [])];
+  if (
+    clientIds.length &&
+    (await db.client.count({ where: { id: { in: clientIds }, companyId: filters.companyId } })) !==
+      clientIds.length
+  )
+    return { ok: false, reason: 'not_found' };
+  // memberIds narrows an admin to their own rows; a non-admin gets only theirs anyway.
+  const res = await runReport(db, actorUserId, { ...filters, memberIds: [actorUserId] });
+  if (!res.ok) return res;
+  const rows = res.value;
+
+  const map = new Map<string, SummaryGroup>();
+  let totalMs = 0;
+  for (const r of rows) {
+    const ms = effectiveMs(r, filters.to);
+    totalMs += ms;
+    const key =
+      groupBy === 'client'
+        ? (r.clientId ?? 'none')
+        : groupBy === 'project'
+          ? (r.projectId ?? 'none') // like /reports: one "Bez projektu" group across clients
+          : dayKey(r.startedAt);
+    let g = map.get(key);
+    if (!g) {
+      g = {
+        clientId: groupBy === 'day' || key === 'none' ? null : r.clientId,
+        clientName: groupBy === 'day' || key === 'none' ? null : r.clientName,
+        projectId: groupBy === 'project' ? r.projectId : null,
+        projectName: groupBy === 'project' ? r.projectName : null,
+        day: groupBy === 'day' ? key : null,
+        totalMs: 0,
+        entryCount: 0,
+      };
+      map.set(key, g);
+    }
+    g.totalMs += ms;
+    g.entryCount++;
+  }
+
+  const groups = [...map.values()].sort((a, b) =>
+    groupBy === 'day'
+      ? a.day!.localeCompare(b.day!)
+      : (a.clientName ?? '').localeCompare(b.clientName ?? '', 'cs') ||
+        (a.projectName ?? '').localeCompare(b.projectName ?? '', 'cs'),
+  );
+  return { ok: true, value: { totalMs, entryCount: rows.length, groups } };
+}
+
 // CSV export (PRD §8.2). PDF export reuses ReportRow[] via buildGroupedReport +
 // buildReportPdf (pdfmake) at the route layer — see ADR-0010. XLSX is not built.
 export function rowsToCsv(rows: ReportRow[]): string {

@@ -12,6 +12,16 @@ const InputSchema = z
     description: z.string().max(5000).optional(),
     clientId: z.string().nullable().optional(),
     projectId: z.string().nullable().optional(),
+    startedAt: z
+      .string()
+      .datetime({ offset: true })
+      .optional()
+      .describe('ISO 8601 with an offset or `Z`, e.g. `2026-10-22T09:40:00+02:00`.'),
+    endedAt: z
+      .string()
+      .datetime({ offset: true })
+      .optional()
+      .describe('ISO 8601 with an offset or `Z`. Setting it on a running entry stops it.'),
   })
   .strict();
 
@@ -23,7 +33,7 @@ toolRegistrars.push((server, ctx: ToolContext) => {
     {
       title: 'Update a time entry',
       description:
-        'Updates fields on a specific time entry identified by `entryId`. `title` is the entry name; `description` is the longer free-text detail. Pass `null` for `clientId`/`projectId` to clear the link.',
+        'Updates fields on a specific time entry identified by `entryId`. `title` is the entry name; `description` is the longer free-text detail. Pass `null` for `clientId`/`projectId` to clear the link. `startedAt`/`endedAt` move the entry (ISO 8601 with an offset; `endedAt` after `startedAt`, neither in the future). Other entries are not shifted, so overlaps are possible.',
       inputSchema: InputSchema.shape,
       outputSchema: OutputSchema.shape,
     },
@@ -39,6 +49,8 @@ toolRegistrars.push((server, ctx: ToolContext) => {
           note: args.description,
           clientId: args.clientId,
           projectId: args.projectId,
+          startedAt: args.startedAt === undefined ? undefined : new Date(args.startedAt),
+          endedAt: args.endedAt === undefined ? undefined : new Date(args.endedAt),
         },
         undefined,
         { source: 'mcp' },

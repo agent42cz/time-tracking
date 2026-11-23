@@ -14,10 +14,14 @@ export function registerAllTools(server: McpServer, ctx: ToolContext): void {
 // registry.ts has no imports from index.ts so there is no circular reference.
 import './list-running-entries.js';
 import './list-recent-entries.js';
+import './list-entries.js';
+import './summarize-entries.js';
 import './start-timer.js';
 import './stop-timer.js';
 import './update-entry.js';
 import './create-entry.js';
+import './delete-entry.js';
 import './list-catalog.js';
+import './create-catalog.js';
 
 import './list-companies.js';

@@ -6,7 +6,7 @@
  * pickers and ignore the flag for history views). Delete-with-cascade
  * is parameterized at the API layer via `cascade: boolean` (US-15).
  */
-import type { Prisma, PrismaClient, Role } from '@prisma/client';
+import type { AuditSource, Prisma, PrismaClient, Role } from '@prisma/client';
 import { isClientColor } from '@tt/shared';
 import { writeAudit } from './audit.js';
 
@@ -52,10 +52,20 @@ export async function createClient(
   db: Db,
   actorUserId: string,
   input: { companyId: string; name: string },
+  audit: { source?: AuditSource } = {},
 ): Promise<Result<{ id: string }>> {
   const auth = await requireAdmin(db, actorUserId, input.companyId);
   if (!auth.ok) return auth;
   const c = await db.client.create({ data: { companyId: input.companyId, name: input.name } });
+  await writeAudit(db, {
+    companyId: input.companyId,
+    actorUserId,
+    action: 'create',
+    entityType: 'Client',
+    entityId: c.id,
+    after: { name: input.name },
+    source: audit.source,
+  });
   return { ok: true, value: { id: c.id } };
 }
 
@@ -263,6 +273,7 @@ export async function createProject(
   db: Db,
   actorUserId: string,
   input: { clientId: string; name: string },
+  audit: { source?: AuditSource } = {},
 ): Promise<Result<{ id: string }>> {
   const c = await db.client.findUnique({ where: { id: input.clientId } });
   if (!c) return { ok: false, reason: 'not_found' };
@@ -276,6 +287,7 @@ export async function createProject(
     entityType: 'Project',
     entityId: p.id,
     after: { clientId: input.clientId, name: input.name },
+    source: audit.source,
   });
   return { ok: true, value: { id: p.id } };
 }
