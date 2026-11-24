@@ -11,3 +11,6 @@ allowBuilds:
   protobufjs: true
   sharp: false
   ssh2: false
+
+overrides:
+  sharp: '^0.35.5' # GHSA-f88m-g3jw-g9cj, GHSA-rgj7-g3m4-5g8c, GHSA-wq5f-xc86-pv6w via next (AIAGE-80)
