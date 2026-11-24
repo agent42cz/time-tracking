@@ -14,3 +14,5 @@ allowBuilds:
 
 overrides:
   sharp: '^0.35.5' # GHSA-f88m-g3jw-g9cj, GHSA-rgj7-g3m4-5g8c, GHSA-wq5f-xc86-pv6w via next (AIAGE-80)
+  postcss: '^8.5.23' # next 15.5.29 pins 8.4.31: postcss, nanoid, source-map-js advisories (AIAGE-80)
+  '@prisma/config>effect': '^3.22.5' # prisma 6.19.3 pins 3.21.0, ReDoS advisory (AIAGE-80)
