@@ -28,7 +28,9 @@ concurrency:
 jobs:
   ci:
     name: Lint · typecheck · test · build
-    runs-on: ubuntu-latest
+    # Pinned: ubuntu-latest moved to 26.04, which the pinned Playwright cannot
+    # install browsers for ("Playwright does not support chromium on ubuntu26.04-x64").
+    runs-on: ubuntu-24.04
     timeout-minutes: 30
 
     services:
