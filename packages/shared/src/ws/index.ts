@@ -16,7 +16,7 @@ export const WsEventSchema = z.object({
     'project.changed',
     'membership.changed',
   ]),
-  payload: z.record(z.unknown()),
+  payload: z.record(z.string(), z.unknown()),
   emittedAt: z.string(),
 });
 
