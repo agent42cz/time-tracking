@@ -21,6 +21,7 @@ import './stop-timer.js';
 import './update-entry.js';
 import './create-entry.js';
 import './delete-entry.js';
+import './list-members.js';
 import './list-catalog.js';
 import './create-catalog.js';
 

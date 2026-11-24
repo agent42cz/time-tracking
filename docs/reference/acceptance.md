@@ -93,6 +93,7 @@ Total at v1: **81 tests, ~100s wall**. US coverage: **50/50 (100%)**. Lint + typ
   - `apps/web/tests/server/mcp/tools/delete-entry.test.ts` — US-117 (soft delete with one audit row `source = 'mcp'`; colleague's or foreign entry `not_found`, untouched).
   - `apps/web/tests/server/mcp/tools/update-entry.test.ts` — US-118 (moves `startedAt`/`endedAt` with one audit row; reversed or future end `invalid_args`, nothing written).
   - `apps/web/tests/server/mcp/tools/create-catalog.test.ts` — US-119 (admin creates client + project, one audit row each; member and foreign company/client `not_found`, nothing written).
+  - `apps/web/tests/server/mcp/tools/member-scope.test.ts` — US-120 (admin lists members, reads and sums a colleague's month equal to `/reports` with that member, groups by member; plain member naming a colleague and admin naming a non-member get `not_found`).
 
 - [x] **MCP layer enforces cross-company isolation, revocation, and rate limiting.**
   - `apps/web/tests/server/mcp/auth.test.ts` — US-61 (cross-company entry returns `not_found`, no existence leak), US-62 (revoked token returns HTTP 401), US-63 (rate-limit returns HTTP 429 with `Retry-After`; next window allows).

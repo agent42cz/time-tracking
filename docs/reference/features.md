@@ -100,6 +100,7 @@ Feature catalogue keyed by user-story IDs from PRD §13. Test names embed the US
 - **US-117** — `delete_entry` moves the user's own entry to the trash (30-day restore) with one `delete` audit row, `source = 'mcp'`. A colleague's entry or one outside the token's companies is `not_found` and stays.
 - **US-118** — `update_entry` also takes `startedAt`/`endedAt` (ISO 8601 with offset), validated like manual entries; one `update` audit row. It does not auto-stack other entries.
 - **US-119** — `create_client` and `create_project` (admins only) create catalog items with one `create` audit row each, `source = 'mcp'`. A plain member, or a company/client outside the token's scope, gets `not_found` and nothing is written. `createClient` now writes an audit row for the web UI too.
+- **US-120** — MCP reads follow the `/reports` rules: `list_members` lists the members whose entries you may read (everyone for a company admin, only yourself otherwise), `list_entries` takes `memberId` and `summarize_entries` takes `memberIds` or (admins) `allMembers`, which like unfiltered `/reports` includes former members, plus `groupBy: member`. Default stays your own entries. A plain member naming a colleague, or an admin naming a non-member, gets `not_found`.
 
 ## Auto-stack overlapping entries
 
@@ -184,4 +185,4 @@ notices they haven't looked at yet.
 pnpm test:trace
 ```
 
-Walks every test file (`*.test.{ts,tsx}`, `*.spec.{ts,tsx}`, `tests/**`) and looks for `\bUS-N\b`. Exits non-zero if any of US-1..US-119 has zero matches, except US-16, US-17 (the tag feature they described was removed in AIAGE-57) and US-107 (the absence short-notice flag, dropped in ABSENCE-01), which are retired and excluded from both the miss list and the coverage denominator.
+Walks every test file (`*.test.{ts,tsx}`, `*.spec.{ts,tsx}`, `tests/**`) and looks for `\bUS-N\b`. Exits non-zero if any of US-1..US-120 has zero matches, except US-16, US-17 (the tag feature they described was removed in AIAGE-57) and US-107 (the absence short-notice flag, dropped in ABSENCE-01), which are retired and excluded from both the miss list and the coverage denominator.

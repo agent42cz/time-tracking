@@ -193,7 +193,7 @@ export function buildGroupedReport(
   };
 }
 
-export type SummaryGroupBy = 'client' | 'project' | 'day';
+export type SummaryGroupBy = 'client' | 'project' | 'day' | 'member';
 
 export interface SummaryGroup {
   clientId: string | null;
@@ -201,6 +201,8 @@ export interface SummaryGroup {
   projectId: string | null;
   projectName: string | null;
   day: string | null;
+  userId: string | null;
+  userName: string | null;
   totalMs: number;
   entryCount: number;
 }
@@ -212,15 +214,46 @@ export interface EntrySummary {
 }
 
 /**
- * The actor's own time in `[from, to)`, grouped for MCP clients that need
- * totals without pulling every row (AIAGE-78). Uses runReport + effectiveMs
- * with `clampEnd: to`, the same inputs as the /reports page, so the numbers
- * match what the user sees there.
+ * Whose entries the actor may read, by the /reports rules (PRD §2.2): an admin
+ * any member of the company, everyone else only themself. Omitted → just the
+ * actor. Naming anyone else (a colleague as a non-admin, or a non-member) is
+ * not_found rather than a silent fall back to the actor's own rows.
  */
-export async function summarizeOwnEntries(
+export async function resolveVisibleMembers(
   db: Db,
   actorUserId: string,
-  filters: Omit<ReportFilters, 'memberIds' | 'search' | 'from' | 'to'> & { from: Date; to: Date },
+  companyId: string,
+  memberIds: string[] | undefined,
+): Promise<Result<string[]>> {
+  const m = await db.membership.findUnique({
+    where: { userId_companyId: { userId: actorUserId, companyId } },
+  });
+  if (!m) return { ok: false, reason: 'not_found' };
+  const ids = [...new Set(memberIds?.length ? memberIds : [actorUserId])];
+  if (m.role !== 'admin') {
+    return ids.every((id) => id === actorUserId)
+      ? { ok: true, value: ids }
+      : { ok: false, reason: 'not_found' };
+  }
+  const found = await db.membership.count({ where: { companyId, userId: { in: ids } } });
+  return found === ids.length ? { ok: true, value: ids } : { ok: false, reason: 'not_found' };
+}
+
+/**
+ * Time in `[from, to)` of the actor, or of `memberIds` where the /reports rules
+ * allow it, grouped for MCP clients that need totals without pulling every row
+ * (AIAGE-78). Uses runReport + effectiveMs with `clampEnd: to`, the same inputs
+ * as the /reports page, so the numbers match what the user sees there.
+ */
+export async function summarizeEntries(
+  db: Db,
+  actorUserId: string,
+  filters: Omit<ReportFilters, 'search' | 'from' | 'to'> & {
+    from: Date;
+    to: Date;
+    /** Admins only: every entry in the company, former members' included, like /reports unfiltered. */
+    allMembers?: boolean;
+  },
   groupBy: SummaryGroupBy,
 ): Promise<Result<EntrySummary>> {
   // runReport checks project ownership but not client ownership; a foreign
@@ -232,8 +265,24 @@ export async function summarizeOwnEntries(
       clientIds.length
   )
     return { ok: false, reason: 'not_found' };
-  // memberIds narrows an admin to their own rows; a non-admin gets only theirs anyway.
-  const res = await runReport(db, actorUserId, { ...filters, memberIds: [actorUserId] });
+  let memberIds: string[];
+  if (filters.allMembers) {
+    const m = await db.membership.findUnique({
+      where: { userId_companyId: { userId: actorUserId, companyId: filters.companyId } },
+    });
+    if (m?.role !== 'admin') return { ok: false, reason: 'not_found' };
+    memberIds = []; // runReport: an admin without a member filter sees everyone
+  } else {
+    const members = await resolveVisibleMembers(
+      db,
+      actorUserId,
+      filters.companyId,
+      filters.memberIds,
+    );
+    if (!members.ok) return members;
+    memberIds = members.value;
+  }
+  const res = await runReport(db, actorUserId, { ...filters, memberIds });
   if (!res.ok) return res;
   const rows = res.value;
 
@@ -247,15 +296,20 @@ export async function summarizeOwnEntries(
         ? (r.clientId ?? 'none')
         : groupBy === 'project'
           ? (r.projectId ?? 'none') // like /reports: one "Bez projektu" group across clients
-          : dayKey(r.startedAt);
+          : groupBy === 'member'
+            ? r.userId
+            : dayKey(r.startedAt);
     let g = map.get(key);
     if (!g) {
+      const byClient = groupBy === 'client' || groupBy === 'project';
       g = {
-        clientId: groupBy === 'day' || key === 'none' ? null : r.clientId,
-        clientName: groupBy === 'day' || key === 'none' ? null : r.clientName,
+        clientId: byClient && key !== 'none' ? r.clientId : null,
+        clientName: byClient && key !== 'none' ? r.clientName : null,
         projectId: groupBy === 'project' ? r.projectId : null,
         projectName: groupBy === 'project' ? r.projectName : null,
         day: groupBy === 'day' ? key : null,
+        userId: groupBy === 'member' ? r.userId : null,
+        userName: groupBy === 'member' ? r.userName : null,
         totalMs: 0,
         entryCount: 0,
       };
@@ -268,8 +322,10 @@ export async function summarizeOwnEntries(
   const groups = [...map.values()].sort((a, b) =>
     groupBy === 'day'
       ? a.day!.localeCompare(b.day!)
-      : (a.clientName ?? '').localeCompare(b.clientName ?? '', 'cs') ||
-        (a.projectName ?? '').localeCompare(b.projectName ?? '', 'cs'),
+      : groupBy === 'member'
+        ? (a.userName ?? '').localeCompare(b.userName ?? '', 'cs')
+        : (a.clientName ?? '').localeCompare(b.clientName ?? '', 'cs') ||
+          (a.projectName ?? '').localeCompare(b.projectName ?? '', 'cs'),
   );
   return { ok: true, value: { totalMs, entryCount: rows.length, groups } };
 }

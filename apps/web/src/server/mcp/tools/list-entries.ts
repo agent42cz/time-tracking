@@ -15,6 +15,13 @@ const InputSchema = z
     to: dayInput.optional().describe('Last included day, `YYYY-MM-DD` in Europe/Prague.'),
     clientId: z.string().min(1).optional(),
     projectId: z.string().min(1).optional(),
+    memberId: z
+      .string()
+      .min(1)
+      .optional()
+      .describe(
+        'User ID from `list_members`; default yourself. A colleague only for company admins, like the tracker report.',
+      ),
     query: z
       .string()
       .min(1)
@@ -40,6 +47,7 @@ const OutputSchema = z.object({
   entries: z.array(
     z.object({
       id: z.string(),
+      userId: z.string(),
       title: z.string(),
       description: z.string(),
       startedAt: z.string(),
@@ -77,7 +85,7 @@ toolRegistrars.push((server, ctx: ToolContext) => {
     {
       title: 'List time entries',
       description:
-        'Lists the authenticated user’s own time entries (running or stopped) in the selected company (or token default), oldest first, with full title and description. Filter by `from`/`to` (inclusive `YYYY-MM-DD` days in Europe/Prague, matched on the start time like the tracker report), `clientId`, `projectId` and `query`. Paginated: pass the returned `nextCursor` as `cursor` until it is null. Each row carries `durationMinutes` (running entries count up to now) and `running`. For totals use `summarize_entries` instead of paging through everything.',
+        'Lists time entries (running or stopped) of the authenticated user, or of `memberId` (a colleague only for company admins), in the selected company (or token default), oldest first, with full title and description. Filter by `from`/`to` (inclusive `YYYY-MM-DD` days in Europe/Prague, matched on the start time like the tracker report), `clientId`, `projectId` and `query`. Paginated: pass the returned `nextCursor` as `cursor` until it is null. Each row carries `durationMinutes` (running entries count up to now) and `running`. For totals use `summarize_entries` instead of paging through everything.',
       inputSchema: InputSchema.shape,
       outputSchema: OutputSchema.shape,
       annotations: { readOnlyHint: true },
@@ -100,6 +108,7 @@ toolRegistrars.push((server, ctx: ToolContext) => {
           clientId: args.clientId,
           projectId: args.projectId,
           query: args.query,
+          memberId: args.memberId,
         },
         { limit, after },
       );
@@ -113,6 +122,7 @@ toolRegistrars.push((server, ctx: ToolContext) => {
       const payload = {
         entries: rows.map((e) => ({
           id: e.id,
+          userId: e.userId,
           title: e.description,
           description: e.note,
           startedAt: e.startedAt.toISOString(),

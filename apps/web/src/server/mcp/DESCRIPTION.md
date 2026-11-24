@@ -16,7 +16,7 @@ Token-authenticated MCP server. Exposes time-tracking tools (start/stop/update/c
 - `lib/services/api-tokens` — issue/verify/revoke tokens.
 - `lib/services/time-entries` — start/stop/update/list helpers (the latter two added for MCP); `listEntries` (keyset-paginated) backs `list_entries`, `softDeleteEntry` backs `delete_entry`. `createManualEntry` backs `create_entry` and takes the same audit `source` option.
 - `lib/services/catalog` — list clients/projects; `create_client`/`create_project` (admins only).
-- `lib/services/reports` — `summarizeOwnEntries` backs `summarize_entries` with the same rows and clipping as `/reports`.
+- `lib/services/reports` — `summarizeEntries` backs `summarize_entries` with the same rows and clipping as `/reports`; `resolveVisibleMembers` applies the `/reports` member rules (admin: any member, otherwise only yourself) to `list_entries` and `summarize_entries`.
 - `period.ts` — inclusive Prague `YYYY-MM-DD` day ranges for `list_entries` / `summarize_entries`.
 - `lib/auth/passwords` — argon2id hash/verify for tokens.
 - `lib/api/rate-limit-ip` — pattern source for per-token rate limit (not imported directly).

@@ -23,6 +23,7 @@ import type { AuditSource, Prisma, PrismaClient, Role, TimeEntry } from '@prisma
 import { getPeriodRange } from '@tt/shared/time';
 import { writeAudit } from './audit.js';
 import { publishTimeEntry } from '../realtime.js';
+import { resolveVisibleMembers } from './reports.js';
 
 export interface AuditOpts {
   source?: AuditSource;
@@ -690,6 +691,8 @@ export interface EntryListFilters {
   projectId?: string;
   /** Case-insensitive substring of the title (`description`) or detail (`note`). */
   query?: string;
+  /** Whose entries; defaults to the actor. Others only where /reports allows it. */
+  memberId?: string;
 }
 
 /** Keyset position: the last row of the previous page in (startedAt, id) order. */
@@ -699,7 +702,7 @@ export interface EntryListAfter {
 }
 
 /**
- * The actor's own entries, oldest first, filtered by a half-open `[from, to)`
+ * The actor's entries (or `memberId`'s where /reports allows it), oldest first, filtered by a half-open `[from, to)`
  * window on `startedAt` — the same window the reports use. Keyset-paginated on
  * (startedAt, id) so a page boundary never skips or repeats a row.
  */
@@ -710,8 +713,13 @@ export async function listEntries(
   filters: EntryListFilters,
   page: { limit: number; after?: EntryListAfter },
 ): Promise<Result<{ rows: TimeEntry[]; hasMore: boolean }>> {
-  const role = await getMembership(db, actorUserId, companyId);
-  if (!role) return { ok: false, reason: 'not_found' };
+  const member = await resolveVisibleMembers(
+    db,
+    actorUserId,
+    companyId,
+    filters.memberId ? [filters.memberId] : undefined,
+  );
+  if (!member.ok) return member;
   if (!(await validCatalogLinks(db, companyId, filters.clientId, filters.projectId)))
     return { ok: false, reason: 'not_found' };
 
@@ -735,7 +743,7 @@ export async function listEntries(
 
   const rows = await db.timeEntry.findMany({
     where: {
-      userId: actorUserId,
+      userId: { in: member.value },
       companyId,
       deletedAt: null,
       ...(filters.clientId ? { clientId: filters.clientId } : {}),
