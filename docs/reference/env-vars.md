@@ -41,4 +41,4 @@ Not required for the app to run; opt in for diagnostics.
 
 `.github/workflows/ci.yml` injects these via job-level `env:` blocks. The `cd` job additionally requires:
 
-- `COOLIFY_API_TOKEN` — Coolify API token used to trigger deploys after a successful CI run on `main`. The deploy step polls the deployment status for up to 15 minutes.
+- `COOLIFY_API_TOKEN` — no longer used by CI since ADR-0018 (Coolify deploys via its git webhook); the repo secret can be deleted.

@@ -56,7 +56,7 @@ pnpm typecheck
 pnpm build
 
 # Deploy
-git push origin main           # CI runs CD job → Coolify deploys via API
+git push origin main           # Coolify auto-deploys via its git webhook (ADR-0018); CI only tests
 ```
 
 ## Documentation maintenance rules

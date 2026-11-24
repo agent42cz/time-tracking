@@ -13,7 +13,7 @@ How to run, deploy, monitor, and troubleshoot the system.
 
 - **Production target:** Coolify on a Debian VPS, fronted by Coolify-managed Traefik for HTTPS via Let's Encrypt.
 - **Local target:** Docker Compose (`docker-compose.dev.yml`) for Postgres + Redis + MailHog, plus `pnpm dev` for the apps.
-- **CI/CD:** GitHub Actions (`.github/workflows/ci.yml`) — CI on every push/PR; CD job triggers Coolify deploys via API on push to `main`.
+- **CI/CD:** GitHub Actions (`.github/workflows/ci.yml`) — CI on every push/PR. Deploys come from Coolify's own git webhook on push to `main`, not from CI (ADR-0018).
 
 ## On-call quick reference
 

@@ -270,3 +270,11 @@ Because `isNetworkError()` treated every non-`ApiError` as "we are offline", eac
 **Fix.** (2) The token gets a per-run name and the checkbox is scoped to its table row; the export spec takes the first trigger (person precedes project). (1) is still open: set the CF Access service-token secrets and the right `COOLIFY_URL` / `COOLIFY_APP_UUID` repo variables, then confirm one green deploy.
 
 **Lesson.** A red CD job is silent when production also gets deployed some other way. After a push, check that the Actions run went green, not just that the site changed.
+
+### 2026-11-24 — CI red again: Playwright on ubuntu-latest 26.04; CI deploy job removed
+
+**Symptom.** `Install Playwright browsers` fails with "Playwright does not support chromium on ubuntu26.04-x64".
+
+**Cause.** GitHub moved `ubuntu-latest` to 26.04; the pinned Playwright has no browser build for it.
+
+**Fix.** The test job runs on `ubuntu-24.04`. Open point (1) of the 2026-10-21 entry is closed by removing the CI deploy job (ADR-0018); Coolify keeps deploying through its webhook.

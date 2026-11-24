@@ -29,15 +29,13 @@ Configure these in the Coolify dashboard. Full reference: [`../reference/env-var
 5. The `db-backup` service writes daily dumps to `${BACKUP_DESTINATION}` on the host volume.
 6. Healthcheck: `GET /api/health` returns `{ db: 'ok', redis: 'ok' }` with HTTP 200; 503 otherwise.
 
-## CI-driven deploys
+## Deploys
 
-After CI is green on `main`, the `cd` job in `.github/workflows/ci.yml` calls the Coolify API:
-
-1. POST to the deploy endpoint with the project's deploy token (`COOLIFY_API_TOKEN`).
-2. Poll the deployment status every 10s, up to 15 min (90 attempts).
-3. Fail the job if status is not `success` after the polling window.
-
-The production URL is currently `https://tracker.agent42.cz` (configured in CI environment).
+Coolify deploys `main` itself through its git webhook on every push (app
+`cg8145vxiumj2l9lzugtn76y`, production `https://tracker.agent42.cz`). CI does not deploy
+and does not gate the deploy: a push with red tests still goes out, so check the Actions
+run after pushing. The former CI deploy job was removed in ADR-0018 because Cloudflare
+Access in front of the Coolify panel intercepted its API calls.
 
 ## Cloudflare Access in front of the app
 
@@ -72,8 +70,8 @@ was never authenticating the extension; it was only blocking it. Leave Access on
 interactive routes (`/`, `/timer`, the admin pages), where a browser can complete the login.
 
 Symptoms of getting this wrong are documented in `docs/gotchas.md` (2026-09-03) and were
-diagnosed as AIAGE-66. The same interception already bit the CI deploy job — see the
-`CF_ACCESS_CLIENT_ID` comments in `.github/workflows/ci.yml`.
+diagnosed as AIAGE-66. The same interception on the Coolify panel is why the CI deploy
+job was removed (ADR-0018).
 
 ## First-run bootstrap
 
